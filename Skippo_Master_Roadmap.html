@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Skippo Master Product Blueprint and Roadmap</title>
+  <style>
+    body {
+      font-family: "Helvetica", "Arial", sans-serif;
+      line-height: 1.5;
+      margin: 36px;
+      color: #1f2937;
+    }
+    h1, h2, h3 {
+      color: #0f172a;
+      margin-top: 28px;
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-size: 28px;
+      border-bottom: 2px solid #0ea5e9;
+      padding-bottom: 8px;
+    }
+    h2 {
+      font-size: 20px;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 4px;
+    }
+    h3 {
+      font-size: 16px;
+    }
+    p, li {
+      font-size: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 18px 0;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 8px;
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      background: #e0f2fe;
+    }
+    .meta {
+      color: #475569;
+      margin-bottom: 18px;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+    ul {
+      margin-top: 6px;
+      margin-bottom: 12px;
+    }
+    .callout {
+      background: #f8fafc;
+      border-left: 4px solid #0ea5e9;
+      padding: 10px 14px;
+      margin: 16px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Skippo Master Product Blueprint and Roadmap</h1>
+  <p class="meta"><strong>Version:</strong> 2.0<br />
+  <strong>Date:</strong> April 13, 2026<br />
+  <strong>Prepared For:</strong> Skippo product planning and engineering execution</p>
+
+  <h2>1. Executive Summary</h2>
+  <p>Skippo is no longer just a school transport safety platform. It should be positioned as a unified school operations platform that connects transport, classroom visibility, compliance, communications, and parent engagement.</p>
+  <p>The platform will support five primary surfaces:</p>
+  <ul>
+    <li><strong>Parent App:</strong> live transport tracking, alerts, student progress, attendance visibility, and message center.</li>
+    <li><strong>Driver App:</strong> trip lifecycle, assigned vehicle, SOS, OTP login, and document renewal workflows.</li>
+    <li><strong>Teacher App:</strong> classroom attendance, student progress updates, and parent-visible academic signals.</li>
+    <li><strong>School Dashboard:</strong> highly flexible control center for transport, academics, staff, messaging, compliance, and reporting.</li>
+    <li><strong>Backend Platform:</strong> APIs, auth, data models, real-time systems, notifications, analytics, and integrations.</li>
+  </ul>
+
+  <div class="callout">
+    <strong>Core product thesis:</strong> Schools need operational control, parents need trust and visibility, and staff need fast, low-friction tools. Skippo should become the operational layer connecting those needs.
+  </div>
+
+  <h2>2. Product Vision</h2>
+  <p>Skippo should help schools answer five questions in real time:</p>
+  <ul>
+    <li>Where is the student during the transport journey?</li>
+    <li>Was the student present in school and in class today?</li>
+    <li>Is the assigned driver, bus, and compliance documentation valid?</li>
+    <li>How can the school communicate updates and notices to parents reliably?</li>
+    <li>What operational risks require intervention right now?</li>
+  </ul>
+
+  <h2>3. Primary User Roles</h2>
+  <table>
+    <tr>
+      <th>Role</th>
+      <th>Main Use Cases</th>
+      <th>Primary Platform</th>
+    </tr>
+    <tr>
+      <td>Parent</td>
+      <td>Track bus, receive alerts, view attendance/progress, read updates</td>
+      <td>Cross-platform React Native app</td>
+    </tr>
+    <tr>
+      <td>Driver</td>
+      <td>Start trips, send live location, trigger SOS, manage assigned vehicle</td>
+      <td>Cross-platform React Native app with Android-first optimization</td>
+    </tr>
+    <tr>
+      <td>Teacher</td>
+      <td>Take class attendance, publish progress signals, review class roster</td>
+      <td>Cross-platform React Native app or mobile-first app</td>
+    </tr>
+    <tr>
+      <td>School Admin</td>
+      <td>Manage operations, routes, students, staff, messaging, compliance</td>
+      <td>Next.js web dashboard</td>
+    </tr>
+    <tr>
+      <td>Super Admin</td>
+      <td>Platform oversight, tenant support, analytics, issue handling</td>
+      <td>Internal admin console</td>
+    </tr>
+  </table>
+
+  <h2>4. Product Surfaces and Feature Scope</h2>
+
+  <h3>4.1 Parent App</h3>
+  <ul>
+    <li>OTP login and student-linked account access</li>
+    <li>Live trip map with real-time vehicle position</li>
+    <li>Boarded, dropped, delayed, route deviation, and SOS alerts</li>
+    <li>Daily school attendance visibility from teacher input</li>
+    <li>Student progress feed showing notes, milestones, and school updates</li>
+    <li>Message center for notices, announcements, campaigns, and ads</li>
+    <li>Past alerts and trip history</li>
+    <li>Driver and vehicle profile view where appropriate</li>
+  </ul>
+
+  <h3>4.2 Driver App</h3>
+  <ul>
+    <li>OTP login with support for two active devices per driver</li>
+    <li>Assigned vehicle and route view</li>
+    <li>Trip start and end controls</li>
+    <li>Live background GPS tracking</li>
+    <li>Boarded and dropped actions for students</li>
+    <li>SOS trigger with escalation to school, parents, and configured emergency contacts</li>
+    <li>NOC, insurance, permit, pollution, and fitness document expiry reminders</li>
+    <li>Upload and review compliance documents</li>
+  </ul>
+
+  <h3>4.3 Teacher App</h3>
+  <ul>
+    <li>OTP or school-issued login</li>
+    <li>Classroom and section assignment</li>
+    <li>Daily attendance marking</li>
+    <li>Quick progress inputs such as remarks, participation, behavior, homework, or milestones</li>
+    <li>Parent-visible progress timeline for each student</li>
+    <li>Absence and issue tagging for escalation</li>
+  </ul>
+
+  <h3>4.4 School Dashboard</h3>
+  <ul>
+    <li>Live fleet map and trip command center</li>
+    <li>Student, parent, teacher, driver, and vehicle management</li>
+    <li>Route and stop builder</li>
+    <li>Class attendance overview and student performance snapshots</li>
+    <li>Message campaigns and audience targeting</li>
+    <li>Compliance center for document renewals and status tracking</li>
+    <li>Operational reports, exports, and alerts center</li>
+    <li>Customizable dashboard widgets and school-level settings</li>
+    <li>Dedicated school-specific dashboard URL such as a subdomain or mapped custom domain</li>
+  </ul>
+
+  <h2>5. Recommended MVP Definition</h2>
+  <p>The MVP should focus on one school pilot and solve the most painful operational workflows with reliability.</p>
+  <table>
+    <tr>
+      <th>Included in MVP</th>
+      <th>Deferred to Phase 2</th>
+    </tr>
+    <tr>
+      <td>
+        Parent live transport tracking<br />
+        Driver trip lifecycle and SOS<br />
+        Teacher attendance<br />
+        Basic parent progress feed<br />
+        School dashboard management modules<br />
+        Message center<br />
+        Document expiry reminders<br />
+        OTP auth and multi-session handling
+      </td>
+      <td>
+        Advanced ad targeting<br />
+        DigiLocker integration<br />
+        VAHAN integration<br />
+        Full payment automation<br />
+        Rich academic analytics<br />
+        AI risk detection<br />
+        Deep dashboard customization marketplace
+      </td>
+    </tr>
+  </table>
+
+  <h2>6. Functional Requirements by Domain</h2>
+
+  <h3>6.1 Authentication and Sessions</h3>
+  <ul>
+    <li>OTP-based login for parents and drivers</li>
+    <li>School-managed login or OTP login for teachers</li>
+    <li>JWT-based API auth with refresh tokens</li>
+    <li>Device registration and device metadata tracking</li>
+    <li>Driver accounts may remain active on a maximum of two devices at a time</li>
+    <li>Session revocation from dashboard when needed</li>
+  </ul>
+
+  <h3>6.2 Transport Operations</h3>
+  <ul>
+    <li>Each driver is assigned exactly one active vehicle at a time</li>
+    <li>Each trip is linked to a route, driver, vehicle, school, and roster of students</li>
+    <li>Location updates broadcast every 10 seconds or every 20 meters</li>
+    <li>Trip events should be stored as an auditable timeline</li>
+    <li>Parents only see the trip relevant to their linked student</li>
+  </ul>
+
+  <h3>6.3 Academic Attendance and Progress</h3>
+  <ul>
+    <li>Teachers can mark daily attendance by class and section</li>
+    <li>Teachers can add short progress records linked to students</li>
+    <li>Parents can view student attendance and progress history</li>
+    <li>Dashboard can filter academic data by date, class, teacher, and student</li>
+  </ul>
+
+  <h3>6.4 Messaging and Ads</h3>
+  <ul>
+    <li>Message center stores all notices, updates, alerts, and ad-style campaigns</li>
+    <li>Messages can be targeted by school, class, route, or parent segment</li>
+    <li>Each message tracks publish time, delivery status, and read status</li>
+    <li>Ads should be clearly classified and controlled through dashboard permissions</li>
+  </ul>
+
+  <h3>6.5 Emergency Workflows</h3>
+  <ul>
+    <li>Driver SOS should instantly notify school admins and parents on the active route</li>
+    <li>The system should support configurable emergency escalation contacts per school or city</li>
+    <li>Civic-body automation should be designed as a configurable workflow and not hardcoded until verified integrations are available</li>
+    <li>Every SOS event should generate an audit trail</li>
+  </ul>
+
+  <h3>6.6 Compliance and Renewal</h3>
+  <ul>
+    <li>Store document types such as insurance, permit, NOC, pollution, license, and fitness certificate</li>
+    <li>Track expiry dates, reminder schedules, and renewal status</li>
+    <li>Allow uploads and administrative review</li>
+    <li>Show upcoming renewal risks in dashboard and driver app</li>
+  </ul>
+
+  <h3>6.7 Multi-School Tenancy and URL Strategy</h3>
+  <ul>
+    <li>Each school should receive a dedicated dashboard URL such as <strong>schoolname.skippo.app</strong> or a mapped custom domain</li>
+    <li>The request host should determine the active school context before authentication and data access</li>
+    <li>Each school should have its own isolated SQLite database in the initial architecture</li>
+    <li>A central registry layer should store school metadata, database mapping, subdomain settings, and domain configuration</li>
+    <li>Tenant-aware middleware and database routers should ensure every request resolves to the correct school database</li>
+  </ul>
+
+  <h2>7. Technical Architecture</h2>
+
+  <h3>7.1 Backend</h3>
+  <ul>
+    <li><strong>Framework:</strong> Django + Django REST Framework</li>
+    <li><strong>Core backend pattern:</strong> Django-based control plane with SQL persistence and tenant-aware routing</li>
+    <li><strong>School data model:</strong> each school runs on its own isolated SQLite database in v1</li>
+    <li><strong>Central registry:</strong> one SQL-backed registry database stores school records, domains, tenant routing metadata, and platform-level configuration</li>
+    <li><strong>Realtime:</strong> Django Channels + Redis</li>
+    <li><strong>Tasks:</strong> Celery + Redis</li>
+    <li><strong>Auth:</strong> JWT + OTP service integration</li>
+    <li><strong>Storage:</strong> Cloudflare R2 or S3-compatible storage</li>
+    <li><strong>Notifications:</strong> Firebase Admin SDK + SMS provider</li>
+  </ul>
+
+  <div class="callout">
+    <strong>Architecture note:</strong> Per-school SQLite databases provide strong early isolation and simple portability for pilot schools, but they increase migration, backup, analytics, and cross-tenant reporting complexity. This approach is workable for v1 and should be re-evaluated before large-scale expansion.
+  </div>
+
+  <h3>7.2 Client Apps</h3>
+  <ul>
+    <li><strong>Parent App:</strong> React Native with Expo, tuned for lightweight screens, aggressive caching, and efficient network usage</li>
+    <li><strong>Driver App:</strong> React Native with Expo, built as a cross-platform app but optimized first for Android background location reliability</li>
+    <li><strong>Teacher App:</strong> React Native with Expo or a mobile-first web app depending on rollout constraints</li>
+    <li><strong>Dashboard:</strong> Next.js App Router with a premium design system</li>
+    <li><strong>Efficiency strategy:</strong> use a shared-code monorepo with common UI primitives, auth flows, API clients, offline sync helpers, and notification logic across the parent and driver apps</li>
+    <li><strong>Performance goal:</strong> reduce duplicate code, minimize bundle size, and keep API usage and battery consumption under control</li>
+  </ul>
+
+  <h3>7.3 Tenant Routing and Domain Model</h3>
+  <ul>
+    <li>Every incoming dashboard request should be resolved through subdomain or domain lookup</li>
+    <li>The tenant router should map the incoming school URL to its SQLite database and configuration</li>
+    <li>Dashboard branding, settings, feature flags, and messaging rules should load from tenant configuration</li>
+    <li>Platform super admins should be able to create schools, provision databases, and assign dashboard URLs centrally</li>
+  </ul>
+
+  <h3>7.4 Recommended Backend Modules</h3>
+  <table>
+    <tr>
+      <th>Module</th>
+      <th>Responsibility</th>
+    </tr>
+    <tr>
+      <td>accounts</td>
+      <td>users, roles, devices, OTP flows, school tenancy</td>
+    </tr>
+    <tr>
+      <td>tenancy</td>
+      <td>school domains, tenant routing, school database mapping, provisioning</td>
+    </tr>
+    <tr>
+      <td>transport</td>
+      <td>vehicles, routes, stops, assignments, trips, attendance-in-transit</td>
+    </tr>
+    <tr>
+      <td>tracking</td>
+      <td>live location ingest, websocket broadcasting, route deviations</td>
+    </tr>
+    <tr>
+      <td>academics</td>
+      <td>teacher roles, classes, attendance, student progress records</td>
+    </tr>
+    <tr>
+      <td>communications</td>
+      <td>message center, campaigns, ads, read status</td>
+    </tr>
+    <tr>
+      <td>compliance</td>
+      <td>documents, expiries, renewals, NOC workflows</td>
+    </tr>
+    <tr>
+      <td>notifications</td>
+      <td>push, SMS, email, emergency alerts</td>
+    </tr>
+    <tr>
+      <td>reports</td>
+      <td>dashboard exports, KPIs, analytics endpoints</td>
+    </tr>
+  </table>
+
+  <h2>8. Suggested Data Model</h2>
+  <p>Core entities to design before implementation:</p>
+  <ul>
+    <li>School</li>
+    <li>SchoolDomain</li>
+    <li>SchoolDatabaseConfig</li>
+    <li>User</li>
+    <li>ParentProfile</li>
+    <li>TeacherProfile</li>
+    <li>DriverProfile</li>
+    <li>DeviceSession</li>
+    <li>Vehicle</li>
+    <li>DriverVehicleAssignment</li>
+    <li>Route</li>
+    <li>Stop</li>
+    <li>Student</li>
+    <li>Trip</li>
+    <li>TripAttendance</li>
+    <li>LiveLocation</li>
+    <li>Classroom</li>
+    <li>StudentAttendance</li>
+    <li>StudentProgress</li>
+    <li>MessageCampaign</li>
+    <li>MessageReceipt</li>
+    <li>ComplianceDocument</li>
+    <li>RenewalReminder</li>
+    <li>EmergencyEvent</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <h2>9. App-Level Screen Planning</h2>
+
+  <h3>9.1 Parent App Screens</h3>
+  <ul>
+    <li>Login</li>
+    <li>Home Dashboard</li>
+    <li>Live Track</li>
+    <li>Trip History</li>
+    <li>Student Attendance</li>
+    <li>Student Progress</li>
+    <li>Message Center</li>
+    <li>Notifications Feed</li>
+    <li>Profile and Linked Students</li>
+  </ul>
+
+  <h3>9.2 Driver App Screens</h3>
+  <ul>
+    <li>OTP Login</li>
+    <li>Assigned Vehicle</li>
+    <li>Trip Dashboard</li>
+    <li>Student Boarding List</li>
+    <li>Live Navigation and Status</li>
+    <li>SOS Trigger</li>
+    <li>Documents and Renewals</li>
+    <li>Profile and Devices</li>
+  </ul>
+
+  <h3>9.3 Teacher App Screens</h3>
+  <ul>
+    <li>Login</li>
+    <li>Today’s Classes</li>
+    <li>Student Roster</li>
+    <li>Attendance Marking</li>
+    <li>Progress Update Composer</li>
+    <li>Student Detail</li>
+    <li>Notifications and School Notices</li>
+  </ul>
+
+  <h3>9.4 Dashboard Screens</h3>
+  <ul>
+    <li>Overview</li>
+    <li>Live Fleet</li>
+    <li>Students</li>
+    <li>Parents</li>
+    <li>Teachers</li>
+    <li>Drivers</li>
+    <li>Vehicles</li>
+    <li>Routes and Stops</li>
+    <li>Academic Attendance</li>
+    <li>Student Progress</li>
+    <li>Message Center</li>
+    <li>Compliance Hub</li>
+    <li>Reports</li>
+    <li>Settings and Branding</li>
+  </ul>
+
+  <h2>10. Dashboard Design Direction</h2>
+  <p>The school dashboard should not feel like a generic admin panel. It should be positioned as a premium operational cockpit for schools.</p>
+  <ul>
+    <li>Use a bold visual identity and premium typography</li>
+    <li>Allow configurable widgets for transport, academics, compliance, and messaging</li>
+    <li>Support role-based dashboards for principal, transport admin, academic admin, and operations staff</li>
+    <li>Use live cards, maps, alerts, and actionable tables instead of flat CRUD-heavy layouts</li>
+    <li>Keep mobile and tablet responsiveness strong for school administrators in the field</li>
+  </ul>
+
+  <h2>11. Security and Permissions</h2>
+  <ul>
+    <li>Every record must be school-tenant scoped</li>
+    <li>Tenant resolution must happen before dashboard data access so one school can never read another school's database</li>
+    <li>Parents can only access their linked students</li>
+    <li>Teachers can only access assigned classes and students unless elevated by school policy</li>
+    <li>Drivers only access their assigned trip, vehicle, and compliance records</li>
+    <li>SOS and compliance actions should be fully auditable</li>
+    <li>Uploaded documents should use secure object storage and signed URLs</li>
+  </ul>
+
+  <h2>12. Development Roadmap</h2>
+
+  <h3>Phase 0: Discovery and Product Lock (1 week)</h3>
+  <ul>
+    <li>Validate pilot school requirements</li>
+    <li>Freeze MVP scope and field definitions</li>
+    <li>Create wireframes and system architecture</li>
+    <li>Decide rollout markets and emergency escalation policy</li>
+  </ul>
+
+  <h3>Phase 1: Backend Foundation (2 weeks)</h3>
+  <ul>
+    <li>Set up Django monolith or modular backend</li>
+    <li>Implement tenancy, roles, auth, OTP, device sessions</li>
+    <li>Set up central school registry, school-specific SQLite databases, and tenant database routers</li>
+    <li>Create core models and migrations</li>
+    <li>Set up admin panel, API docs, local development tooling</li>
+  </ul>
+
+  <h3>Phase 2: Transport Core (2 weeks)</h3>
+  <ul>
+    <li>Trips, routes, stops, vehicle assignment</li>
+    <li>Live location ingest and websocket streaming</li>
+    <li>Boarding and dropping flows</li>
+    <li>SOS event pipeline</li>
+    <li>Parent live tracking APIs</li>
+  </ul>
+
+  <h3>Phase 3: Driver App MVP (2 weeks)</h3>
+  <ul>
+    <li>OTP login and session handling</li>
+    <li>Assigned vehicle screen</li>
+    <li>Trip control and boarding list</li>
+    <li>Background location service</li>
+    <li>SOS UI and document reminders</li>
+    <li>Optimize shared code and network efficiency with the parent app architecture</li>
+  </ul>
+
+  <h3>Phase 4: Parent App MVP (2 weeks)</h3>
+  <ul>
+    <li>Login and linked student onboarding</li>
+    <li>Live trip screen</li>
+    <li>Alerts and trip history</li>
+    <li>Message center</li>
+    <li>Attendance and progress preview</li>
+    <li>Use shared cross-platform modules to maximize development and runtime efficiency</li>
+  </ul>
+
+  <h3>Phase 5: Teacher App MVP (2 weeks)</h3>
+  <ul>
+    <li>Teacher login</li>
+    <li>Attendance workflow</li>
+    <li>Progress note workflow</li>
+    <li>Parent-visible sync for attendance and progress</li>
+  </ul>
+
+  <h3>Phase 6: Dashboard MVP (3 weeks)</h3>
+  <ul>
+    <li>Premium UI system and dashboard shell</li>
+    <li>Live fleet module</li>
+    <li>Students, teachers, drivers, vehicles management</li>
+    <li>Messaging center</li>
+    <li>Compliance center</li>
+    <li>Reports and exports</li>
+  </ul>
+
+  <h3>Phase 7: Integrations and Pilot Hardening (2 weeks)</h3>
+  <ul>
+    <li>Push notifications and SMS fallback</li>
+    <li>Storage and media workflows</li>
+    <li>Monitoring, logging, and admin tooling</li>
+    <li>Field testing across real routes and real classrooms</li>
+  </ul>
+
+  <h3>Phase 8: Post-MVP Expansion (Ongoing)</h3>
+  <ul>
+    <li>Payments and subscriptions</li>
+    <li>DigiLocker and VAHAN integrations</li>
+    <li>Advanced academic insights</li>
+    <li>More automation in emergency response</li>
+    <li>School-specific branding and customization layers</li>
+  </ul>
+
+  <h2>13. 12-Week Suggested Delivery Timeline</h2>
+  <table>
+    <tr>
+      <th>Week</th>
+      <th>Focus</th>
+      <th>Output</th>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Discovery and architecture</td>
+      <td>Scope freeze, system design, wireframes</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Backend foundation</td>
+      <td>Auth, roles, models, tenant registry, per-school database setup</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Backend APIs</td>
+      <td>Core endpoints, admin tools</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Transport engine</td>
+      <td>Trips, live tracking, SOS backend</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Driver app</td>
+      <td>Trip and location MVP</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>Parent app</td>
+      <td>Tracking, alerts, message center</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>Teacher app</td>
+      <td>Attendance and progress capture</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>Teacher-parent linkage</td>
+      <td>Progress feed and attendance visibility</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>Dashboard shell</td>
+      <td>Overview, layout, shared components, school-specific URL handling</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>Dashboard modules</td>
+      <td>Management, messaging, compliance</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>Integrations and QA</td>
+      <td>Push, SMS, file storage, reporting</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>Pilot readiness</td>
+      <td>Field testing, bug fixes, deployment</td>
+    </tr>
+  </table>
+
+  <h2>14. Team Recommendation</h2>
+  <table>
+    <tr>
+      <th>Role</th>
+      <th>Recommended Count</th>
+      <th>Focus</th>
+    </tr>
+    <tr>
+      <td>Backend Engineer</td>
+      <td>1-2</td>
+      <td>Core APIs, realtime, auth, tenancy, compliance, messaging</td>
+    </tr>
+    <tr>
+      <td>Mobile Engineer</td>
+      <td>1-2</td>
+      <td>Parent, driver, and teacher apps</td>
+    </tr>
+    <tr>
+      <td>Frontend Engineer</td>
+      <td>1</td>
+      <td>Dashboard and design system</td>
+    </tr>
+    <tr>
+      <td>Designer</td>
+      <td>1 part-time or full-time</td>
+      <td>Premium dashboard and mobile UX</td>
+    </tr>
+    <tr>
+      <td>QA / Field Tester</td>
+      <td>1</td>
+      <td>Device testing, route testing, release confidence</td>
+    </tr>
+  </table>
+
+  <h2>15. Major Risks and Mitigations</h2>
+  <table>
+    <tr>
+      <th>Risk</th>
+      <th>Impact</th>
+      <th>Mitigation</th>
+    </tr>
+    <tr>
+      <td>Android background GPS reliability</td>
+      <td>Critical</td>
+      <td>Test early on multiple physical devices, use foreground services, tune update intervals</td>
+    </tr>
+    <tr>
+      <td>Emergency escalation expectations</td>
+      <td>Critical</td>
+      <td>Start with configurable contacts and documented workflows before claiming civic automation</td>
+    </tr>
+    <tr>
+      <td>Per-school SQLite operational overhead</td>
+      <td>High</td>
+      <td>Automate tenant provisioning, migrations, backups, and health checks from the central control plane</td>
+    </tr>
+    <tr>
+      <td>Too much scope in MVP</td>
+      <td>High</td>
+      <td>Ship reliable core workflows first and defer advanced integrations</td>
+    </tr>
+    <tr>
+      <td>Teacher adoption friction</td>
+      <td>Medium</td>
+      <td>Make attendance and progress entry fast with bulk actions and smart defaults</td>
+    </tr>
+    <tr>
+      <td>Dashboard complexity</td>
+      <td>Medium</td>
+      <td>Build a strong modular design system and a widget-based information architecture</td>
+    </tr>
+  </table>
+
+  <h2>16. Success Metrics for the Pilot</h2>
+  <ul>
+    <li>One pilot school live with transport and teacher attendance operational</li>
+    <li>95 percent or better trip event delivery success</li>
+    <li>Parents actively use live tracking and message center weekly</li>
+    <li>Teacher attendance completion under 5 minutes per class</li>
+    <li>No critical issues in the happy path of trip start, board, drop, attendance sync, and parent notifications</li>
+  </ul>
+
+  <h2>17. Final Recommendation</h2>
+  <p>Skippo should be built as a modular school operations platform with transport as the initial wedge and parent trust as the retention engine. The strongest execution strategy is to build reliable core systems first, then layer the teacher experience, message center, compliance workflows, and premium dashboard experience on top.</p>
+  <p>If executed in this order, Skippo can launch a strong school pilot without losing the broader vision of becoming a full-stack operating system for school-parent coordination.</p>
+</body>
+</html>
