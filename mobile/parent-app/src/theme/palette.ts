@@ -1,0 +1,16 @@
+export const palette = {
+  brand: "#106c8b",
+  brandDeep: "#0d4f67",
+  brandSoft: "#d9eef5",
+  accent: "#ffb703",
+  canvas: "#f4f8fb",
+  surface: "#ffffff",
+  surfaceMuted: "#ecf3f7",
+  ink: "#18313e",
+  inkSoft: "#537181",
+  stroke: "#d7e2e9",
+  success: "#2d8f6f",
+  warning: "#d9822b",
+  danger: "#d9534f",
+  map: "#c6e7f5",
+};

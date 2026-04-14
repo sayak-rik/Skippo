@@ -1,0 +1,282 @@
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+}
+
+.sidebar {
+  padding: 32px 24px;
+  border-right: 1px solid var(--stroke);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(234, 241, 244, 0.86));
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.brandBlock {
+  margin-bottom: 28px;
+}
+
+.brandEyebrow {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.brandTitle {
+  margin: 10px 0 8px;
+  font-size: 32px;
+  line-height: 1;
+}
+
+.brandCopy {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.navList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.navLink {
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: var(--ink);
+  transition: 0.2s ease;
+}
+
+.navLink:hover {
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.content {
+  padding: 28px 32px 48px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.headerEyebrow {
+  margin: 0 0 6px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.headerTitle {
+  margin: 0;
+  font-size: 40px;
+  line-height: 1;
+}
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.actionLink {
+  padding: 12px 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  color: var(--brand-deep);
+  font-size: 14px;
+  box-shadow: var(--shadow);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.heroPanel {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%);
+  color: white;
+  border-radius: 28px;
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+
+.heroPanel h3 {
+  margin: 0 0 10px;
+  font-size: 30px;
+}
+
+.heroPanel p {
+  margin: 0;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.heroSide {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: 28px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.heroSide h4 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.heroSide p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metricCard {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: 22px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow);
+}
+
+.metricLabel {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.metricValue {
+  font-size: 32px;
+}
+
+.metricDetail {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.sectionTitle {
+  margin: 0 0 14px;
+  font-size: 24px;
+}
+
+.moduleGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.moduleCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: 24px;
+  padding: 22px;
+  box-shadow: var(--shadow);
+  min-height: 220px;
+}
+
+.moduleBadge {
+  align-self: flex-start;
+  background: var(--brand-soft);
+  color: var(--brand-deep);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.moduleTitle {
+  margin: 0;
+  font-size: 22px;
+}
+
+.moduleSubtitle {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  flex: 1;
+}
+
+.moduleLink {
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.pagePanel {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: 28px;
+  padding: 28px;
+  box-shadow: var(--shadow);
+}
+
+.pagePanel h3 {
+  margin-top: 0;
+  font-size: 30px;
+}
+
+.pagePanel p {
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+
+.linkList {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.resourceLink {
+  background: var(--surface-soft);
+  border-radius: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--stroke);
+}
+
+@media (max-width: 1100px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--stroke);
+  }
+
+  .hero,
+  .metricGrid,
+  .moduleGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    flex-direction: column;
+  }
+}

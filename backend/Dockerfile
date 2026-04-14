@@ -1,0 +1,24 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONPATH=/app/src
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential libpq-dev netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements /app/requirements
+RUN pip install --upgrade pip \
+    && pip install -r /app/requirements/dev.txt
+
+COPY compose /app/compose
+COPY manage.py /app/manage.py
+COPY src /app/src
+
+EXPOSE 8000
+
+CMD ["sh", "/app/compose/start-web.sh"]

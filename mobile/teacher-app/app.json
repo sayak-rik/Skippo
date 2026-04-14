@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "Skippo Teacher",
+    "slug": "skippo-teacher-app",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#f6f8f4"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.skippo.teacher",
+      "adaptiveIcon": {
+        "backgroundColor": "#f6f8f4"
+      }
+    },
+    "extra": {
+      "apiUrl": "http://localhost:8000"
+    }
+  }
+}

@@ -67,7 +67,7 @@
 </head>
 <body>
   <h1>Skippo Master Product Blueprint and Roadmap</h1>
-  <p class="meta"><strong>Version:</strong> 2.0<br />
+  <p class="meta"><strong>Version:</strong> 2.1<br />
   <strong>Date:</strong> April 13, 2026<br />
   <strong>Prepared For:</strong> Skippo product planning and engineering execution</p>
 
@@ -266,9 +266,10 @@
   <ul>
     <li>Each school should receive a dedicated dashboard URL such as <strong>schoolname.skippo.app</strong> or a mapped custom domain</li>
     <li>The request host should determine the active school context before authentication and data access</li>
-    <li>Each school should have its own isolated SQLite database in the initial architecture</li>
-    <li>A central registry layer should store school metadata, database mapping, subdomain settings, and domain configuration</li>
-    <li>Tenant-aware middleware and database routers should ensure every request resolves to the correct school database</li>
+    <li>All structured school data should live in PostgreSQL using a shared multi-tenant SQL model scoped by <strong>school_id</strong> or <strong>tenant_id</strong></li>
+    <li>A central tenancy layer should store school metadata, subdomain settings, custom domains, feature flags, and branding configuration</li>
+    <li>Tenant-aware middleware and query patterns should ensure every request resolves the correct school context before any data access</li>
+    <li>The scale path should begin with one PostgreSQL deployment and evolve later through partitioning, read replicas, or tenant sharding if growth demands it</li>
   </ul>
 
   <h2>7. Technical Architecture</h2>
@@ -276,18 +277,19 @@
   <h3>7.1 Backend</h3>
   <ul>
     <li><strong>Framework:</strong> Django + Django REST Framework</li>
-    <li><strong>Core backend pattern:</strong> Django-based control plane with SQL persistence and tenant-aware routing</li>
-    <li><strong>School data model:</strong> each school runs on its own isolated SQLite database in v1</li>
-    <li><strong>Central registry:</strong> one SQL-backed registry database stores school records, domains, tenant routing metadata, and platform-level configuration</li>
-    <li><strong>Realtime:</strong> Django Channels + Redis</li>
-    <li><strong>Tasks:</strong> Celery + Redis</li>
+    <li><strong>Primary SQL datastore:</strong> PostgreSQL for all schools and all structured product data</li>
+    <li><strong>Core backend pattern:</strong> Django-based multi-tenant platform with PostgreSQL as the source of truth and school-scoped data isolation</li>
+    <li><strong>Tenant model:</strong> shared PostgreSQL database with tenant-aware tables, indexes, and service-layer scoping by school</li>
+    <li><strong>Scaling path:</strong> start with shared PostgreSQL, then add partitioning, replicas, or selective sharding only when operational metrics justify it</li>
+    <li><strong>Realtime and cache:</strong> Redis for Django Channels, caching, rate limiting, presence, and transient state</li>
+    <li><strong>Tasks and queues:</strong> Celery + Redis for notifications, reminders, exports, and background jobs</li>
     <li><strong>Auth:</strong> JWT + OTP service integration</li>
     <li><strong>Storage:</strong> Cloudflare R2 or S3-compatible storage</li>
     <li><strong>Notifications:</strong> Firebase Admin SDK + SMS provider</li>
   </ul>
 
   <div class="callout">
-    <strong>Architecture note:</strong> Per-school SQLite databases provide strong early isolation and simple portability for pilot schools, but they increase migration, backup, analytics, and cross-tenant reporting complexity. This approach is workable for v1 and should be re-evaluated before large-scale expansion.
+    <strong>Architecture note:</strong> PostgreSQL plus Redis is the recommended base for Skippo because it supports multi-tenant growth, concurrent writes, live tracking, reporting, and operational simplicity far better than per-school file databases.
   </div>
 
   <h3>7.2 Client Apps</h3>
@@ -303,9 +305,9 @@
   <h3>7.3 Tenant Routing and Domain Model</h3>
   <ul>
     <li>Every incoming dashboard request should be resolved through subdomain or domain lookup</li>
-    <li>The tenant router should map the incoming school URL to its SQLite database and configuration</li>
+    <li>The tenant router should map the incoming school URL to the matching school record and tenant configuration in PostgreSQL</li>
     <li>Dashboard branding, settings, feature flags, and messaging rules should load from tenant configuration</li>
-    <li>Platform super admins should be able to create schools, provision databases, and assign dashboard URLs centrally</li>
+    <li>Platform super admins should be able to create schools, assign dashboard URLs, and manage tenant configuration centrally</li>
   </ul>
 
   <h3>7.4 Recommended Backend Modules</h3>
@@ -320,7 +322,7 @@
     </tr>
     <tr>
       <td>tenancy</td>
-      <td>school domains, tenant routing, school database mapping, provisioning</td>
+      <td>school domains, tenant routing, tenant configuration, branding, provisioning</td>
     </tr>
     <tr>
       <td>transport</td>
@@ -357,7 +359,7 @@
   <ul>
     <li>School</li>
     <li>SchoolDomain</li>
-    <li>SchoolDatabaseConfig</li>
+    <li>TenantConfig</li>
     <li>User</li>
     <li>ParentProfile</li>
     <li>TeacherProfile</li>
@@ -452,7 +454,7 @@
   <h2>11. Security and Permissions</h2>
   <ul>
     <li>Every record must be school-tenant scoped</li>
-    <li>Tenant resolution must happen before dashboard data access so one school can never read another school's database</li>
+    <li>Tenant resolution must happen before dashboard data access so one school can never read another school's data</li>
     <li>Parents can only access their linked students</li>
     <li>Teachers can only access assigned classes and students unless elevated by school policy</li>
     <li>Drivers only access their assigned trip, vehicle, and compliance records</li>
@@ -474,7 +476,7 @@
   <ul>
     <li>Set up Django monolith or modular backend</li>
     <li>Implement tenancy, roles, auth, OTP, device sessions</li>
-    <li>Set up central school registry, school-specific SQLite databases, and tenant database routers</li>
+    <li>Set up PostgreSQL, Redis, tenant routing, and school-scoped data access patterns</li>
     <li>Create core models and migrations</li>
     <li>Set up admin panel, API docs, local development tooling</li>
   </ul>
@@ -558,7 +560,7 @@
     <tr>
       <td>2</td>
       <td>Backend foundation</td>
-      <td>Auth, roles, models, tenant registry, per-school database setup</td>
+      <td>Auth, roles, models, PostgreSQL and Redis foundation, tenant routing</td>
     </tr>
     <tr>
       <td>3</td>
@@ -622,7 +624,7 @@
     <tr>
       <td>Backend Engineer</td>
       <td>1-2</td>
-      <td>Core APIs, realtime, auth, tenancy, compliance, messaging</td>
+      <td>Core APIs, PostgreSQL, Redis, realtime, auth, tenancy, compliance, messaging</td>
     </tr>
     <tr>
       <td>Mobile Engineer</td>
@@ -664,9 +666,9 @@
       <td>Start with configurable contacts and documented workflows before claiming civic automation</td>
     </tr>
     <tr>
-      <td>Per-school SQLite operational overhead</td>
+      <td>Multi-tenant data isolation mistakes</td>
       <td>High</td>
-      <td>Automate tenant provisioning, migrations, backups, and health checks from the central control plane</td>
+      <td>Enforce tenant-aware service layers, permission tests, filtered querysets, and audit logging across all critical flows</td>
     </tr>
     <tr>
       <td>Too much scope in MVP</td>
