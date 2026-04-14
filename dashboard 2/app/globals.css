@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap');
+
+:root {
+  --canvas: #040d14;
+  --canvas-mid: #071520;
+  --surface: rgba(255,255,255,0.03);
+  --surface-raised: rgba(255,255,255,0.055);
+  --surface-highlight: rgba(255,255,255,0.09);
+  --ink: #e8f4fb;
+  --ink-soft: rgba(180,210,230,0.65);
+  --ink-dim: rgba(130,170,195,0.4);
+  --stroke: rgba(255,255,255,0.07);
+  --stroke-bright: rgba(0,200,255,0.2);
+  --brand: #00c8e8;
+  --brand-dim: rgba(0,200,232,0.1);
+  --brand-glow: rgba(0,200,232,0.22);
+  --brand-deep: #0090b0;
+  --accent: #f5a623;
+  --accent-dim: rgba(245,166,35,0.12);
+  --success: #00e09a;
+  --success-dim: rgba(0,224,154,0.12);
+  --danger: #ff4d6a;
+  --danger-dim: rgba(255,77,106,0.12);
+  --warning: #ffb547;
+  --warning-dim: rgba(255,181,71,0.12);
+  --shadow: 0 1px 3px rgba(0,0,0,0.6), 0 8px 30px rgba(0,0,0,0.5);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 30px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 300;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+a { color: inherit; text-decoration: none; }
+button, input, textarea, select { font: inherit; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--stroke-bright); border-radius: 4px; }
