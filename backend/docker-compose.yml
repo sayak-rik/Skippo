@@ -1,0 +1,88 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: skippo
+      POSTGRES_USER: skippo
+      POSTGRES_PASSWORD: skippo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skippo -d skippo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    restart: unless-stopped
+    command: sh /app/compose/start-web.sh
+    env_file: .env
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      REDISHOST: redis
+      REDISPORT: "6379"
+    ports:
+      - "8000:8000"
+    volumes:
+      - staticfiles:/app/staticfiles
+      - media:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: .
+    restart: unless-stopped
+    command: sh /app/compose/start-worker.sh
+    env_file: .env
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      REDISHOST: redis
+      REDISPORT: "6379"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  beat:
+    build: .
+    restart: unless-stopped
+    command: sh /app/compose/start-beat.sh
+    env_file: .env
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      REDISHOST: redis
+      REDISPORT: "6379"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  staticfiles:
+  media:
