@@ -9,4 +9,7 @@ COPY . .
 
 EXPOSE 8081
 
-CMD ["npm", "run", "dev"]
+ENV EXPO_DEVTOOLS_LISTEN_ADDRESS=0.0.0.0
+ENV REACT_NATIVE_PACKAGER_HOSTNAME=localhost
+
+CMD ["npx", "expo", "start", "--web", "--host", "localhost", "--port", "8081", "--non-interactive"]

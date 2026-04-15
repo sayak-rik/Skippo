@@ -1,39 +1,73 @@
-import { StyleSheet, Text, TouchableOpacity } from "react-native";
-
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, ViewStyle } from "react-native";
 import { palette } from "../theme/palette";
+import { radius } from "../theme/spacing";
 
 type PrimaryButtonProps = {
   label: string;
   onPress?: () => void;
   disabled?: boolean;
+  loading?: boolean;
+  variant?: "primary" | "secondary" | "danger" | "ghost";
+  size?: "md" | "sm";
+  style?: ViewStyle;
 };
 
-export function PrimaryButton({ label, onPress, disabled }: PrimaryButtonProps) {
+export function PrimaryButton({
+  label, onPress, disabled, loading, variant = "primary", size = "md", style,
+}: PrimaryButtonProps) {
+  const isDisabled = disabled || loading;
   return (
     <TouchableOpacity
-      style={[styles.button, disabled && styles.disabled]}
+      style={[
+        styles.button,
+        styles[variant],
+        size === "sm" && styles.small,
+        isDisabled && styles.disabled,
+        style,
+      ]}
       onPress={onPress}
-      disabled={disabled}
-      activeOpacity={0.85}
+      disabled={isDisabled}
+      activeOpacity={0.82}
     >
-      <Text style={styles.label}>{label}</Text>
+      {loading ? (
+        <ActivityIndicator color={variant === "primary" ? "#fff" : palette.brand} size="small" />
+      ) : (
+        <Text style={[styles.label, styles[`${variant}Label`], size === "sm" && styles.smallLabel]}>
+          {label}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: palette.brand,
-    borderRadius: 16,
+    borderRadius: radius.md,
     paddingVertical: 14,
+    paddingHorizontal: 20,
     alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
   },
-  disabled: {
-    opacity: 0.5,
+  small: { paddingVertical: 9, paddingHorizontal: 14, borderRadius: radius.sm },
+  primary: { backgroundColor: palette.brand },
+  secondary: {
+    backgroundColor: palette.brandSoft,
+    borderWidth: 1,
+    borderColor: palette.stroke,
   },
-  label: {
-    color: "#ffffff",
-    fontWeight: "800",
-    fontSize: 15,
+  danger: { backgroundColor: palette.danger },
+  ghost: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: palette.strokeStrong,
   },
+  disabled: { opacity: 0.45 },
+  label: { fontWeight: "800", fontSize: 15, letterSpacing: -0.1 },
+  smallLabel: { fontSize: 13 },
+  primaryLabel: { color: "#ffffff" },
+  secondaryLabel: { color: palette.brandDeep },
+  dangerLabel: { color: "#ffffff" },
+  ghostLabel: { color: palette.ink },
 });

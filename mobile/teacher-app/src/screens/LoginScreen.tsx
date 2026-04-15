@@ -1,16 +1,19 @@
-import { StyleSheet, Text, TextInput, View } from "react-native";
 import { useState } from "react";
-
-import { PrimaryButton } from "../components/PrimaryButton";
+import {
+  KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View,
+} from "react-native";
 import { Screen } from "../components/Screen";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { api } from "../lib/api";
 import { useTeacherSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
-import { spacing } from "../theme/spacing";
+import { radius, spacing } from "../theme/spacing";
 
 export function LoginScreen() {
-  const login = useTeacherSessionStore((state) => state.login);
+  const login = useTeacherSessionStore((s) => s.login);
   const [loading, setLoading] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
 
   async function handleLogin() {
     setLoading(true);
@@ -21,69 +24,174 @@ export function LoginScreen() {
       setLoading(false);
     }
   }
+
   return (
     <Screen>
-      <View style={styles.hero}>
-        <Text style={styles.kicker}>Skippo Teacher</Text>
-        <Text style={styles.title}>Attendance, comments, and parent visibility from one flow.</Text>
-        <Text style={styles.subtitle}>
-          Start with the current class, tap students present, and leave notes that feed the parent app.
-        </Text>
-      </View>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.kav}>
+        {/* Header */}
+        <View style={styles.headerBlock}>
+          <View style={styles.logoMark}>
+            <Text style={styles.logoText}>SK</Text>
+          </View>
+          <Text style={styles.kicker}>Skippo · Teacher</Text>
+          <Text style={styles.headline}>Your classroom,{"\n"}always in sync.</Text>
+          <Text style={styles.sub}>
+            Mark attendance, add parent-visible progress notes, and close out every session in seconds.
+          </Text>
+        </View>
 
-      <View style={styles.form}>
-        <Text style={styles.label}>Phone or teacher ID</Text>
-        <TextInput style={styles.input} placeholder="Enter login" />
-        <Text style={styles.label}>OTP or password</Text>
-        <TextInput style={styles.input} placeholder="Enter access code" secureTextEntry />
-        <PrimaryButton label={loading ? "Connecting..." : "Sign in"} onPress={handleLogin} />
-      </View>
+        {/* Stat pills */}
+        <View style={styles.pills}>
+          {[
+            { label: "Attendance", value: "Real-time" },
+            { label: "Parent feed", value: "Instant" },
+            { label: "Sessions", value: "All classes" },
+          ].map((p) => (
+            <View key={p.label} style={styles.pill}>
+              <Text style={styles.pillValue}>{p.value}</Text>
+              <Text style={styles.pillLabel}>{p.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Form */}
+        <View style={styles.form}>
+          <Text style={styles.formTitle}>Sign in to your account</Text>
+
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Phone or Teacher ID</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 9800000000 or T-204"
+              placeholderTextColor={palette.inkDim}
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>OTP or Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your access code"
+              placeholderTextColor={palette.inkDim}
+              secureTextEntry
+              value={otp}
+              onChangeText={setOtp}
+            />
+          </View>
+
+          <PrimaryButton
+            label={loading ? "Connecting…" : "Sign in"}
+            onPress={handleLogin}
+            loading={loading}
+          />
+
+          <Text style={styles.hint}>
+            This is a demo — tap Sign in to enter as a teacher with sample data.
+          </Text>
+        </View>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  hero: {
-    marginTop: spacing.xl,
-    gap: spacing.sm,
+  kav: { flex: 1, gap: spacing.lg },
+  headerBlock: { gap: spacing.sm, marginTop: spacing.md },
+  logoMark: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: palette.brand,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.xs,
   },
+  logoText: { color: "#fff", fontWeight: "900", fontSize: 18, letterSpacing: -0.5 },
   kicker: {
+    fontSize: 12,
+    fontWeight: "700",
     color: palette.brand,
-    fontSize: 13,
-    fontWeight: "800",
     textTransform: "uppercase",
+    letterSpacing: 1.2,
   },
-  title: {
-    fontSize: 32,
-    lineHeight: 38,
+  headline: {
+    fontSize: 36,
     fontWeight: "900",
     color: palette.ink,
+    letterSpacing: -0.8,
+    lineHeight: 42,
   },
-  subtitle: {
+  sub: {
     fontSize: 15,
-    lineHeight: 22,
     color: palette.inkSoft,
+    lineHeight: 22,
+    fontWeight: "400",
   },
-  form: {
-    marginTop: spacing.xl,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.stroke,
-    borderRadius: 24,
-    padding: spacing.lg,
+  pills: {
+    flexDirection: "row",
     gap: spacing.sm,
   },
-  label: {
+  pill: {
+    flex: 1,
+    backgroundColor: palette.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: palette.stroke,
+    padding: spacing.md,
+    alignItems: "center",
+    gap: 2,
+  },
+  pillValue: {
     fontSize: 13,
+    fontWeight: "800",
+    color: palette.brand,
+  },
+  pillLabel: {
+    fontSize: 10,
+    fontWeight: "600",
     color: palette.inkSoft,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  form: {
+    backgroundColor: palette.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: palette.stroke,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  formTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: palette.ink,
+    marginBottom: spacing.xs,
+  },
+  field: { gap: spacing.xs },
+  fieldLabel: {
+    fontSize: 12,
     fontWeight: "700",
+    color: palette.inkSoft,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
   },
   input: {
     backgroundColor: palette.surfaceMuted,
-    borderRadius: 16,
+    borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 14,
     color: palette.ink,
     fontSize: 15,
+    borderWidth: 1,
+    borderColor: palette.stroke,
+  },
+  hint: {
+    fontSize: 12,
+    color: palette.inkDim,
+    textAlign: "center",
+    lineHeight: 18,
   },
 });

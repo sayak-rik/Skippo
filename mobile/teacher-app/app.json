@@ -2,26 +2,31 @@
   "expo": {
     "name": "Skippo Teacher",
     "slug": "skippo-teacher-app",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#f6f8f4"
+      "backgroundColor": "#1a6b3c"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "app.skippo.teacher"
     },
     "android": {
-      "package": "com.skippo.teacher",
       "adaptiveIcon": {
-        "backgroundColor": "#f6f8f4"
-      }
+        "backgroundColor": "#1a6b3c"
+      },
+      "package": "app.skippo.teacher"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
     },
     "extra": {
       "apiUrl": "http://localhost:8000"
-    }
+    },
+    "plugins": []
   }
 }
