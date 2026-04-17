@@ -1,7 +1,20 @@
+// ---------------------------------------------------------------------------
+// RootNavigator – top-level navigation structure.
+//
+// Stack layout:
+//   Unauthenticated  → Login  (default)
+//                    → InviteSignup  (teacher registration via invite link)
+//   Authenticated    → Main (bottom tabs)
+//
+// The InviteSignupScreen is accessible from the Login screen without being
+// authenticated — it's part of the pre-auth onboarding flow.
+// ---------------------------------------------------------------------------
+
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StyleSheet, Text, View } from "react-native";
 
+import { InviteSignupScreen } from "../screens/InviteSignupScreen";
 import { LoginScreen } from "../screens/LoginScreen";
 import { ParentSummaryScreen } from "../screens/ParentSummaryScreen";
 import { ScheduleScreen } from "../screens/ScheduleScreen";
@@ -11,28 +24,16 @@ import { palette } from "../theme/palette";
 import { radius } from "../theme/spacing";
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+const Tab   = createBottomTabNavigator();
 
+// Bottom tab configuration
 const TABS = [
-  {
-    name: "Schedule",
-    component: ScheduleScreen,
-    icon: "📅",
-    label: "Schedule",
-  },
-  {
-    name: "Class",
-    component: SessionScreen,
-    icon: "✏️",
-    label: "Attendance",
-  },
-  {
-    name: "Reports",
-    component: ParentSummaryScreen,
-    icon: "📊",
-    label: "Reports",
-  },
+  { name: "Schedule",  component: ScheduleScreen,      icon: "📅", label: "Schedule"  },
+  { name: "Class",     component: SessionScreen,        icon: "✏️", label: "Attendance" },
+  { name: "Reports",   component: ParentSummaryScreen,  icon: "📊", label: "Reports"   },
 ];
+
+// ── TabIcon ───────────────────────────────────────────────────────────────────
 
 function TabIcon({
   emoji,
@@ -46,12 +47,12 @@ function TabIcon({
   return (
     <View style={[styles.tabItem, focused && styles.tabItemActive]}>
       <Text style={styles.tabEmoji}>{emoji}</Text>
-      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
-        {label}
-      </Text>
+      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{label}</Text>
     </View>
   );
 }
+
+// ── MainTabs ──────────────────────────────────────────────────────────────────
 
 function MainTabs() {
   return (
@@ -69,11 +70,7 @@ function MainTabs() {
           component={tab.component}
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabIcon
-                emoji={tab.icon}
-                label={tab.label}
-                focused={focused}
-              />
+              <TabIcon emoji={tab.icon} label={tab.label} focused={focused} />
             ),
           }}
         />
@@ -82,18 +79,28 @@ function MainTabs() {
   );
 }
 
+// ── RootNavigator ─────────────────────────────────────────────────────────────
+
 export function RootNavigator() {
   const isAuthenticated = useTeacherSessionStore((s) => s.isAuthenticated);
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
+        // Authenticated: show the main tab shell
         <Stack.Screen name="Main" component={MainTabs} />
       ) : (
-        <Stack.Screen name="Login" component={LoginScreen} />
+        // Unauthenticated: login + invite signup are both accessible
+        <>
+          <Stack.Screen name="Login"        component={LoginScreen} />
+          <Stack.Screen name="InviteSignup" component={InviteSignupScreen} />
+        </>
       )}
     </Stack.Navigator>
   );
 }
+
+// ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   tabBar: {
@@ -114,15 +121,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     gap: 2,
   },
-  tabItemActive: {
-    backgroundColor: palette.brandSoft,
-  },
-  tabEmoji: { fontSize: 18 },
-  tabLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: palette.inkSoft,
-    letterSpacing: 0.2,
-  },
+  tabItemActive:  { backgroundColor: palette.brandSoft },
+  tabEmoji:       { fontSize: 18 },
+  tabLabel:       { fontSize: 10, fontWeight: "600", color: palette.inkSoft, letterSpacing: 0.2 },
   tabLabelActive: { color: palette.brandDeep, fontWeight: "800" },
 });

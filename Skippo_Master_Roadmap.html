@@ -67,8 +67,8 @@
 </head>
 <body>
   <h1>Skippo Master Product Blueprint and Roadmap</h1>
-  <p class="meta"><strong>Version:</strong> 2.1<br />
-  <strong>Date:</strong> April 13, 2026<br />
+  <p class="meta"><strong>Version:</strong> 2.2<br />
+  <strong>Date:</strong> April 17, 2026<br />
   <strong>Prepared For:</strong> Skippo product planning and engineering execution</p>
 
   <h2>1. Executive Summary</h2>
@@ -158,11 +158,15 @@
 
   <h3>4.3 Teacher App</h3>
   <ul>
-    <li>OTP or school-issued login</li>
-    <li>Classroom and section assignment</li>
-    <li>Daily attendance marking</li>
-    <li>Quick progress inputs such as remarks, participation, behavior, homework, or milestones</li>
-    <li>Parent-visible progress timeline for each student</li>
+    <li>Invite-link signup — admin dashboard sends an email invite; teacher registers and goes through first-week class-selection onboarding</li>
+    <li>OTP or school-issued login for returning teachers</li>
+    <li>Classroom and section assignment; teacher sees today's schedule with the current class pinned to top</li>
+    <li>Daily attendance marking per student — mark present or absent, both synced to backend and visible on the school dashboard</li>
+    <li>Per-student progress notes — category chips (Academic, Participation, Behavior, Homework, Milestone, Concern) plus free-text note; parent-visible immediately</li>
+    <li>Class-wide broadcast — teacher sends a message to all parents of students in the session's classroom in one tap; appears in parent message center</li>
+    <li>Assist requests (doubt cards) — parents raise a question from the parent app; teacher sees a badge on the student card, can read the question and reply with an optional message that goes back to the parent</li>
+    <li>Manual class override — if verbally assigned to a different class, teacher taps "Pick a class" and selects any classroom; the student list auto-loads for that classroom</li>
+    <li>First-week schedule memory — during the first week the teacher manually selects which classes they teach; system saves this as a JSON schedule_preferences field and auto-fills the schedule from week two onwards</li>
     <li>Absence and issue tagging for escalation</li>
   </ul>
 
@@ -232,10 +236,13 @@
 
   <h3>6.3 Academic Attendance and Progress</h3>
   <ul>
-    <li>Teachers can mark daily attendance by class and section</li>
-    <li>Teachers can add short progress records linked to students</li>
+    <li>Teachers can mark daily attendance by class and section — present or absent, both recorded to backend</li>
+    <li>Teachers can add short progress records per student with category and free text; visible to parents immediately</li>
+    <li>Teachers can send a class-wide broadcast message; all parents in the classroom receive a push notification and a message center entry</li>
+    <li>Parents can raise assist requests (doubt cards) from the parent app; teachers see these per-student and can resolve with an optional reply</li>
     <li>Parents can view student attendance and progress history</li>
     <li>Dashboard can filter academic data by date, class, teacher, and student</li>
+    <li>Teachers invited via admin-generated link complete signup and first-week class selection; the system persists their classroom choices as a JSON schedule_preferences field on TeacherProfile and generates recurring ClassSession records from week two onwards</li>
   </ul>
 
   <h3>6.4 Messaging and Ads</h3>
@@ -334,7 +341,7 @@
     </tr>
     <tr>
       <td>academics</td>
-      <td>teacher roles, classes, attendance, student progress records</td>
+      <td>teacher roles, classes, attendance, student progress records, class broadcasts, assist requests</td>
     </tr>
     <tr>
       <td>communications</td>
@@ -376,6 +383,9 @@
     <li>Classroom</li>
     <li>StudentAttendance</li>
     <li>StudentProgress</li>
+    <li>ClassBroadcast</li>
+    <li>AssistRequest</li>
+    <li>TeacherInvitation</li>
     <li>MessageCampaign</li>
     <li>MessageReceipt</li>
     <li>ComplianceDocument</li>
@@ -512,9 +522,15 @@
 
   <h3>Phase 5: Teacher App MVP (2 weeks)</h3>
   <ul>
-    <li>Teacher login</li>
-    <li>Attendance workflow</li>
-    <li>Progress note workflow</li>
+    <li>Admin dashboard generates invite links and sends to teacher email</li>
+    <li>Teacher invite-link signup with first-week class-selection onboarding; classroom choices saved as schedule_preferences JSON on TeacherProfile</li>
+    <li>OTP login for returning teachers</li>
+    <li>Schedule screen: today's sessions, current class pinned to top, first-week setup banner for new teachers</li>
+    <li>Attendance workflow: mark present or absent per student, progress bar, auto-sort by marked status</li>
+    <li>Progress note workflow: category + free text per student, parent-visible immediately</li>
+    <li>Class-wide broadcast: compose and send a message to all parents in the classroom in one tap</li>
+    <li>Assist requests: teachers see and resolve parent-raised doubt cards from inside each student card</li>
+    <li>Manual class override: teacher can pick any classroom when verbally assigned to a different class</li>
     <li>Parent-visible sync for attendance and progress</li>
   </ul>
 

@@ -1,4 +1,19 @@
-import { ClassSession, EndOfDayPreview, ProgressNote, RosterStudent } from "../types";
+// ---------------------------------------------------------------------------
+// Mock data used as fallbacks when the backend API is unreachable.
+// All shapes must match the corresponding TypeScript types in src/types/index.ts.
+// ---------------------------------------------------------------------------
+
+import {
+  AssistRequest,
+  ClassBroadcast,
+  ClassSession,
+  Classroom,
+  EndOfDayPreview,
+  ProgressNote,
+  RosterStudent,
+} from "../types";
+
+// ── Schedule ──────────────────────────────────────────────────────────────────
 
 export const mockSchedule: ClassSession[] = [
   {
@@ -39,20 +54,24 @@ export const mockSchedule: ClassSession[] = [
   },
 ];
 
+// ── Roster ────────────────────────────────────────────────────────────────────
+
 export const mockRoster: RosterStudent[] = [
-  { id: 1, fullName: "Aarav Roy", rollNumber: "04", isPresent: false, tags: [] },
-  { id: 2, fullName: "Mira Dutta", rollNumber: "07", isPresent: false, tags: [] },
-  { id: 3, fullName: "Ved Singh", rollNumber: "11", isPresent: false, tags: [] },
-  { id: 4, fullName: "Sia Das", rollNumber: "18", isPresent: false, tags: [] },
-  { id: 5, fullName: "Rohan Mehta", rollNumber: "22", isPresent: false, tags: [] },
-  { id: 6, fullName: "Priya Sharma", rollNumber: "25", isPresent: false, tags: [] },
+  { id: 1, fullName: "Aarav Roy",    rollNumber: "04", isPresent: false, isAbsent: false, tags: [] },
+  { id: 2, fullName: "Mira Dutta",   rollNumber: "07", isPresent: false, isAbsent: false, tags: [] },
+  { id: 3, fullName: "Ved Singh",    rollNumber: "11", isPresent: false, isAbsent: false, tags: [] },
+  { id: 4, fullName: "Sia Das",      rollNumber: "18", isPresent: false, isAbsent: false, tags: [] },
+  { id: 5, fullName: "Rohan Mehta",  rollNumber: "22", isPresent: false, isAbsent: false, tags: [] },
+  { id: 6, fullName: "Priya Sharma", rollNumber: "25", isPresent: false, isAbsent: false, tags: [] },
 ];
+
+// ── End-of-day preview ────────────────────────────────────────────────────────
 
 export const mockEndOfDayPreview: EndOfDayPreview[] = [
   {
     studentName: "Aarav Roy",
     unreadCommentCount: 1,
-    summary: "Present across the day. Two teacher comments were added; one is still unread by the parent.",
+    summary: "Present across the day. Two teacher comments; one still unread by parent.",
   },
   {
     studentName: "Mira Dutta",
@@ -65,6 +84,8 @@ export const mockEndOfDayPreview: EndOfDayPreview[] = [
     summary: "Present. Flagged for homework concern. Two comments await parent review.",
   },
 ];
+
+// ── Progress notes ────────────────────────────────────────────────────────────
 
 export const mockProgressNotes: ProgressNote[] = [
   {
@@ -93,5 +114,56 @@ export const mockProgressNotes: ProgressNote[] = [
     note: "Third consecutive day without completed homework. Parents should be informed.",
     createdAt: "2026-04-13T09:00:00+05:30",
     isReadByParent: false,
+  },
+];
+
+// ── Classrooms (for class-picker) ─────────────────────────────────────────────
+
+export const mockClassrooms: Classroom[] = [
+  { id: 1, name: "Class 4", section: "B", label: "Class 4B" },
+  { id: 2, name: "Class 5", section: "A", label: "Class 5A" },
+  { id: 3, name: "Class 3", section: "C", label: "Class 3C" },
+  { id: 4, name: "Class 6", section: "A", label: "Class 6A" },
+  { id: 5, name: "Class 7", section: "B", label: "Class 7B" },
+  { id: 6, name: "Class 2", section: "A", label: "Class 2A" },
+];
+
+// ── Broadcasts ────────────────────────────────────────────────────────────────
+
+export const mockBroadcasts: ClassBroadcast[] = [
+  {
+    id: 1,
+    sessionId: 1,
+    classroomLabel: "Class 4B",
+    message: "Reminder: bring your science project materials tomorrow.",
+    sentAt: "2026-04-12T08:15:00+05:30",
+  },
+];
+
+// ── Assist requests (raised by parents) ──────────────────────────────────────
+
+export const mockAssistRequests: AssistRequest[] = [
+  {
+    id: 1,
+    studentId: 1,
+    studentName: "Aarav Roy",
+    sessionId: 1,
+    question:
+      "Could you clarify the fractions homework from yesterday? Aarav got confused and we weren't able to help at home.",
+    status: "pending",
+    teacherReply: "",
+    raisedAt: "2026-04-13T07:45:00+05:30",
+    resolvedAt: null,
+  },
+  {
+    id: 2,
+    studentId: 3,
+    studentName: "Ved Singh",
+    sessionId: 1,
+    question: "Is there any extra reading material for the science chapter on plants?",
+    status: "pending",
+    teacherReply: "",
+    raisedAt: "2026-04-13T08:00:00+05:30",
+    resolvedAt: null,
   },
 ];

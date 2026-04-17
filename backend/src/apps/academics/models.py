@@ -75,3 +75,50 @@ class StudentDailyReport(TimestampedModel):
     teacher_comment_summary = models.TextField(blank=True)
     unread_comment_count = models.PositiveIntegerField(default=0)
     parent_notified_at = models.DateTimeField(null=True, blank=True)
+
+
+class ClassBroadcast(TimestampedModel):
+    """A class-wide message broadcast by a teacher to all parents in the classroom.
+
+    When a teacher sends a broadcast from the Attendance screen, a push notification
+    is fanned out to every parent whose child is in the session's classroom.  The
+    record here provides an audit trail and allows the teacher to review past
+    broadcasts for the class.
+    """
+
+    school = models.ForeignKey("tenancy.School", on_delete=models.CASCADE)
+    session = models.ForeignKey(ClassSession, on_delete=models.CASCADE, related_name="broadcasts")
+    classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name="broadcasts")
+    teacher = models.ForeignKey(
+        "accounts.TeacherProfile", null=True, blank=True, on_delete=models.SET_NULL
+    )
+    message = models.TextField()
+
+
+class AssistRequest(TimestampedModel):
+    """A doubt or help request raised by a parent from the parent app.
+
+    Parents can raise a card on any student's profile asking the teacher a question.
+    Teachers see open requests inside the student's card on the Attendance screen
+    and can resolve them with an optional reply that is visible back in the parent app.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        RESOLVED = "resolved", "Resolved"
+
+    school = models.ForeignKey("tenancy.School", on_delete=models.CASCADE)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="assist_requests")
+    session = models.ForeignKey(
+        ClassSession, null=True, blank=True, on_delete=models.SET_NULL, related_name="assist_requests"
+    )
+    classroom = models.ForeignKey(
+        Classroom, null=True, blank=True, on_delete=models.SET_NULL, related_name="assist_requests"
+    )
+    question = models.TextField()
+    status = models.CharField(max_length=32, choices=Status.choices, default=Status.PENDING)
+    resolved_by = models.ForeignKey(
+        "accounts.TeacherProfile", null=True, blank=True, on_delete=models.SET_NULL
+    )
+    teacher_reply = models.TextField(blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)

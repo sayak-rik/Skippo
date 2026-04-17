@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View,
+  KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { Screen } from "../components/Screen";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -9,7 +9,7 @@ import { useTeacherSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
 import { radius, spacing } from "../theme/spacing";
 
-export function LoginScreen() {
+export function LoginScreen({ navigation }: { navigation?: any }) {
   const login = useTeacherSessionStore((s) => s.login);
   const [loading, setLoading] = useState(false);
   const [phone, setPhone] = useState("");
@@ -92,6 +92,17 @@ export function LoginScreen() {
             This is a demo — tap Sign in to enter as a teacher with sample data.
           </Text>
         </View>
+
+        {/* Invite signup link — for new teachers who received an admin invite email */}
+        <TouchableOpacity
+          style={styles.inviteLink}
+          onPress={() => navigation?.navigate?.("InviteSignup")}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.inviteLinkText}>
+            New teacher? <Text style={styles.inviteLinkBold}>Sign up with an invite link →</Text>
+          </Text>
+        </TouchableOpacity>
       </KeyboardAvoidingView>
     </Screen>
   );
@@ -193,5 +204,18 @@ const styles = StyleSheet.create({
     color: palette.inkDim,
     textAlign: "center",
     lineHeight: 18,
+  },
+  // Invite signup link below the form
+  inviteLink: {
+    alignItems: "center",
+    paddingVertical: spacing.sm,
+  },
+  inviteLinkText: {
+    fontSize: 13,
+    color: palette.inkSoft,
+  },
+  inviteLinkBold: {
+    color: palette.brand,
+    fontWeight: "700",
   },
 });
