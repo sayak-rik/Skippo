@@ -1,5 +1,4 @@
 import { DashboardShell } from "../../components/DashboardShell";
-import { Header } from "../../components/Header";
 import { MetricCard } from "../../components/MetricCard";
 import { ModuleCard } from "../../components/ModuleCard";
 import { dashboardModules } from "../../lib/modules";
@@ -8,7 +7,6 @@ import styles from "../../components/dashboard.module.css";
 export default function DashboardPage() {
   return (
     <DashboardShell>
-      <Header />
 
       {/* KPI Strip */}
       <section className={styles.kpiStrip}>
