@@ -9,9 +9,9 @@ class Trip(SchoolScopedModel):
         ACTIVE = "active", "Active"
         COMPLETED = "completed", "Completed"
 
-    route = models.ForeignKey("transport.Route", on_delete=models.CASCADE)
-    vehicle = models.ForeignKey("transport.Vehicle", on_delete=models.CASCADE)
-    driver = models.ForeignKey("accounts.DriverProfile", on_delete=models.CASCADE)
+    route = models.ForeignKey("transport.Route", on_delete=models.CASCADE, related_name="tracking_trips")
+    vehicle = models.ForeignKey("transport.Vehicle", on_delete=models.CASCADE, related_name="tracking_trips")
+    driver = models.ForeignKey("accounts.DriverProfile", on_delete=models.CASCADE, related_name="tracking_trips")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.SCHEDULED)
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)

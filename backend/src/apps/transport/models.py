@@ -50,11 +50,11 @@ class Trip(TimestampedModel):
         COMPLETED = "completed", "Completed"
         CANCELLED = "cancelled", "Cancelled"
 
-    school = models.ForeignKey("tenancy.School", on_delete=models.CASCADE)
-    route = models.ForeignKey(Route, null=True, blank=True, on_delete=models.SET_NULL)
-    vehicle = models.ForeignKey(Vehicle, null=True, blank=True, on_delete=models.SET_NULL)
+    school = models.ForeignKey("tenancy.School", on_delete=models.CASCADE, related_name="transport_trips")
+    route = models.ForeignKey(Route, null=True, blank=True, on_delete=models.SET_NULL, related_name="transport_trips")
+    vehicle = models.ForeignKey(Vehicle, null=True, blank=True, on_delete=models.SET_NULL, related_name="transport_trips")
     driver = models.ForeignKey(
-        "accounts.DriverProfile", null=True, blank=True, on_delete=models.SET_NULL
+        "accounts.DriverProfile", null=True, blank=True, on_delete=models.SET_NULL, related_name="transport_trips"
     )
     shift = models.CharField(max_length=32, default="morning")
     status = models.CharField(max_length=32, choices=Status.choices, default=Status.SCHEDULED)

@@ -9,4 +9,7 @@ COPY . .
 
 EXPOSE 8081
 
-CMD ["npm", "run", "dev"]
+ENV EXPO_DEVTOOLS_LISTEN_ADDRESS=0.0.0.0
+ENV CI=1
+
+CMD ["npx", "expo", "start", "--web", "--port", "8081"]
