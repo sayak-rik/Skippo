@@ -1,6 +1,14 @@
+// ---------------------------------------------------------------------------
+// RootNavigator – top-level navigation for the parent app.
+//
+// Unauthenticated:  Login  (default)
+//                   Signup (3-step parent + bus onboarding)
+// Authenticated:    MainTabs (6 bottom tabs with emoji icons)
+// ---------------------------------------------------------------------------
+
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { HomeScreen } from "../screens/HomeScreen";
 import { LiveTrackScreen } from "../screens/LiveTrackScreen";
@@ -9,55 +17,105 @@ import { MessagesScreen } from "../screens/MessagesScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { ProgressScreen } from "../screens/ProgressScreen";
+import { SignupScreen } from "../screens/SignupScreen";
 import { useSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
+import { spacing } from "../theme/spacing";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// Tab configuration — emoji icons replace the single-letter placeholders for
+// a more polished, minimalist look (req 5).
+const TABS = [
+  { name: "Home",          component: HomeScreen,          emoji: "🏠", label: "Home"      },
+  { name: "Track",         component: LiveTrackScreen,     emoji: "📍", label: "Track"     },
+  { name: "Progress",      component: ProgressScreen,      emoji: "📚", label: "Progress"  },
+  { name: "Messages",      component: MessagesScreen,      emoji: "✉️", label: "Messages"  },
+  { name: "Notifications", component: NotificationsScreen, emoji: "🔔", label: "Alerts"    },
+  { name: "Profile",       component: ProfileScreen,       emoji: "👤", label: "Profile"   },
+];
+
+// ── TabIcon ───────────────────────────────────────────────────────────────────
+
+function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
+  return (
+    <View style={[styles.tabItem, focused && styles.tabItemActive]}>
+      <Text style={styles.tabEmoji}>{emoji}</Text>
+      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{label}</Text>
+    </View>
+  );
+}
+
+// ── MainTabs ──────────────────────────────────────────────────────────────────
 
 function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: palette.brand,
-        tabBarInactiveTintColor: palette.inkSoft,
-        tabBarStyle: {
-          height: 70,
-          paddingTop: 8,
-          paddingBottom: 10,
-          backgroundColor: palette.surface,
-        },
+        tabBarShowLabel: false,
+        tabBarStyle: styles.tabBar,
       }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: Icon("H") }} />
-      <Tab.Screen name="Track" component={LiveTrackScreen} options={{ tabBarIcon: Icon("T") }} />
-      <Tab.Screen name="Progress" component={ProgressScreen} options={{ tabBarIcon: Icon("P") }} />
-      <Tab.Screen name="Messages" component={MessagesScreen} options={{ tabBarIcon: Icon("M") }} />
-      <Tab.Screen
-        name="Notifications"
-        component={NotificationsScreen}
-        options={{ tabBarIcon: Icon("N") }}
-      />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarIcon: Icon("U") }} />
+      {TABS.map((tab) => (
+        <Tab.Screen
+          key={tab.name}
+          name={tab.name}
+          component={tab.component}
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <TabIcon emoji={tab.emoji} label={tab.label} focused={focused} />
+            ),
+          }}
+        />
+      ))}
     </Tab.Navigator>
   );
 }
 
-function Icon(label: string) {
-  return ({ color }: { color: string }) => <Text style={{ color, fontWeight: "800" }}>{label}</Text>;
-}
+// ── RootNavigator ─────────────────────────────────────────────────────────────
 
 export function RootNavigator() {
-  const isAuthenticated = useSessionStore((state) => state.isAuthenticated);
+  const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
         <Stack.Screen name="Main" component={MainTabs} />
       ) : (
-        <Stack.Screen name="Login" component={LoginScreen} />
+        <>
+          <Stack.Screen name="Login"  component={LoginScreen}  />
+          <Stack.Screen name="Signup" component={SignupScreen} />
+        </>
       )}
     </Stack.Navigator>
   );
 }
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  tabBar: {
+    height: 72,
+    paddingTop: 6,
+    paddingBottom: 10,
+    backgroundColor: palette.surface,
+    borderTopWidth: 1,
+    borderTopColor: palette.stroke,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  tabItem: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 2,
+  },
+  tabItemActive:  { backgroundColor: palette.brandSoft },
+  tabEmoji:       { fontSize: 17 },
+  tabLabel:       { fontSize: 9, fontWeight: "600", color: palette.inkSoft, letterSpacing: 0.2 },
+  tabLabelActive: { color: palette.brandDeep, fontWeight: "800" },
+});

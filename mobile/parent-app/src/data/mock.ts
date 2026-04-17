@@ -1,4 +1,13 @@
-import { AlertItem, DailyReport, MessageItem, ProgressEntry, Student, TripStatus } from "../types";
+import {
+  AlertItem,
+  DailyReport,
+  DriverContact,
+  MessageItem,
+  ProgressEntry,
+  RouteOption,
+  Student,
+  TripStatus,
+} from "../types";
 
 export const mockStudent: Student = {
   id: 1,
@@ -6,6 +15,7 @@ export const mockStudent: Student = {
   grade: "Class 4B",
   routeName: "North Route A",
   stopName: "Lakeview Stop",
+  routeId: 1,
 };
 
 export const mockTrip: TripStatus = {
@@ -19,7 +29,7 @@ export const mockTrip: TripStatus = {
     longitude: 88.3639,
     speed: 24,
     heading: 140,
-    updatedAt: "2026-04-13T10:15:00+05:30",
+    updatedAt: "2026-04-17T10:15:00+05:30",
   },
 };
 
@@ -54,7 +64,7 @@ export const mockMessages: MessageItem[] = [
   {
     id: 2,
     title: "Partner offer: school supplies",
-    body: "Discounted notebooks and art kits are available this week through the school partner store.",
+    body: "Discounted notebooks and art kits are available this week.",
     tag: "Offer",
     createdAt: "2026-04-10T12:00:00+05:30",
     isRead: true,
@@ -65,32 +75,66 @@ export const mockAlerts: AlertItem[] = [
   {
     id: 0,
     title: "School day concluded",
-    body: "Aarav was marked as school concluded in the final class and the end-of-day report is ready.",
+    body: "Aarav was marked as school concluded in the final class.",
     level: "info",
-    createdAt: "2026-04-13T15:35:00+05:30",
+    createdAt: "2026-04-17T15:35:00+05:30",
   },
   {
     id: 1,
     title: "Bus is 2 stops away",
     body: "Bus 12 is approaching Lakeview Stop.",
     level: "info",
-    createdAt: "2026-04-13T10:10:00+05:30",
+    createdAt: "2026-04-17T10:10:00+05:30",
   },
   {
     id: 2,
     title: "Student boarded safely",
     body: "Aarav boarded Bus 12 at 7:42 AM.",
     level: "info",
-    createdAt: "2026-04-13T07:42:00+05:30",
+    createdAt: "2026-04-17T07:42:00+05:30",
   },
 ];
 
 export const mockDailyReports: DailyReport[] = [
   {
     id: 1,
-    date: "2026-04-13",
-    attendanceSummary: "Present across all scheduled classes. Marked active in school during first class and school concluded during final class.",
-    teacherCommentSummary: "2 teacher notes were added today, including reading confidence and science participation.",
+    date: "2026-04-17",
+    attendanceSummary: "Present across all scheduled classes.",
+    teacherCommentSummary: "2 teacher notes were added today.",
     unreadCommentCount: 1,
+  },
+];
+
+export const mockDriverContact: DriverContact = {
+  name: "Rohit Kumar",
+  phone: "+91 98765 43210",
+  vehicleLabel: "Bus 12",
+  routeName: "North Route A",
+};
+
+export const mockRoutes: RouteOption[] = [
+  {
+    id: 1,
+    name: "North Route A",
+    busLabel: "Bus 12",
+    vehicleId: 1,
+    driverName: "Rohit Kumar",
+    stops: ["Lakeview Stop", "Pine Street", "Metro Corner", "City Center"],
+  },
+  {
+    id: 2,
+    name: "South Route B",
+    busLabel: "Bus 7",
+    vehicleId: 2,
+    driverName: "Anil Sharma",
+    stops: ["Riverside Gate", "Flower Market", "Station Road", "Town Square"],
+  },
+  {
+    id: 3,
+    name: "East Route C",
+    busLabel: "Bus 3",
+    vehicleId: 3,
+    driverName: "Suresh Patil",
+    stops: ["Sunrise Colony", "Park View", "School Lane"],
   },
 ];

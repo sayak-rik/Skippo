@@ -1,9 +1,16 @@
+// ---------------------------------------------------------------------------
+// Driver app shared types
+// ---------------------------------------------------------------------------
+
 export type AssignedVehicle = {
   id: number;
   registrationNumber: string;
   label: string;
   routeName: string;
   capacity: number;
+  // Present when this is one of multiple assigned vehicles (req 13)
+  isActive?: boolean;
+  contactPhone?: string;
 };
 
 export type TripStatus = {
@@ -23,6 +30,8 @@ export type StudentRideItem = {
   name: string;
   stopName: string;
   status: "absent" | "boarded" | "dropped";
+  // True when a parent has set a custom stop for this student (req 7)
+  hasStopOverride?: boolean;
 };
 
 export type RenewalItem = {
@@ -37,4 +46,25 @@ export type DeviceItem = {
   label: string;
   platform: string;
   isCurrent: boolean;
+};
+
+// ── New types for enhancement 2 ──────────────────────────────────────────────
+
+/** A nearby school vehicle the driver can contact during a breakdown (req 12). */
+export type NearbyVehicle = {
+  id: number;
+  label: string;
+  driverName: string;
+  phone: string;
+  routeName: string;
+  distanceKm: number;
+};
+
+/** Driver signup request submitted without an invite (req 6). */
+export type DriverSignupRequest = {
+  id: number;
+  status: "pending" | "approved" | "rejected";
+  schoolSlug: string;
+  name: string;
+  phone: string;
 };

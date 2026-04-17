@@ -1,3 +1,8 @@
+// ---------------------------------------------------------------------------
+// RosterScreen – per-student board/drop actions.
+// Shows a custom stop badge when a parent has set a stop override (req 7).
+// ---------------------------------------------------------------------------
+
 import { StyleSheet, Text, View } from "react-native";
 
 import { ActionCard } from "../components/ActionCard";
@@ -12,53 +17,99 @@ export function RosterScreen() {
   const { data } = useDriverDashboard();
   const actions = useDriverActions();
 
-  if (!data) {
-    return null;
-  }
+  if (!data) return null;
 
   return (
     <Screen>
-      <SectionTitle title="Student Roster" subtitle="Board and drop students with one-thumb actions" />
+      <SectionTitle
+        title="Student Roster"
+        subtitle={`${data.students.length} students · ${data.trip.routeName}`}
+      />
+
       {data.students.map((student) => (
         <ActionCard key={student.id} title={student.name} subtitle={student.stopName}>
+          {/* Custom stop badge — shown when parent has overridden the stop (req 7) */}
+          {student.hasStopOverride && (
+            <View style={styles.overrideBadge}>
+              <Text style={styles.overrideIcon}>📍</Text>
+              <Text style={styles.overrideText}>Parent set a custom stop</Text>
+            </View>
+          )}
+
           <View style={styles.row}>
-            <Text style={styles.status}>{student.status.toUpperCase()}</Text>
-            {student.status === "absent" ? (
+            <View style={[styles.statusChip, STATUS_CHIP[student.status]]}>
+              <Text style={[styles.statusText, STATUS_TEXT[student.status]]}>
+                {student.status.toUpperCase()}
+              </Text>
+            </View>
+
+            {student.status === "absent" && (
               <PrimaryButton
                 label="Board"
-                onPress={() => actions.boardStudent.mutate({ tripId: data.trip.id, studentId: student.id })}
+                onPress={() =>
+                  actions.boardStudent.mutate({ tripId: data.trip.id, studentId: student.id })
+                }
               />
-            ) : null}
-            {student.status === "boarded" ? (
+            )}
+            {student.status === "boarded" && (
               <PrimaryButton
                 label="Drop"
                 variant="muted"
-                onPress={() => actions.dropStudent.mutate({ tripId: data.trip.id, studentId: student.id })}
+                onPress={() =>
+                  actions.dropStudent.mutate({ tripId: data.trip.id, studentId: student.id })
+                }
               />
-            ) : null}
-            {student.status === "dropped" ? <PrimaryButton label="Completed" variant="muted" /> : null}
+            )}
+            {student.status === "dropped" && (
+              <PrimaryButton label="Done" variant="muted" />
+            )}
           </View>
         </ActionCard>
       ))}
-      <View style={styles.footerPad} />
+
+      <View style={{ height: spacing.xl }} />
     </Screen>
   );
 }
 
+const STATUS_CHIP: Record<string, object> = {
+  absent:  { backgroundColor: "#fff3e0" },
+  boarded: { backgroundColor: "#e8f5e9" },
+  dropped: { backgroundColor: palette.surfaceMuted },
+};
+
+const STATUS_TEXT: Record<string, object> = {
+  absent:  { color: palette.warning },
+  boarded: { color: palette.success },
+  dropped: { color: palette.inkSoft },
+};
+
 const styles = StyleSheet.create({
+  overrideBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: palette.brandSoft,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignSelf: "flex-start",
+    marginBottom: spacing.xs,
+  },
+  overrideIcon: { fontSize: 12 },
+  overrideText: { fontSize: 12, fontWeight: "700", color: palette.brandDeep },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,
   },
-  status: {
+  statusChip: {
     flex: 1,
-    fontSize: 13,
-    fontWeight: "800",
-    color: palette.brandDeep,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: "center",
   },
-  footerPad: {
-    height: spacing.xl,
-  },
+  statusText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.4 },
 });
