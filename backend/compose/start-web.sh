@@ -13,9 +13,6 @@ until nc -z "${REDISHOST:-redis}" "${REDISPORT:-6379}"; do
 done
 echo "[web] Redis is up."
 
-echo "[web] Creating migrations for any unmigrated apps..."
-python manage.py makemigrations --noinput
-
 echo "[web] Running migrations..."
 python manage.py migrate --noinput
 
