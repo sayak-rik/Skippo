@@ -73,9 +73,9 @@ export function RosterScreen() {
 }
 
 const STATUS_CHIP: Record<string, object> = {
-  absent:  { backgroundColor: "#fff3e0" },
-  boarded: { backgroundColor: "#e8f5e9" },
-  dropped: { backgroundColor: palette.surfaceMuted },
+  absent:  { backgroundColor: "#fff8e1", borderWidth: 1, borderColor: "#fde68a" },
+  boarded: { backgroundColor: "#f0fdf4", borderWidth: 1, borderColor: "#bbf7d0" },
+  dropped: { backgroundColor: palette.surfaceMuted, borderWidth: 1, borderColor: palette.stroke },
 };
 
 const STATUS_TEXT: Record<string, object> = {
@@ -90,11 +90,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     backgroundColor: palette.brandSoft,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 5,
     alignSelf: "flex-start",
     marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: palette.brandMid,
   },
   overrideIcon: { fontSize: 12 },
   overrideText: { fontSize: 12, fontWeight: "700", color: palette.brandDeep },
@@ -107,9 +109,9 @@ const styles = StyleSheet.create({
   statusChip: {
     flex: 1,
     paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 9,
+    borderRadius: 12,
     alignItems: "center",
   },
-  statusText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.4 },
+  statusText: { fontSize: 12, fontWeight: "800", letterSpacing: 0.5 },
 });

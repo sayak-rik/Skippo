@@ -4,6 +4,7 @@
 // refetchInterval so the map marker always reflects the latest driver ping.
 // ---------------------------------------------------------------------------
 
+import { LinearGradient } from "expo-linear-gradient";
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 
@@ -90,17 +91,29 @@ export function LiveTrackScreen() {
       {driverContact && (
         <InfoCard title="Driver contact" subtitle="Available during the trip">
           <View style={styles.driverRow}>
-            <View style={styles.driverAvatar}>
+            <LinearGradient
+              colors={["#4f46e5", "#7c3aed"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.driverAvatar}
+            >
               <Text style={styles.driverAvatarText}>
                 {driverContact.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
               </Text>
-            </View>
+            </LinearGradient>
             <View style={{ flex: 1 }}>
               <Text style={styles.driverName}>{driverContact.name}</Text>
               <Text style={styles.driverVehicle}>{driverContact.vehicleLabel}</Text>
             </View>
-            <TouchableOpacity style={styles.callBtn} onPress={callDriver} activeOpacity={0.8}>
-              <Text style={styles.callBtnText}>Call</Text>
+            <TouchableOpacity onPress={callDriver} activeOpacity={0.85}>
+              <LinearGradient
+                colors={["#4f46e5", "#7c3aed"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.callBtn}
+              >
+                <Text style={styles.callBtnText}>Call</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </InfoCard>
@@ -112,12 +125,17 @@ export function LiveTrackScreen() {
 const styles = StyleSheet.create({
   mapShell: {
     overflow: "hidden",
-    borderRadius: 24,
+    borderRadius: 28,
     borderWidth: 1,
     borderColor: palette.stroke,
     flex: 1,
     minHeight: 300,
     position: "relative",
+    shadowColor: "#4f46e5",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 4,
   },
   map: { flex: 1 },
   liveBadge: {
@@ -126,43 +144,50 @@ const styles = StyleSheet.create({
     right: spacing.sm,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(0,0,0,0.55)",
+    gap: 5,
+    backgroundColor: "rgba(0,0,0,0.65)",
     borderRadius: 99,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
   },
-  liveDot: { fontSize: 8, color: "#7fffd4" },
-  liveText: { fontSize: 11, fontWeight: "800", color: "#fff", letterSpacing: 0.8 },
+  liveDot: { fontSize: 8, color: "#86efac" },
+  liveText: { fontSize: 11, fontWeight: "800", color: "#fff", letterSpacing: 1 },
   detailRow: { flexDirection: "row", gap: spacing.sm },
   detailItem: {
     flex: 1,
-    backgroundColor: palette.surfaceMuted,
-    borderRadius: 12,
+    backgroundColor: palette.brandSoft,
+    borderRadius: 16,
     padding: spacing.md,
     alignItems: "center",
     gap: 2,
+    borderWidth: 1,
+    borderColor: palette.brandMid,
   },
-  detailValue: { fontSize: 17, fontWeight: "900", color: palette.ink },
-  detailLabel: { fontSize: 11, color: palette.inkSoft, textTransform: "uppercase", letterSpacing: 0.4 },
-  lastUpdate: { fontSize: 12, color: palette.inkSoft, marginTop: spacing.xs },
+  detailValue: { fontSize: 18, fontWeight: "900", color: palette.brand, letterSpacing: -0.5 },
+  detailLabel: { fontSize: 10, color: palette.inkSoft, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: "600" },
+  lastUpdate: { fontSize: 12, color: palette.inkFaint, marginTop: spacing.xs },
   driverRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   driverAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: palette.brandSoft,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
   },
-  driverAvatarText: { fontSize: 15, fontWeight: "900", color: palette.brandDeep },
+  driverAvatarText: { fontSize: 15, fontWeight: "900", color: "#fff" },
   driverName: { fontSize: 15, fontWeight: "800", color: palette.ink },
   driverVehicle: { fontSize: 12, color: palette.inkSoft, marginTop: 1 },
   callBtn: {
-    backgroundColor: palette.brand,
     borderRadius: 12,
     paddingHorizontal: spacing.md,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    shadowColor: "#4f46e5",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   callBtnText: { color: "#fff", fontWeight: "800", fontSize: 14 },
 });

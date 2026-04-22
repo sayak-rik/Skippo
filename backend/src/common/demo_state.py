@@ -390,6 +390,86 @@ def _base_state() -> dict:
         # until the admin approves the request from the dashboard.
         "driverSignupRequests": [],
 
+        # ── Dismissal / pickup-intent queue ───────────────────────────────────
+        # Parents signal their ETA for car-pickup dismissal.  School staff see a
+        # live queue sorted by ETA and tap "Child is ready" to notify the parent.
+        # status: pending | notified | completed
+        "pickupIntents": [
+            {
+                "id": 1,
+                "student_id": 1,
+                "student_name": "Aarav Roy",
+                "parent_name": "Aarav's Parent",
+                "classroom": "Class 4B",
+                "eta_minutes": 0,
+                "status": "pending",
+                "created_at": "2026-04-22T14:45:00+05:30",
+                "notified_at": None,
+                "completed_at": None,
+            },
+            {
+                "id": 2,
+                "student_id": 5,
+                "student_name": "Rohan Mehta",
+                "parent_name": "Rohan's Parent",
+                "classroom": "Class 4B",
+                "eta_minutes": 1,
+                "status": "pending",
+                "created_at": "2026-04-22T14:44:00+05:30",
+                "notified_at": None,
+                "completed_at": None,
+            },
+            {
+                "id": 3,
+                "student_id": 6,
+                "student_name": "Priya Sharma",
+                "parent_name": "Priya's Parent",
+                "classroom": "Class 5A",
+                "eta_minutes": 5,
+                "status": "pending",
+                "created_at": "2026-04-22T14:43:00+05:30",
+                "notified_at": None,
+                "completed_at": None,
+            },
+            {
+                "id": 4,
+                "student_id": 3,
+                "student_name": "Ved Singh",
+                "parent_name": "Ved's Parent",
+                "classroom": "Class 4B",
+                "eta_minutes": 5,
+                "status": "notified",
+                "created_at": "2026-04-22T14:40:00+05:30",
+                "notified_at": "2026-04-22T14:46:00+05:30",
+                "completed_at": None,
+            },
+            {
+                "id": 5,
+                "student_id": 2,
+                "student_name": "Mira Dutta",
+                "parent_name": "Mira's Parent",
+                "classroom": "Class 5A",
+                "eta_minutes": 10,
+                "status": "pending",
+                "created_at": "2026-04-22T14:42:00+05:30",
+                "notified_at": None,
+                "completed_at": None,
+            },
+            {
+                "id": 6,
+                "student_id": 4,
+                "student_name": "Sia Das",
+                "parent_name": "Sia's Parent",
+                "classroom": "Class 6A",
+                "eta_minutes": 10,
+                "status": "completed",
+                "created_at": "2026-04-22T14:30:00+05:30",
+                "notified_at": "2026-04-22T14:35:00+05:30",
+                "completed_at": "2026-04-22T14:38:00+05:30",
+            },
+        ],
+        "_dismissal_id_counter": 7,
+
         # ── Multi-vehicle assignment for the demo driver (req 13) ─────────────
         # A driver is identified by aadhar_number; multiple vehicles can be
         # assigned to the same aadhar. Each vehicle has its own phone number
@@ -1075,6 +1155,159 @@ def accept_driver_invite(token: str, name: str, phone: str, aadhar: str) -> dict
         "is_pending_approval": False,
         "aadhar_number": aadhar,
     }
+
+
+# ── Dismissal / pickup-intent helpers ────────────────────────────────────────
+
+ETA_LABELS = {0: "Here now", 1: "1 min", 5: "5 min", 10: "10 min"}
+VALID_ETAS = {0, 1, 5, 10}
+
+
+def _dismissal_queue_position(intent_id: int) -> int:
+    """Return 1-based queue position among pending intents sorted by (eta, created_at)."""
+    pending = [
+        i for i in STATE["pickupIntents"]
+        if i["status"] in ("pending", "notified")
+    ]
+    pending.sort(key=lambda x: (x["eta_minutes"], x["created_at"]))
+    for pos, intent in enumerate(pending, start=1):
+        if intent["id"] == intent_id:
+            return pos
+    return 0
+
+
+def signal_arrival(student_id: int, eta_minutes: int) -> dict:
+    """Parent signals they are on the way.  Upserts an intent for the student."""
+    if eta_minutes not in VALID_ETAS:
+        eta_minutes = 5
+
+    # Cancel any existing pending intent for this student
+    for intent in STATE["pickupIntents"]:
+        if intent["student_id"] == student_id and intent["status"] == "pending":
+            intent["status"] = "completed"
+            intent["completed_at"] = "2026-04-22T15:00:00+05:30"
+
+    # Find student name from roster
+    student = next(
+        (s for s in STATE["roster"] if s["id"] == student_id),
+        {"fullName": "Student"},
+    )
+    classroom = next(
+        (c for c in STATE["classrooms"] if c["id"] == 1),
+        {"label": "Class 4B"},
+    )
+
+    new_id = STATE["_dismissal_id_counter"]
+    STATE["_dismissal_id_counter"] += 1
+
+    intent = {
+        "id": new_id,
+        "student_id": student_id,
+        "student_name": student["fullName"],
+        "parent_name": "Aarav's Parent",
+        "classroom": classroom["label"],
+        "eta_minutes": eta_minutes,
+        "status": "pending",
+        "created_at": "2026-04-22T15:00:00+05:30",
+        "notified_at": None,
+        "completed_at": None,
+    }
+    STATE["pickupIntents"].append(intent)
+
+    position = _dismissal_queue_position(new_id)
+    result = deepcopy(intent)
+    result["queue_position"] = position
+    result["eta_label"] = ETA_LABELS.get(eta_minutes, f"{eta_minutes} min")
+    return result
+
+
+def get_parent_intent(student_id: int) -> dict | None:
+    """Return the active (pending or notified) intent for a student, with queue position."""
+    intent = next(
+        (i for i in STATE["pickupIntents"]
+         if i["student_id"] == student_id and i["status"] in ("pending", "notified")),
+        None,
+    )
+    if not intent:
+        return None
+    result = deepcopy(intent)
+    result["queue_position"] = _dismissal_queue_position(intent["id"])
+    result["eta_label"] = ETA_LABELS.get(intent["eta_minutes"], f"{intent['eta_minutes']} min")
+    return result
+
+
+def get_dismissal_queue() -> dict:
+    """Return the full live queue for the school dashboard."""
+    active = [
+        i for i in STATE["pickupIntents"]
+        if i["status"] in ("pending", "notified")
+    ]
+    active.sort(key=lambda x: (x["eta_minutes"], x["created_at"]))
+
+    completed_today = [i for i in STATE["pickupIntents"] if i["status"] == "completed"]
+
+    queue_with_position = []
+    for pos, intent in enumerate(active, start=1):
+        item = deepcopy(intent)
+        item["queue_position"] = pos
+        item["eta_label"] = ETA_LABELS.get(intent["eta_minutes"], f"{intent['eta_minutes']} min")
+        queue_with_position.append(item)
+
+    total_wait = 0
+    notified_count = len([i for i in active if i["status"] == "notified"])
+    pending_count = len([i for i in active if i["status"] == "pending"])
+
+    return {
+        "queue": queue_with_position,
+        "stats": {
+            "pending": pending_count,
+            "notified": notified_count,
+            "completed_today": len(completed_today),
+            "avg_wait_minutes": 4,
+        },
+    }
+
+
+def mark_child_ready(student_id: int) -> dict | None:
+    """School staff marks a child as ready — triggers parent notification."""
+    intent = next(
+        (i for i in STATE["pickupIntents"]
+         if i["student_id"] == student_id and i["status"] == "pending"),
+        None,
+    )
+    if not intent:
+        return None
+
+    intent["status"] = "notified"
+    intent["notified_at"] = "2026-04-22T15:05:00+05:30"
+
+    # Inject a parent-facing alert so the parent app shows the notification
+    STATE["alerts"].insert(0, {
+        "id": 500 + student_id,
+        "title": f"{intent['student_name']} is at the gate",
+        "body": f"Head to the pickup gate — {intent['student_name']} is ready and waiting.",
+        "level": "info",
+        "createdAt": "2026-04-22T15:05:00+05:30",
+    })
+
+    result = deepcopy(intent)
+    result["queue_position"] = _dismissal_queue_position(intent["id"])
+    result["eta_label"] = ETA_LABELS.get(intent["eta_minutes"], f"{intent['eta_minutes']} min")
+    return result
+
+
+def complete_pickup(student_id: int) -> dict | None:
+    """Parent confirms pickup is done — closes the intent."""
+    intent = next(
+        (i for i in STATE["pickupIntents"]
+         if i["student_id"] == student_id and i["status"] in ("pending", "notified")),
+        None,
+    )
+    if not intent:
+        return None
+    intent["status"] = "completed"
+    intent["completed_at"] = "2026-04-22T15:10:00+05:30"
+    return deepcopy(intent)
 
 
 def submit_driver_self_signup(school_slug: str, name: str, phone: str, aadhar: str, vehicle_reg: str) -> dict:

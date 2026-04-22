@@ -10,6 +10,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StyleSheet, Text, View } from "react-native";
 
+import { DismissalScreen } from "../screens/DismissalScreen";
 import { HomeScreen } from "../screens/HomeScreen";
 import { LiveTrackScreen } from "../screens/LiveTrackScreen";
 import { LoginScreen } from "../screens/LoginScreen";
@@ -30,6 +31,7 @@ const Tab = createBottomTabNavigator();
 const TABS = [
   { name: "Home",          component: HomeScreen,          emoji: "🏠", label: "Home"      },
   { name: "Track",         component: LiveTrackScreen,     emoji: "📍", label: "Track"     },
+  { name: "Pickup",        component: DismissalScreen,     emoji: "🚗", label: "Pickup"    },
   { name: "Progress",      component: ProgressScreen,      emoji: "📚", label: "Progress"  },
   { name: "Messages",      component: MessagesScreen,      emoji: "✉️", label: "Messages"  },
   { name: "Notifications", component: NotificationsScreen, emoji: "🔔", label: "Alerts"    },

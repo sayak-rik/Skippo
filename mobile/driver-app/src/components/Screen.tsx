@@ -14,7 +14,12 @@ export function Screen({ children, scroll = true }: ScreenProps) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      {scroll ? <ScrollView showsVerticalScrollIndicator={false}>{content}</ScrollView> : content}
+      {scroll
+        ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            {content}
+          </ScrollView>
+        : content
+      }
     </SafeAreaView>
   );
 }
@@ -24,10 +29,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.canvas,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     flexGrow: 1,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
     gap: spacing.md,
   },
 });

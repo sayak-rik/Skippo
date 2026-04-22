@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   },
   tag: {
     fontSize: 13,
-    fontWeight: "800",
-    color: palette.brandDeep,
+    fontWeight: "700",
+    color: palette.brand,
   },
 });

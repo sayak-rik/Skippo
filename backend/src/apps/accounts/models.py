@@ -96,6 +96,42 @@ class DriverInvitation(TimestampedModel):
     is_used = models.BooleanField(default=False)
 
 
+class OTPRequest(TimestampedModel):
+    """A one-time password request for passwordless login or action confirmation.
+
+    Used by:
+    - Parents and drivers logging in via phone/email OTP
+    - Parents confirming a destructive action (e.g. removing student from bus)
+
+    The raw code is never stored; only its SHA-256 hash is persisted so a DB
+    breach cannot reveal valid codes.  Max 5 verify attempts before the record
+    is voided to prevent brute-force.
+    """
+
+    class Channel(models.TextChoices):
+        SMS = "sms", "SMS"
+        EMAIL = "email", "Email"
+
+    class Role(models.TextChoices):
+        PARENT = "parent", "Parent"
+        DRIVER = "driver", "Driver"
+
+    class Purpose(models.TextChoices):
+        LOGIN = "login", "Login"
+        CONFIRM_ACTION = "confirm_action", "Confirm Action"
+
+    school = models.ForeignKey("tenancy.School", null=True, blank=True, on_delete=models.SET_NULL)
+    contact = models.CharField(max_length=255)  # phone number or email address
+    channel = models.CharField(max_length=8, choices=Channel.choices)
+    role = models.CharField(max_length=16, choices=Role.choices)
+    purpose = models.CharField(max_length=20, choices=Purpose.choices, default=Purpose.LOGIN)
+    code_hash = models.CharField(max_length=64)  # SHA-256 hex digest of the 6-digit code
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    context = models.JSONField(default=dict, blank=True)  # e.g. {"student_id": 5} for action OTPs
+
+
 class DriverSignupRequest(TimestampedModel):
     """A self-initiated driver signup request that requires admin approval.
 

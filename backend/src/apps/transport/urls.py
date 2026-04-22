@@ -13,8 +13,12 @@ from apps.transport.views import (
     ParentConfirmFirstStopView,
     ParentDriverContactView,
     ParentUpdateStopView,
+    QRScanEnrolView,
     StartTripView,
+    StudentQRGenerateView,
     StudentStopView,
+    StudentUnenrolConfirmView,
+    StudentUnenrolRequestView,
     TransportRootView,
 )
 
@@ -52,4 +56,12 @@ urlpatterns = [
 
     # Nearby vehicles for breakdown assistance (req 12)
     path("nearby-vehicles/", NearbyVehiclesView.as_view(), name="transport-nearby-vehicles"),
+
+    # QR-code bus enrolment
+    path("students/<int:student_id>/qr/",                StudentQRGenerateView.as_view(),   name="transport-student-qr"),
+    path("qr/scan/",                                      QRScanEnrolView.as_view(),         name="transport-qr-scan"),
+
+    # Parent-initiated bus removal (OTP confirmed)
+    path("students/<int:student_id>/unenroll/",           StudentUnenrolRequestView.as_view(),  name="transport-student-unenroll"),
+    path("students/<int:student_id>/unenroll/confirm/",   StudentUnenrolConfirmView.as_view(),  name="transport-student-unenroll-confirm"),
 ]

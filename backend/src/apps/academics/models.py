@@ -12,8 +12,38 @@ class Classroom(SchoolScopedModel):
 class Student(SchoolScopedModel):
     full_name = models.CharField(max_length=255)
     classroom = models.ForeignKey(Classroom, null=True, blank=True, on_delete=models.SET_NULL)
-    parent = models.ForeignKey("accounts.ParentProfile", null=True, blank=True, on_delete=models.SET_NULL)
     roll_number = models.CharField(max_length=32, blank=True)
+    parents = models.ManyToManyField(
+        "accounts.ParentProfile",
+        through="StudentParentLink",
+        related_name="students",
+        blank=True,
+    )
+
+
+class StudentParentLink(TimestampedModel):
+    """Maps one or more parents to a student.
+
+    A student can have multiple parents (e.g. mother and father both linked).
+    is_primary marks the parent who receives transport / attendance notifications.
+    source records how the link was created for audit purposes.
+    """
+
+    class Source(models.TextChoices):
+        ADMIN = "admin", "Admin"
+        QR_SCAN = "qr_scan", "QR Scan"
+        DIRECT = "direct", "Direct"
+
+    school = models.ForeignKey("tenancy.School", on_delete=models.CASCADE)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="parent_links")
+    parent = models.ForeignKey(
+        "accounts.ParentProfile", on_delete=models.CASCADE, related_name="student_links"
+    )
+    is_primary = models.BooleanField(default=True)
+    source = models.CharField(max_length=16, choices=Source.choices, default=Source.ADMIN)
+
+    class Meta:
+        unique_together = [("student", "parent")]
 
 
 class ClassSession(SchoolScopedModel):

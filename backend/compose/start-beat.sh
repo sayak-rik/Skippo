@@ -14,5 +14,4 @@ done
 echo "[beat] Redis is up."
 
 echo "[beat] Starting Celery beat..."
-exec celery -A skippo_backend beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler 2>/dev/null \
-  || exec celery -A skippo_backend beat -l info
+exec celery -A skippo_backend beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler

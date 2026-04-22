@@ -79,6 +79,48 @@ class TripLocationPing(TimestampedModel):
     accuracy = models.FloatField(default=0)
 
 
+class StudentBusEnrollment(TimestampedModel):
+    """Records that a student is enrolled on a specific route.
+
+    Created when a driver scans the student's QR code presented by the parent.
+    Only one active enrollment per student is allowed at a time; deactivating
+    an enrollment (via parent-initiated removal) sets is_active=False.
+    """
+
+    school = models.ForeignKey("tenancy.School", on_delete=models.CASCADE)
+    student = models.ForeignKey(
+        "academics.Student", on_delete=models.CASCADE, related_name="bus_enrollments"
+    )
+    route = models.ForeignKey(Route, on_delete=models.CASCADE, related_name="enrolled_students")
+    added_by_driver = models.ForeignKey(
+        "accounts.DriverProfile", null=True, blank=True, on_delete=models.SET_NULL
+    )
+    is_active = models.BooleanField(default=True)
+    deactivated_at = models.DateTimeField(null=True, blank=True)
+
+
+class StudentBusQRToken(TimestampedModel):
+    """Single-use QR token that lets a driver enroll a student on a route.
+
+    The parent generates the token from the app; it encodes as a QR image.
+    When the driver scans it the token is marked used and a StudentBusEnrollment
+    is created.  Tokens expire after 15 minutes to prevent replay.
+    """
+
+    school = models.ForeignKey("tenancy.School", on_delete=models.CASCADE)
+    student = models.ForeignKey(
+        "academics.Student", on_delete=models.CASCADE, related_name="bus_qr_tokens"
+    )
+    parent = models.ForeignKey("accounts.ParentProfile", on_delete=models.CASCADE)
+    token = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    used_by_driver = models.ForeignKey(
+        "accounts.DriverProfile", null=True, blank=True, on_delete=models.SET_NULL
+    )
+    used_at = models.DateTimeField(null=True, blank=True)
+
+
 class StudentStopOverride(TimestampedModel):
     """A parent-customised pick-up / drop-off stop for their ward (req 7 & 8).
 

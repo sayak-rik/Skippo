@@ -14,6 +14,10 @@ env = environ.Env(
     CELERY_BROKER_URL=(str, "redis://localhost:6379/1"),
     CELERY_RESULT_BACKEND=(str, "redis://localhost:6379/2"),
     GOOGLE_MAPS_API_KEY=(str, ""),
+    SMS_SERVICE_URL=(str, "http://sms-service:8090"),
+    MSG91_AUTH_KEY=(str, ""),
+    MSG91_SENDER_ID=(str, "SKIPPO"),
+    MSG91_TEMPLATE_ID=(str, ""),
 )
 
 BASE_DIR = Path(__file__).resolve().parents[3]
@@ -46,6 +50,8 @@ INSTALLED_APPS = [
     "apps.compliance",
     "apps.notifications",
     "apps.reports",
+    "apps.dismissal",
+    "django_celery_beat",
 ]
 
 MIDDLEWARE = [
@@ -152,6 +158,17 @@ CELERY_TASK_SOFT_TIME_LIMIT = 60 * 5
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
+CELERY_BEAT_SCHEDULE = {
+    "expire-old-pickup-intents": {
+        "task": "apps.dismissal.tasks.expire_old_pickup_intents",
+        "schedule": 60 * 60 * 3,  # every 3 hours
+    },
+}
 
 TENANT_HEADER = "HTTP_X_SCHOOL_SLUG"
 GOOGLE_MAPS_API_KEY = env("GOOGLE_MAPS_API_KEY")
+
+SMS_SERVICE_URL = env("SMS_SERVICE_URL")
+MSG91_AUTH_KEY = env("MSG91_AUTH_KEY")
+MSG91_SENDER_ID = env("MSG91_SENDER_ID")
+MSG91_TEMPLATE_ID = env("MSG91_TEMPLATE_ID")

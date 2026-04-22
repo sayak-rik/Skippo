@@ -18,15 +18,18 @@ export function SectionTitle({ title, subtitle }: SectionTitleProps) {
 
 const styles = StyleSheet.create({
   wrap: {
-    gap: 4,
+    gap: 3,
   },
   title: {
     fontSize: 22,
     fontWeight: "900",
     color: palette.ink,
+    letterSpacing: -0.4,
   },
   subtitle: {
     color: palette.inkSoft,
     fontSize: 13,
+    fontWeight: "400",
+    lineHeight: 18,
   },
 });

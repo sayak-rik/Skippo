@@ -7,6 +7,8 @@ from apps.accounts.views import (
     DemoLoginView,
     DriverSelfSignupView,
     MeView,
+    OTPRequestView,
+    OTPVerifyView,
     ValidateDriverInviteView,
     ValidateInviteView,
 )
@@ -29,4 +31,8 @@ urlpatterns = [
 
     # Driver self-signup (req 6) — no invite; waits for admin approval
     path("driver/signup/", DriverSelfSignupView.as_view(), name="accounts-driver-signup"),
+
+    # OTP login (parent & driver)
+    path("otp/request/", OTPRequestView.as_view(), name="accounts-otp-request"),
+    path("otp/verify/",  OTPVerifyView.as_view(),  name="accounts-otp-verify"),
 ]

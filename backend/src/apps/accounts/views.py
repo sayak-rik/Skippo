@@ -1,7 +1,18 @@
+import hashlib
+import random
+import secrets
+import string
+from datetime import timedelta
+
+from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.accounts.models import DriverProfile, OTPRequest, ParentProfile
+from apps.tenancy.models import School
 from common.demo_state import (
     accept_driver_invite,
     accept_invite,
@@ -10,6 +21,25 @@ from common.demo_state import (
     validate_driver_invite,
     validate_invite,
 )
+from common.sms import send_sms
+
+User = get_user_model()
+
+_OTP_TTL_MINUTES = 10
+_OTP_MAX_ATTEMPTS = 5
+
+
+def _generate_otp() -> str:
+    return "".join(random.choices(string.digits, k=6))
+
+
+def _hash_code(code: str) -> str:
+    return hashlib.sha256(code.encode()).hexdigest()
+
+
+def _jwt_for_user(user) -> dict:
+    refresh = RefreshToken.for_user(user)
+    return {"refresh": str(refresh), "access": str(refresh.access_token)}
 
 
 class AccountsRootView(APIView):
@@ -151,6 +181,177 @@ class AcceptDriverInviteView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(payload, status=status.HTTP_201_CREATED)
+
+
+# ── OTP login (parent & driver) ───────────────────────────────────────────────
+
+class OTPRequestView(APIView):
+    """Send a 6-digit OTP to the parent/driver's phone via SMS or email.
+
+    POST /api/auth/otp/request/
+    Body:
+        contact     (str) – phone number or email address
+        channel     (str) – "sms" or "email"
+        role        (str) – "parent" or "driver"
+        school_slug (str) – school identifier
+        purpose     (str, optional) – "login" (default) or "confirm_action"
+        context     (obj, optional) – extra payload stored on the OTP record
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        contact = request.data.get("contact", "").strip()
+        channel = request.data.get("channel", "sms")
+        role = request.data.get("role", "")
+        school_slug = request.data.get("school_slug", "").strip()
+        purpose = request.data.get("purpose", OTPRequest.Purpose.LOGIN)
+        context = request.data.get("context", {})
+
+        if not contact or role not in ("parent", "driver") or not school_slug:
+            return Response(
+                {"detail": "contact, role, and school_slug are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if channel not in ("sms", "email"):
+            return Response(
+                {"detail": "channel must be 'sms' or 'email'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            school = School.objects.get(slug=school_slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Verify the contact exists for the given role + school
+        if role == "parent":
+            exists = ParentProfile.objects.filter(school=school, phone=contact).exists()
+        else:
+            exists = DriverProfile.objects.filter(school=school, phone=contact).exists()
+
+        if not exists:
+            return Response(
+                {"detail": "No account found for this contact at the given school."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        code = _generate_otp()
+        OTPRequest.objects.create(
+            school=school,
+            contact=contact,
+            channel=channel,
+            role=role,
+            purpose=purpose,
+            code_hash=_hash_code(code),
+            expires_at=timezone.now() + timedelta(minutes=_OTP_TTL_MINUTES),
+            context=context if isinstance(context, dict) else {},
+        )
+
+        if channel == "sms":
+            send_sms(to=contact, message=f"Your Skippo OTP is {code}. Valid for {_OTP_TTL_MINUTES} minutes.")
+        # Email channel: wire to email backend when ready; for now the code is logged in dev
+        else:
+            import logging
+            logging.getLogger(__name__).info("EMAIL OTP for %s: %s", contact, code)
+
+        return Response({"detail": "OTP sent."}, status=status.HTTP_200_OK)
+
+
+class OTPVerifyView(APIView):
+    """Verify an OTP and return JWT tokens on success.
+
+    POST /api/auth/otp/verify/
+    Body:
+        contact     (str)
+        code        (str) – the 6-digit OTP
+        role        (str)
+        school_slug (str)
+        purpose     (str, optional) – must match what was requested
+
+    Returns on login purpose:
+        { "access": "...", "refresh": "...", "role": "parent"|"driver" }
+
+    Returns on confirm_action purpose:
+        { "confirmed": true }
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        contact = request.data.get("contact", "").strip()
+        code = request.data.get("code", "").strip()
+        role = request.data.get("role", "")
+        school_slug = request.data.get("school_slug", "").strip()
+        purpose = request.data.get("purpose", OTPRequest.Purpose.LOGIN)
+
+        if not contact or not code or role not in ("parent", "driver") or not school_slug:
+            return Response(
+                {"detail": "contact, code, role, and school_slug are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            school = School.objects.get(slug=school_slug)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        otp = (
+            OTPRequest.objects.filter(
+                school=school,
+                contact=contact,
+                role=role,
+                purpose=purpose,
+                is_used=False,
+                expires_at__gt=timezone.now(),
+                attempts__lt=_OTP_MAX_ATTEMPTS,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if otp is None:
+            return Response(
+                {"detail": "No valid OTP found. Please request a new one."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if otp.code_hash != _hash_code(code):
+            otp.attempts += 1
+            otp.save(update_fields=["attempts"])
+            remaining = _OTP_MAX_ATTEMPTS - otp.attempts
+            return Response(
+                {"detail": f"Incorrect code. {remaining} attempt(s) remaining."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        otp.is_used = True
+        otp.save(update_fields=["is_used"])
+
+        if purpose == OTPRequest.Purpose.CONFIRM_ACTION:
+            return Response({"confirmed": True, "context": otp.context})
+
+        # Login purpose — look up the profile and return JWT tokens
+        if role == "parent":
+            try:
+                profile = ParentProfile.objects.select_related("user").get(school=school, phone=contact)
+            except ParentProfile.DoesNotExist:
+                return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            user = profile.user
+        else:
+            try:
+                profile = DriverProfile.objects.select_related("user").get(school=school, phone=contact)
+            except DriverProfile.DoesNotExist:
+                return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            if not profile.is_approved:
+                return Response(
+                    {"detail": "Your account is pending approval."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            user = profile.user
+
+        tokens = _jwt_for_user(user)
+        return Response({**tokens, "role": role, "user": {"id": user.id, "name": user.get_full_name()}})
 
 
 class DriverSelfSignupView(APIView):

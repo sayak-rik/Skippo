@@ -24,22 +24,29 @@ export function ActionCard({ title, subtitle, children }: ActionCardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: palette.surface,
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: palette.stroke,
     padding: spacing.md,
     gap: spacing.md,
+    shadowColor: "#0d9488",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 16,
+    elevation: 2,
   },
   header: {
-    gap: 4,
+    gap: 3,
   },
   title: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "800",
     color: palette.ink,
+    letterSpacing: -0.2,
   },
   subtitle: {
     color: palette.inkSoft,
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: "500",
   },
 });

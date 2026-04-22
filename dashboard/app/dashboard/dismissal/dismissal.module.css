@@ -1,0 +1,325 @@
+/* ── Toolbar ──────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.livePill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--success);
+  background: var(--success-dim);
+  border: 1px solid rgba(0,224,154,0.2);
+  padding: 6px 12px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success);
+  animation: pulse 2s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.filterGroup {
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.filterBtn {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.filterBtn:hover {
+  color: var(--ink);
+  background: var(--surface-raised);
+}
+
+.filterBtnActive {
+  background: var(--brand-dim) !important;
+  color: var(--brand) !important;
+  border: 1px solid var(--stroke-bright);
+}
+
+/* ── Queue Table ──────────────────────────────────────── */
+.queueTable {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.tableHead {
+  display: grid;
+  grid-template-columns: 40px 1fr 110px 140px 90px 110px 140px;
+  gap: 0;
+  padding: 12px 20px;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--stroke);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: 40px 1fr 110px 140px 90px 110px 140px;
+  gap: 0;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--stroke);
+  transition: background 0.15s ease;
+}
+
+.tableRow:last-child { border-bottom: none; }
+.tableRow:hover { background: var(--surface-raised); }
+
+.thPos, .tdPos {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+.thStudent, .tdStudent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.studentAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #04121a;
+  flex-shrink: 0;
+  letter-spacing: -0.02em;
+}
+
+.studentName {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.thClass, .tdClass {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.thParent, .tdParent {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+/* ── ETA badges ───────────────────────────────────────── */
+.tdEta {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  letter-spacing: 0.02em;
+}
+
+.etaHere {
+  background: rgba(255,77,106,0.12);
+  color: var(--danger);
+  border: 1px solid rgba(255,77,106,0.25);
+}
+
+.etaSoon {
+  background: rgba(255,181,71,0.14);
+  color: var(--warning);
+  border: 1px solid rgba(255,181,71,0.25);
+}
+
+.etaMid {
+  background: var(--brand-dim);
+  color: var(--brand);
+  border: 1px solid var(--stroke-bright);
+}
+
+.etaFar {
+  background: var(--surface-raised);
+  color: var(--ink-soft);
+  border: 1px solid var(--stroke);
+}
+
+/* ── Status badges ────────────────────────────────────── */
+.tdStatus {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+}
+
+.statusPending {
+  color: var(--ink-soft);
+  background: var(--surface-raised);
+  border: 1px solid var(--stroke);
+}
+
+.statusNotified {
+  color: var(--success);
+  background: var(--success-dim);
+  border: 1px solid rgba(0,224,154,0.2);
+}
+
+.statusDone {
+  color: var(--ink-dim);
+  background: transparent;
+}
+
+/* ── Action buttons ───────────────────────────────────── */
+.tdAction {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.readyBtn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--brand);
+  background: var(--brand-dim);
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.readyBtn:hover {
+  background: var(--brand);
+  color: #04121a;
+}
+
+.doneBtn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(0,224,154,0.3);
+  background: var(--success-dim);
+  color: var(--success);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.doneBtn:hover {
+  background: rgba(0,224,154,0.2);
+}
+
+/* ── Empty state ─────────────────────────────────────── */
+.emptyState {
+  padding: 48px 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.emptyTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.emptySub {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* ── Stats footer row ─────────────────────────────────── */
+.statsRow {
+  display: flex;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+.statItem {
+  flex: 1;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-right: 1px solid var(--stroke);
+}
+
+.statItem:last-child { border-right: none; }
+
+.statValue {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}

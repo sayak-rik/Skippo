@@ -24,22 +24,29 @@ export function InfoCard({ title, subtitle, children }: InfoCardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: palette.surface,
-    borderRadius: 22,
+    borderRadius: 24,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: palette.stroke,
     gap: spacing.md,
+    shadowColor: "#4f46e5",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 2,
   },
   header: {
-    gap: 4,
+    gap: 3,
   },
   title: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "800",
     color: palette.ink,
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: palette.inkSoft,
+    fontWeight: "500",
   },
 });
