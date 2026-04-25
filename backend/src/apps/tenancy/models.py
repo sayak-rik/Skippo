@@ -20,3 +20,4 @@ class TenantConfig(TimestampedModel):
     brand_name = models.CharField(max_length=255, blank=True)
     timezone = models.CharField(max_length=64, default="Asia/Kolkata")
     feature_flags = models.JSONField(default=dict, blank=True)
+    ai_tokens_per_teacher_per_day = models.PositiveSmallIntegerField(default=5)

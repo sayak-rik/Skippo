@@ -44,22 +44,42 @@ def wait_for_speech(state: CallState) -> dict:
 # Greeting
 # ─────────────────────────────────────────────────────────────────────────────
 
-async def greeting_node(state: CallState) -> dict:
-    obj       = state["objective"]
-    name      = state["contact_name"]
-    student   = state["student_name"] or "your child"
-    school    = state["school_name"]
+def _student_names(state: CallState) -> str:
+    """Return a human-friendly student name string for the script."""
+    ctx = state.get("campaign_context") or {}
+    names: list[str] = ctx.get("student_names") or []
+    if names:
+        if len(names) == 1:
+            return names[0]
+        return ", ".join(names[:-1]) + f" and {names[-1]}"
+    return state.get("student_name") or "your child"
 
-    if obj == "guardian_meet":
+
+async def greeting_node(state: CallState) -> dict:
+    obj      = state["objective"]
+    name     = state["contact_name"]
+    students = _student_names(state)
+    school   = state["school_name"]
+    ctx      = state.get("campaign_context") or {}
+
+    if obj == "general_notification":
+        reason = ctx.get("reason_text", "an important update")
         text = (
             f"Hello, this is an automated call from {school}. "
-            f"I'm calling about {student}. "
-            f"Am I speaking with {name} or a guardian of {student}? "
+            f"I'm calling to share {reason[:80]}. "
+            f"Am I speaking with {name} or a guardian? "
+            f"Please say yes, or no."
+        )
+    elif obj == "guardian_meet":
+        text = (
+            f"Hello, this is an automated call from {school}. "
+            f"I'm calling about {students}. "
+            f"Am I speaking with {name} or a guardian? "
             f"Please say yes, or no."
         )
     else:  # career_guidance
         text = (
-            f"Hello, this is {school} calling regarding {student}'s career planning. "
+            f"Hello, this is {school} calling regarding {students}'s career planning. "
             f"Am I speaking with {name} or a guardian? "
             f"Please say yes, or no."
         )
@@ -90,22 +110,31 @@ async def confirm_identity_node(state: CallState) -> dict:
     answer = answer.lower()
 
     if "yes" in answer:
-        obj    = state["objective"]
-        student = state["student_name"] or "your child"
-        school  = state["school_name"]
+        obj      = state["objective"]
+        students = _student_names(state)
+        school   = state["school_name"]
+        ctx      = state.get("campaign_context") or {}
 
-        if obj == "guardian_meet":
+        if obj == "general_notification":
+            reason = ctx.get("reason_text", "an important update from the school")
             speak = (
-                f"Thank you. We would like to arrange a guardian meeting at {school} "
-                f"to discuss {student}'s progress. "
+                f"Thank you. {reason} "
+                f"Do you have any questions about this?"
+            )
+        elif obj == "guardian_meet":
+            context_hint = ctx.get("reason_text", "")
+            extra = f" {context_hint}" if context_hint else ""
+            speak = (
+                f"Thank you.{extra} We would like to arrange a guardian meeting at {school} "
+                f"to discuss {students}'s progress. "
                 f"Could you suggest a date and time that works for you? "
                 f"For example, this coming Saturday morning, or a weekday afternoon."
             )
         else:  # career_guidance
             speak = (
-                f"Thank you. We'd like to talk about {student}'s career interests "
+                f"Thank you. We'd like to talk about {students}'s career interests "
                 f"and how we can support them. "
-                f"Could you briefly tell me what fields or subjects {student} is most interested in?"
+                f"Could you briefly tell me what fields or subjects {students} is most interested in?"
             )
 
         return {

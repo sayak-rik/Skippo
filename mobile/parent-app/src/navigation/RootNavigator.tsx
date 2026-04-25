@@ -11,6 +11,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StyleSheet, Text, View } from "react-native";
 
 import { DismissalScreen } from "../screens/DismissalScreen";
+import { FeesScreen } from "../screens/FeesScreen";
 import { HomeScreen } from "../screens/HomeScreen";
 import { LiveTrackScreen } from "../screens/LiveTrackScreen";
 import { LoginScreen } from "../screens/LoginScreen";
@@ -19,6 +20,8 @@ import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { ProgressScreen } from "../screens/ProgressScreen";
 import { SignupScreen } from "../screens/SignupScreen";
+import { SupportScreen } from "../screens/SupportScreen";
+import { WeeklyDigestScreen } from "../screens/WeeklyDigestScreen";
 import { useSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
@@ -32,9 +35,12 @@ const TABS = [
   { name: "Home",          component: HomeScreen,          emoji: "🏠", label: "Home"      },
   { name: "Track",         component: LiveTrackScreen,     emoji: "📍", label: "Track"     },
   { name: "Pickup",        component: DismissalScreen,     emoji: "🚗", label: "Pickup"    },
+  { name: "Fees",          component: FeesScreen,          emoji: "💳", label: "Fees"      },
   { name: "Progress",      component: ProgressScreen,      emoji: "📚", label: "Progress"  },
+  { name: "WeeklyDigest",  component: WeeklyDigestScreen,  emoji: "📊", label: "Report"    },
   { name: "Messages",      component: MessagesScreen,      emoji: "✉️", label: "Messages"  },
   { name: "Notifications", component: NotificationsScreen, emoji: "🔔", label: "Alerts"    },
+  { name: "Support",       component: SupportScreen,       emoji: "🆘", label: "Support"   },
   { name: "Profile",       component: ProfileScreen,       emoji: "👤", label: "Profile"   },
 ];
 

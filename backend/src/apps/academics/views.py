@@ -1,3 +1,5 @@
+import asyncio
+
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -216,3 +218,145 @@ class ParentStudentReportView(APIView):
 
     def get(self, request, student_id: int):
         return Response(parent_report(student_id))
+
+
+# ── AI Teaching Assistant ─────────────────────────────────────────────────────
+
+def _resolve_teacher(request):
+    """Return the authenticated teacher profile, or the first one in dev/demo mode."""
+    from apps.accounts.models import TeacherProfile
+    if hasattr(request, "user") and request.user.is_authenticated:
+        return TeacherProfile.objects.filter(user=request.user).first()
+    return TeacherProfile.objects.first()
+
+
+class AITokenStatusView(APIView):
+    """Return how many AI tokens the teacher has used and remaining today."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from apps.academics.services.ai_assistant import remaining_tokens
+        teacher = _resolve_teacher(request)
+        if not teacher:
+            return Response({"used": 0, "limit": 5, "remaining": 5})
+        return Response(remaining_tokens(teacher))
+
+
+class AILessonPlanView(APIView):
+    """Generate an AI lesson plan for a given subject + topic.
+
+    POST body:
+        subject          (str, required)
+        topic            (str, required)
+        duration_minutes (int, optional, default 45)
+        classroom_id     (int, optional)
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        from apps.academics.models import Classroom
+        from apps.academics.services.ai_assistant import TokenLimitExceeded, generate_lesson_plan
+
+        teacher = _resolve_teacher(request)
+        if not teacher:
+            return Response({"detail": "No teacher profile found."}, status=status.HTTP_404_NOT_FOUND)
+
+        subject = request.data.get("subject", "").strip()
+        topic   = request.data.get("topic", "").strip()
+        if not subject or not topic:
+            return Response({"detail": "subject and topic are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        duration  = int(request.data.get("duration_minutes", 45))
+        cls_id    = request.data.get("classroom_id")
+        classroom = None
+        if cls_id:
+            classroom = Classroom.objects.filter(pk=cls_id).first()
+
+        try:
+            result = asyncio.run(generate_lesson_plan(teacher, subject, topic, duration, classroom))
+        except TokenLimitExceeded as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        except Exception as exc:
+            return Response({"detail": f"AI error: {exc}"}, status=status.HTTP_502_BAD_GATEWAY)
+
+        return Response(result, status=status.HTTP_201_CREATED)
+
+
+class AIClassSummaryView(APIView):
+    """Generate an AI class summary with weak-student and revision-topic suggestions.
+
+    POST body:
+        classroom_id (int, required)
+        date         (str YYYY-MM-DD, optional — defaults to today)
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        from datetime import date
+        from apps.academics.models import Classroom
+        from apps.academics.services.ai_assistant import TokenLimitExceeded, generate_class_summary
+
+        teacher = _resolve_teacher(request)
+        if not teacher:
+            return Response({"detail": "No teacher profile found."}, status=status.HTTP_404_NOT_FOUND)
+
+        cls_id = request.data.get("classroom_id")
+        if not cls_id:
+            return Response({"detail": "classroom_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        classroom = Classroom.objects.filter(pk=cls_id).first()
+        if not classroom:
+            return Response({"detail": "Classroom not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        raw_date     = request.data.get("date")
+        session_date = date.fromisoformat(raw_date) if raw_date else date.today()
+
+        try:
+            result = asyncio.run(generate_class_summary(teacher, classroom, session_date))
+        except TokenLimitExceeded as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        except Exception as exc:
+            return Response({"detail": f"AI error: {exc}"}, status=status.HTTP_502_BAD_GATEWAY)
+
+        return Response(result, status=status.HTTP_201_CREATED)
+
+
+class AIVoiceObservationView(APIView):
+    """Log a voice observation transcript; AI structures it and saves as a student note.
+
+    POST body:
+        transcript   (str, required) — raw text from speech-to-text
+        student_id   (int, optional)
+        classroom_id (int, optional)
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        from apps.academics.models import Classroom, Student
+        from apps.academics.services.ai_assistant import TokenLimitExceeded, log_voice_observation
+
+        teacher = _resolve_teacher(request)
+        if not teacher:
+            return Response({"detail": "No teacher profile found."}, status=status.HTTP_404_NOT_FOUND)
+
+        transcript = request.data.get("transcript", "").strip()
+        if not transcript:
+            return Response({"detail": "transcript is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        student_id   = request.data.get("student_id")
+        classroom_id = request.data.get("classroom_id")
+        student      = Student.objects.filter(pk=student_id).first() if student_id else None
+        classroom    = Classroom.objects.filter(pk=classroom_id).first() if classroom_id else None
+
+        try:
+            result = asyncio.run(log_voice_observation(teacher, transcript, student, classroom))
+        except TokenLimitExceeded as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+        except Exception as exc:
+            return Response({"detail": f"AI error: {exc}"}, status=status.HTTP_502_BAD_GATEWAY)
+
+        return Response(result, status=status.HTTP_201_CREATED)

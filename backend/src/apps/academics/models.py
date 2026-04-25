@@ -152,3 +152,53 @@ class AssistRequest(TimestampedModel):
     )
     teacher_reply = models.TextField(blank=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
+
+
+# ── AI Teaching Assistant ──────────────────────────────────────────────────────
+
+class TeacherAITokenUsage(TimestampedModel):
+    """Tracks daily Gemini token consumption per teacher. Resets each calendar day."""
+
+    school = models.ForeignKey("tenancy.School", on_delete=models.CASCADE)
+    teacher = models.ForeignKey("accounts.TeacherProfile", on_delete=models.CASCADE)
+    date = models.DateField()
+    tokens_used = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        unique_together = [("teacher", "date")]
+
+
+class LessonPlan(TimestampedModel):
+    """AI-generated lesson plan for a classroom session."""
+
+    school = models.ForeignKey("tenancy.School", on_delete=models.CASCADE)
+    teacher = models.ForeignKey("accounts.TeacherProfile", on_delete=models.CASCADE)
+    classroom = models.ForeignKey(Classroom, null=True, blank=True, on_delete=models.SET_NULL)
+    subject = models.CharField(max_length=128)
+    topic = models.CharField(max_length=255)
+    duration_minutes = models.PositiveSmallIntegerField(default=45)
+    content = models.TextField()
+
+
+class ClassSummary(TimestampedModel):
+    """AI-generated end-of-session summary for a classroom."""
+
+    school = models.ForeignKey("tenancy.School", on_delete=models.CASCADE)
+    teacher = models.ForeignKey("accounts.TeacherProfile", on_delete=models.CASCADE)
+    classroom = models.ForeignKey(Classroom, null=True, blank=True, on_delete=models.SET_NULL)
+    date = models.DateField()
+    summary_text = models.TextField()
+    weak_students = models.JSONField(default=list)
+    revision_topics = models.JSONField(default=list)
+
+
+class TeacherVoiceObservation(TimestampedModel):
+    """A voice note spoken by a teacher, transcribed and stored as a student observation."""
+
+    school = models.ForeignKey("tenancy.School", on_delete=models.CASCADE)
+    teacher = models.ForeignKey("accounts.TeacherProfile", on_delete=models.CASCADE)
+    student = models.ForeignKey(Student, null=True, blank=True, on_delete=models.SET_NULL)
+    classroom = models.ForeignKey(Classroom, null=True, blank=True, on_delete=models.SET_NULL)
+    raw_transcript = models.TextField()
+    structured_note = models.TextField()
+    category = models.CharField(max_length=64, default="observation")

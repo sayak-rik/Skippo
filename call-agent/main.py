@@ -81,9 +81,10 @@ async def initiate_call(request: Request) -> JSONResponse:
     """
     body = await request.json()
 
-    objective    = body["objective"]
-    contact_type = body["contact_type"]
-    contact_id   = int(body["contact_id"])
+    objective        = body["objective"]
+    contact_type     = body["contact_type"]
+    contact_id       = int(body["contact_id"])
+    campaign_context = body.get("campaign_context") or {}
 
     # ── Fetch contact from DB ──────────────────────────────────────────────
     if contact_type == "parent":
@@ -132,6 +133,7 @@ async def initiate_call(request: Request) -> JSONResponse:
         "student_name":         student_name,
         "student_id":           student_id,
         "school_name":          school_name,
+        "campaign_context":     campaign_context,
         "phase":                Phase.GREETING,
         "attempts":             0,
         "last_transcription":   "",

@@ -11,6 +11,8 @@ env = environ.Env(
     CSRF_TRUSTED_ORIGINS=(list, ["http://localhost:3000"]),
     DATABASE_URL=(str, "postgresql://skippo:skippo@localhost:5432/skippo"),
     REDIS_URL=(str, "redis://localhost:6379/0"),
+    CALL_AGENT_URL=(str, "http://call-agent:8091"),
+    PAYMENT_SERVICE_URL=(str, "http://payment-service:8092"),
     CELERY_BROKER_URL=(str, "redis://localhost:6379/1"),
     CELERY_RESULT_BACKEND=(str, "redis://localhost:6379/2"),
     GOOGLE_MAPS_API_KEY=(str, ""),
@@ -18,6 +20,10 @@ env = environ.Env(
     MSG91_AUTH_KEY=(str, ""),
     MSG91_SENDER_ID=(str, "SKIPPO"),
     MSG91_TEMPLATE_ID=(str, ""),
+    RAZORPAY_KEY_ID=(str, ""),
+    RAZORPAY_KEY_SECRET=(str, ""),
+    RAZORPAY_WEBHOOK_SECRET=(str, ""),
+    PLATFORM_COMMISSION_PCT=(str, "2.0"),
 )
 
 BASE_DIR = Path(__file__).resolve().parents[3]
@@ -51,6 +57,8 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.reports",
     "apps.dismissal",
+    "apps.calls",
+    "apps.payments",
     "django_celery_beat",
 ]
 
@@ -163,7 +171,27 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.dismissal.tasks.expire_old_pickup_intents",
         "schedule": 60 * 60 * 3,  # every 3 hours
     },
+    "process-call-queue": {
+        "task": "apps.calls.tasks.process_call_queue",
+        "schedule": 60,  # every 1 minute
+    },
+    "send-fee-reminders": {
+        "task": "apps.payments.tasks.send_fee_reminders",
+        "schedule": 60 * 60 * 24,  # daily at beat tick
+    },
+    "mark-overdue-invoices": {
+        "task": "apps.payments.tasks.mark_overdue_invoices",
+        "schedule": 60 * 60 * 24,  # daily
+    },
 }
+
+CALL_AGENT_URL    = env("CALL_AGENT_URL")
+PAYMENT_SERVICE_URL = env("PAYMENT_SERVICE_URL")
+
+RAZORPAY_KEY_ID       = env("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET   = env("RAZORPAY_KEY_SECRET")
+RAZORPAY_WEBHOOK_SECRET = env("RAZORPAY_WEBHOOK_SECRET")
+PLATFORM_COMMISSION_PCT = env("PLATFORM_COMMISSION_PCT")
 
 TENANT_HEADER = "HTTP_X_SCHOOL_SLUG"
 GOOGLE_MAPS_API_KEY = env("GOOGLE_MAPS_API_KEY")

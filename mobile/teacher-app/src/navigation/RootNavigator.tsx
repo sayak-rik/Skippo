@@ -14,6 +14,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StyleSheet, Text, View } from "react-native";
 
+import { AIAssistantScreen } from "../screens/AIAssistantScreen";
 import { InviteSignupScreen } from "../screens/InviteSignupScreen";
 import { LoginScreen } from "../screens/LoginScreen";
 import { ParentSummaryScreen } from "../screens/ParentSummaryScreen";
@@ -31,6 +32,7 @@ const TABS = [
   { name: "Schedule",  component: ScheduleScreen,      icon: "📅", label: "Schedule"  },
   { name: "Class",     component: SessionScreen,        icon: "✏️", label: "Attendance" },
   { name: "Reports",   component: ParentSummaryScreen,  icon: "📊", label: "Reports"   },
+  { name: "AI",        component: AIAssistantScreen,   icon: "✨", label: "AI"         },
 ];
 
 // ── TabIcon ───────────────────────────────────────────────────────────────────

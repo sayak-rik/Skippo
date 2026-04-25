@@ -1,9 +1,10 @@
 {
   "pages": {
-    "/page": [
+    "/dashboard/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
+      "static/css/app/dashboard/page.css",
+      "static/chunks/app/dashboard/page.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
@@ -11,17 +12,11 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/dashboard/page": [
+    "/dashboard/settings/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/dashboard/page.css",
-      "static/chunks/app/dashboard/page.js"
-    ],
-    "/dashboard/drivers/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/drivers/page.css",
-      "static/chunks/app/dashboard/drivers/page.js"
+      "static/css/app/dashboard/settings/page.css",
+      "static/chunks/app/dashboard/settings/page.js"
     ],
     "/dashboard/reports/page": [
       "static/chunks/webpack.js",
@@ -29,10 +24,29 @@
       "static/css/app/dashboard/reports/page.css",
       "static/chunks/app/dashboard/reports/page.js"
     ],
-    "/dashboard/dismissal/page": [
+    "/dashboard/compliance/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/dismissal/page.js"
+      "static/css/app/dashboard/compliance/page.css",
+      "static/chunks/app/dashboard/compliance/page.js"
+    ],
+    "/dashboard/students/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/students/page.css",
+      "static/chunks/app/dashboard/students/page.js"
+    ],
+    "/dashboard/teachers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/teachers/page.css",
+      "static/chunks/app/dashboard/teachers/page.js"
+    ],
+    "/dashboard/drivers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/drivers/page.css",
+      "static/chunks/app/dashboard/drivers/page.js"
     ],
     "/dashboard/live-fleet/page": [
       "static/chunks/webpack.js",
@@ -40,10 +54,11 @@
       "static/css/app/dashboard/live-fleet/page.css",
       "static/chunks/app/dashboard/live-fleet/page.js"
     ],
-    "/_not-found/page": [
+    "/dashboard/calls/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/_not-found/page.js"
+      "static/css/app/dashboard/calls/page.css",
+      "static/chunks/app/dashboard/calls/page.js"
     ]
   }
 }
