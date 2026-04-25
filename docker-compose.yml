@@ -135,6 +135,28 @@ services:
     ports:
       - "8090:8090"
 
+  call-agent:
+    build:
+      context: ./call-agent
+      dockerfile: Dockerfile
+    container_name: skippo-call-agent
+    restart: unless-stopped
+    environment:
+      PLIVO_AUTH_ID: "${PLIVO_AUTH_ID:-}"
+      PLIVO_AUTH_TOKEN: "${PLIVO_AUTH_TOKEN:-}"
+      PLIVO_FROM_NUMBER: "${PLIVO_FROM_NUMBER:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      DATABASE_URL: "postgresql://skippo:skippo@postgres:5432/skippo"
+      REDIS_URL: "redis://redis:6379/3"
+      BASE_URL: "${CALL_AGENT_BASE_URL:-http://localhost:8091}"
+    ports:
+      - "8091:8091"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   website:
     build:
       context: ./website

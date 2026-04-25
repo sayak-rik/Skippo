@@ -254,4 +254,18 @@
     mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
     -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
   }
+
+  /* ── 3D perspective preserve ── */
+  .perspective-800 { perspective: 800px; }
+  .preserve-3d     { transform-style: preserve-3d; }
+
+  /* ── Neural dot pulse ── */
+  .neural-pulse {
+    animation: neuralPulse 2s ease-in-out infinite;
+  }
+
+  /* ── Orbit ring ── */
+  .orbit-ring {
+    animation: orbitExpand 3s ease-in-out infinite;
+  }
 }

@@ -74,7 +74,9 @@ const config: Config = {
         "border-spin":"borderSpin 6s linear infinite",
         "scale-in":   "scaleIn 0.4s cubic-bezier(0.25, 0.4, 0.25, 1) both",
         "blur-in":    "blurIn 0.6s cubic-bezier(0.25, 0.4, 0.25, 1) both",
-        "spin-slow":  "spin 20s linear infinite",
+        "spin-slow":      "spin 20s linear infinite",
+        "neural-pulse":   "neuralPulse 2s ease-in-out infinite",
+        "orbit-expand":   "orbitExpand 3s ease-in-out infinite",
       },
       keyframes: {
         fadeUp: {
@@ -125,6 +127,14 @@ const config: Config = {
         blurIn: {
           "0%":   { opacity: "0", filter: "blur(12px)", transform: "translateY(16px)" },
           "100%": { opacity: "1", filter: "blur(0px)",  transform: "translateY(0)" },
+        },
+        neuralPulse: {
+          "0%, 100%": { opacity: "0.15", transform: "scale(1)" },
+          "50%":      { opacity: "0.60", transform: "scale(1.4)" },
+        },
+        orbitExpand: {
+          "0%, 100%": { opacity: "0.3",  transform: "scale(1)"    },
+          "50%":      { opacity: "0.15", transform: "scale(1.08)" },
         },
       },
     },

@@ -22,6 +22,7 @@ import { useState } from "react";
 import { BreakdownScreen } from "../screens/BreakdownScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { DevicesScreen } from "../screens/DevicesScreen";
+import { NavigateScreen } from "../screens/NavigateScreen";
 import { DriverSignupScreen } from "../screens/DriverSignupScreen";
 import { LoginScreen } from "../screens/LoginScreen";
 import { PendingApprovalScreen } from "../screens/PendingApprovalScreen";
@@ -38,7 +39,8 @@ const Tab = createBottomTabNavigator();
 
 // Tab configuration — emoji icons for clean visual language
 const TABS = [
-  { name: "Dashboard", component: DashboardScreen, emoji: "🚌", label: "Dashboard" },
+  { name: "Dashboard", component: DashboardScreen, emoji: "🚌", label: "Home"      },
+  { name: "Navigate",  component: NavigateScreen,  emoji: "🗺",  label: "Map"       },
   { name: "Roster",    component: RosterScreen,    emoji: "📋", label: "Roster"    },
   { name: "SOS",       component: SOSScreen,        emoji: "🚨", label: "Emergency" },
   { name: "Renewals",  component: RenewalsScreen,   emoji: "📄", label: "Renewals"  },

@@ -95,7 +95,7 @@ export function DismissalScreen() {
           {[
             "Pull into the school's designated pickup lane.",
             "Show your parent ID or QR to the gate staff if required.",
-            "Tap "Pickup complete" once your child is in the car.",
+            'Tap "Pickup complete" once your child is in the car.',
           ].map((step, i) => (
             <View key={i} style={styles.stepRow}>
               <View style={styles.stepNum}>
@@ -228,7 +228,7 @@ export function DismissalScreen() {
       {/* How it works */}
       <InfoCard title="How dismissal works" subtitle="3 simple steps">
         {[
-          { emoji: "📍", text: "Tap "I'm on my way" and pick your ETA." },
+          { emoji: "📍", text: `Tap "I'm on my way" and pick your ETA.` },
           { emoji: "📋", text: "School sees you in the live queue and calls your child." },
           { emoji: "🚗", text: "You get a push notification when your child is at the gate." },
         ].map((item, i) => (
