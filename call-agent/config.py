@@ -2,10 +2,10 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # Plivo
-    plivo_auth_id: str
-    plivo_auth_token: str
-    plivo_from_number: str
+    # Plivo — optional so the service can start in dev without real credentials
+    plivo_auth_id: str = ""
+    plivo_auth_token: str = ""
+    plivo_from_number: str = ""
 
     # OpenAI (Whisper STT + GPT-4o for NLU/NLG)
     openai_api_key: str

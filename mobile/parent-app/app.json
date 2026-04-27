@@ -20,6 +20,11 @@
       },
       "package": "com.skippo.parent"
     },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
     "extra": {
       "apiUrl": "http://localhost:8000"
     }

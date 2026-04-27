@@ -1,11 +1,1 @@
-{
-  "/dashboard/settings/page": "app/dashboard/settings/page.js",
-  "/dashboard/reports/page": "app/dashboard/reports/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/dashboard/compliance/page": "app/dashboard/compliance/page.js",
-  "/dashboard/drivers/page": "app/dashboard/drivers/page.js",
-  "/dashboard/teachers/page": "app/dashboard/teachers/page.js",
-  "/dashboard/live-fleet/page": "app/dashboard/live-fleet/page.js",
-  "/dashboard/students/page": "app/dashboard/students/page.js",
-  "/dashboard/calls/page": "app/dashboard/calls/page.js"
-}
+{}

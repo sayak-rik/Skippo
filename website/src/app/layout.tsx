@@ -9,13 +9,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Skippo — School transport, reimagined",
+  title: "Skippo — India's AI-first school operations platform",
   description:
-    "Skippo is the complete operations platform for school transport. Real-time tracking, SOS alerts, parent communication, and driver tools — all in one place.",
-  keywords: ["school transport", "bus tracking", "parent app", "school safety", "skippo"],
+    "Skippo is the AI-first platform for schools — live GPS transport, AI lesson plans, fee collection via Razorpay, mass guardian calls, and analytics. Everything, one platform.",
+  keywords: ["school operations", "AI school platform", "fee collection", "teacher AI", "school transport", "bus tracking", "parent app", "school safety", "skippo"],
   openGraph: {
-    title: "Skippo — School transport, reimagined",
-    description: "The complete operations platform for modern school transport.",
+    title: "Skippo — India's AI-first school operations platform",
+    description: "Transport, fees, classes, guardian calls, and teacher AI — all in one platform.",
     type: "website",
   },
 };
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="bg-dark text-white antialiased">{children}</body>
+      <body className="bg-white text-ink antialiased">{children}</body>
     </html>
   );
 }

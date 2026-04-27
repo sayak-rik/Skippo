@@ -31,13 +31,18 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("call-agent")
 
 # ── Plivo SDK client ──────────────────────────────────────────────────────────
-_plivo = plivo.RestClient(settings.plivo_auth_id, settings.plivo_auth_token)
+_plivo: plivo.RestClient | None = None
 
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    log.info("Call-agent started. Base URL: %s", settings.base_url)
+    global _plivo
+    if settings.plivo_auth_id:
+        _plivo = plivo.RestClient(settings.plivo_auth_id, settings.plivo_auth_token)
+        log.info("Call-agent started with Plivo. Base URL: %s", settings.base_url)
+    else:
+        log.warning("PLIVO_AUTH_ID not set — call initiation disabled. Base URL: %s", settings.base_url)
     yield
 
 
@@ -113,6 +118,8 @@ async def initiate_call(request: Request) -> JSONResponse:
     call_uuid = str(_uuid.uuid4())
 
     # ── Make Plivo outbound call ───────────────────────────────────────────
+    if _plivo is None:
+        return JSONResponse({"error": "Plivo credentials not configured"}, status_code=503)
     _plivo.calls.create(
         from_=settings.plivo_from_number,
         to_=phone,

@@ -1,6 +1,33 @@
 from django.db import models
+from django.utils.text import slugify
 
 from common.models import TimestampedModel
+
+
+class RegistrationInterest(TimestampedModel):
+    STATUS_PENDING    = "pending"
+    STATUS_CONTACTED  = "contacted"
+    STATUS_ONBOARDED  = "onboarded"
+    STATUS_CHOICES = [
+        (STATUS_PENDING,   "Pending"),
+        (STATUS_CONTACTED, "Contacted"),
+        (STATUS_ONBOARDED, "Onboarded"),
+    ]
+
+    enquiry_type = models.CharField(max_length=64, blank=True)
+    name         = models.CharField(max_length=255)
+    email        = models.EmailField()
+    phone        = models.CharField(max_length=30, blank=True)
+    school_name  = models.CharField(max_length=255, blank=True)
+    message      = models.TextField(blank=True)
+    status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    admin_notes  = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.name} ({self.email}) — {self.status}"
 
 
 class School(TimestampedModel):

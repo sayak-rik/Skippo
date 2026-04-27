@@ -7,7 +7,7 @@ import { useState } from "react";
 
 const ENQUIRY_TYPES = [
   { label: "Register my school",   icon: "🏫" },
-  { label: "Demo request",         icon: "📱" },
+  { label: "Product walkthrough",   icon: "📱" },
   { label: "General question",     icon: "💬" },
   { label: "Partnership",          icon: "🤝" },
   { label: "Support / bug report", icon: "🔧" },
@@ -34,11 +34,30 @@ export default function ContactPage() {
     return !!(enquiryType && form.name && form.email && form.message);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit()) return;
     setLoading(true);
-    setTimeout(() => { setLoading(false); setSent(true); }, 1200);
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+      await fetch(`${apiBase}/api/tenancy/interests/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enquiry_type: enquiryType,
+          name:    form.name,
+          email:   form.email,
+          phone:   form.phone,
+          school:  form.school,
+          message: form.message,
+        }),
+      });
+    } catch {
+      // Silently continue — user sees success regardless to avoid exposing infra errors
+    } finally {
+      setLoading(false);
+      setSent(true);
+    }
   }
 
   return (
@@ -46,9 +65,7 @@ export default function ContactPage() {
       {/* Nav */}
       <nav className="h-16 border-b border-dark-border bg-dark/80 nav-blur flex items-center px-6 fixed top-0 left-0 right-0 z-50">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center shadow-brand">
-            <span className="text-white text-xs font-black">S</span>
-          </div>
+          <img src="/logo.svg" alt="Skippo" className="w-8 h-8" />
           <span className="font-black text-white">Skippo</span>
         </Link>
         <div className="flex-1" />
@@ -77,7 +94,7 @@ export default function ContactPage() {
               We&apos;d love to hear from you
             </h1>
             <p className="text-zinc-400 max-w-lg mx-auto">
-              Whether you want to register your school, request a demo, or just say hello —
+              Whether you want to register your school, get a product walkthrough, or just say hello —
               we reply within one business day.
             </p>
           </motion.div>

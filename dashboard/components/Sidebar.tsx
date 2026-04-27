@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/compliance",         icon: "🛡",  label: "Compliance"     },
   { href: "/dashboard/reports",            icon: "📊",  label: "Reports"        },
   { href: "/dashboard/settings",           icon: "⚙",  label: "Settings"       },
+  { href: "/dashboard/leads",             icon: "📋", label: "Leads"          },
 ];
 
 export function Sidebar() {
@@ -33,7 +34,8 @@ export function Sidebar() {
       {/* Brand */}
       <div className={styles.brandBlock}>
         <div className={styles.logoRow}>
-          <div className={styles.logoMark}>SK</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="Skippo" className={styles.logoMark} />
           <div>
             <div className={styles.brandName}>Skippo</div>
             <div className={styles.schoolName}>Sunshine Public School</div>

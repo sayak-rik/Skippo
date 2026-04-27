@@ -119,8 +119,8 @@ function Step1({ data, set }: { data: FormData; set: (k: keyof FormData, v: stri
       className="space-y-5"
     >
       <div>
-        <h2 className="text-2xl font-black text-white mb-1">Tell us about your school</h2>
-        <p className="text-sm text-zinc-400">We&apos;ll set up your Skippo workspace based on this.</p>
+        <h2 className="text-2xl font-black text-white mb-1">Request access for your school</h2>
+        <p className="text-sm text-zinc-400">We review every school personally. Access is granted after a brief onboarding call.</p>
       </div>
       <Field label="School name" name="schoolName" value={data.schoolName} onChange={set} placeholder="Greenfield Public School" required />
       <div className="grid grid-cols-2 gap-4">
@@ -248,11 +248,12 @@ function Step4({ data }: { data: FormData }) {
       >
         <CheckCircle2 size={36} className="text-white" />
       </motion.div>
-      <h2 className="text-2xl font-black text-white mb-3">You&apos;re on the list!</h2>
+      <h2 className="text-2xl font-black text-white mb-3">Request received!</h2>
       <p className="text-zinc-400 mb-8 max-w-sm mx-auto">
-        Thanks, <strong className="text-white">{data.adminName || "there"}</strong>! We&apos;ll reach out to{" "}
-        <strong className="text-white">{data.email || "your email"}</strong> within 24 hours to onboard{" "}
-        <strong className="text-white">{data.schoolName || "your school"}</strong>.
+        Thanks, <strong className="text-white">{data.adminName || "there"}</strong>! Our team will review your application
+        and call <strong className="text-white">{data.adminName || "you"}</strong> at{" "}
+        <strong className="text-white">{data.phone || "the number you provided"}</strong> within 24–48 hours to discuss
+        onboarding <strong className="text-white">{data.schoolName || "your school"}</strong>.
       </p>
 
       {/* Summary */}
@@ -318,9 +319,7 @@ export default function SignupPage() {
       {/* Nav */}
       <nav className="h-16 border-b border-dark-border bg-dark/80 nav-blur flex items-center px-6 relative z-10">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center shadow-brand">
-            <span className="text-white text-xs font-black">S</span>
-          </div>
+          <img src="/logo.svg" alt="Skippo" className="w-8 h-8" />
           <span className="font-black text-white">Skippo</span>
         </Link>
       </nav>
@@ -335,8 +334,8 @@ export default function SignupPage() {
               transition={{ duration: 0.4 }}
               className="flex items-center justify-center gap-2 mb-6"
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-dot" />
-              <span className="text-xs font-semibold text-emerald-400">Pilot access · Free, no credit card</span>
+              <span className="w-2 h-2 rounded-full bg-brand-400 animate-pulse-dot" />
+              <span className="text-xs font-semibold text-brand-400">Access by approval · Our team will call you back</span>
             </motion.div>
           )}
 
@@ -403,7 +402,7 @@ export default function SignupPage() {
               className="text-center text-xs text-zinc-600 mt-5"
             >
               Already have an account?{" "}
-              <a href="#" className="text-brand-400 font-semibold hover:text-brand-300 transition-colors">Sign in</a>
+              <Link href="/signin" className="text-brand-400 font-semibold hover:text-brand-300 transition-colors">Sign in</Link>
             </motion.p>
           )}
         </div>

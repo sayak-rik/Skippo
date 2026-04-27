@@ -1,281 +1,102 @@
 "use client";
 
 import {
-  motion,
-  useMotionValue,
-  useMotionTemplate,
-  useInView,
-  useScroll,
-  useTransform,
-  useSpring,
-  AnimatePresence,
-  type Variants,
+  motion, useInView, useScroll, useSpring,
+  useMotionValue, useTransform, useMotionTemplate,
+  AnimatePresence, type Variants,
 } from "framer-motion";
 import {
-  MapPin, Zap, Shield, Users, School, Bus, Phone, AlertTriangle,
-  Wrench, ClipboardList, LayoutDashboard, GraduationCap, ArrowRight,
-  ChevronDown, CheckCircle2, Menu, X, Star, Sparkles, Brain, Cpu,
-  TrendingUp, Eye, MessageSquare, Route, Activity,
+  MapPin, Zap, Shield, Users, Bus, Phone, AlertTriangle,
+  ClipboardList, LayoutDashboard, GraduationCap, ArrowRight,
+  CheckCircle2, Menu, X, Star, Brain,
+  TrendingUp, MessageSquare, Route, Activity, School, ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect } from "react";
 
 // ── Animation variants ─────────────────────────────────────────────────────────
 
 const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 32 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.25, 0.4, 0.25, 1] } },
+  hidden: { opacity: 0, y: 28 },
+  show:   { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.25, 0.4, 0.25, 1] } },
 };
-
 const fadeIn: Variants = {
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { duration: 0.5, ease: "easeOut" } },
+  show:   { opacity: 1, transition: { duration: 0.5 } },
 };
-
 const stagger: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.1 } },
+  show:   { transition: { staggerChildren: 0.1 } },
 };
-
-const staggerFast: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.06 } },
-};
-
-// ── useCountUp ────────────────────────────────────────────────────────────────
-
-function useCountUp(target: number, duration = 1.8) {
-  const [count, setCount] = useState(0);
-  const ref = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
-
-  useEffect(() => {
-    if (!inView) return;
-    let frame = 0;
-    const totalFrames = Math.round(duration * 60);
-    const timer = setInterval(() => {
-      frame++;
-      const progress = frame / totalFrames;
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.min(Math.round(eased * target), target));
-      if (frame >= totalFrames) clearInterval(timer);
-    }, 1000 / 60);
-    return () => clearInterval(timer);
-  }, [inView, target, duration]);
-
-  return { count, ref };
-}
-
-// ── 3D Tilt wrapper ──────────────────────────────────────────────────────────
-
-function Tilt3D({ children, className, strength = 10 }: {
-  children: React.ReactNode;
-  className?: string;
-  strength?: number;
-}) {
-  const xRaw = useMotionValue(0);
-  const yRaw = useMotionValue(0);
-  const rotateX = useSpring(useTransform(yRaw, [-0.5, 0.5], [strength, -strength]), { stiffness: 300, damping: 30 });
-  const rotateY = useSpring(useTransform(xRaw, [-0.5, 0.5], [-strength, strength]), { stiffness: 300, damping: 30 });
-  const glowX  = useTransform(xRaw, [-0.5, 0.5], [0, 100]);
-  const glowY  = useTransform(yRaw, [-0.5, 0.5], [0, 100]);
-  const glowBg = useMotionTemplate`radial-gradient(160px circle at ${glowX}% ${glowY}%, rgba(99,102,241,0.12), transparent 70%)`;
-
-  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    xRaw.set((e.clientX - rect.left) / rect.width - 0.5);
-    yRaw.set((e.clientY - rect.top) / rect.height - 0.5);
-  }
-  function handleMouseLeave() { xRaw.set(0); yRaw.set(0); }
-
-  return (
-    <motion.div
-      className={className}
-      style={{ rotateX, rotateY, transformPerspective: 800 }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
-      <motion.div
-        className="absolute inset-0 rounded-[inherit] pointer-events-none z-10"
-        style={{ background: glowBg }}
-      />
-      {children}
-    </motion.div>
-  );
-}
-
-// ── Scroll progress bar ───────────────────────────────────────────────────────
-
-function NavProgressBar() {
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, { stiffness: 200, damping: 30 });
-  return (
-    <motion.div
-      className="fixed top-0 left-0 right-0 h-[2px] z-[60] origin-left bg-gradient-to-r from-brand-500 via-violet-500 to-brand-400"
-      style={{ scaleX }}
-    />
-  );
-}
 
 // ── Navbar ─────────────────────────────────────────────────────────────────────
 
 const NAV_LINKS = [
-  { label: "Features",     href: "#features"     },
-  { label: "AI Platform",  href: "#ai-platform"  },
-  { label: "How it works", href: "#how-it-works"  },
-  { label: "For schools",  href: "#for-schools"   },
+  { label: "Features",     href: "#features"    },
+  { label: "How it works", href: "#how-it-works" },
+  { label: "For schools",  href: "#for-schools"  },
+  { label: "Contact",      href: "/contact"      },
 ];
 
-function MagneticLink({ label, href }: { label: string; href: string }) {
-  const ref = useRef<HTMLAnchorElement>(null);
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const sx = useSpring(x, { stiffness: 400, damping: 20 });
-  const sy = useSpring(y, { stiffness: 400, damping: 20 });
-  const [hovered, setHovered] = useState(false);
-
-  function handleMouseMove(e: React.MouseEvent<HTMLAnchorElement>) {
-    const rect = ref.current?.getBoundingClientRect();
-    if (!rect) return;
-    x.set((e.clientX - rect.left - rect.width / 2) * 0.25);
-    y.set((e.clientY - rect.top - rect.height / 2) * 0.25);
-  }
-  function handleMouseLeave() { x.set(0); y.set(0); setHovered(false); }
-
-  return (
-    <motion.a
-      ref={ref}
-      href={href}
-      style={{ x: sx, y: sy }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onMouseEnter={() => setHovered(true)}
-      className="relative text-sm font-medium text-zinc-400 hover:text-white transition-colors py-1 px-0.5"
-    >
-      {label}
-      <motion.span
-        className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-brand-500 to-violet-500 rounded-full"
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: hovered ? 1 : 0 }}
-        transition={{ duration: 0.2 }}
-      />
-    </motion.a>
-  );
-}
-
 function Navbar() {
-  const [scrolled, setScrolled]     = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState("");
+  const [scrolled,    setScrolled]    = useState(false);
+  const [mobileOpen,  setMobileOpen]  = useState(false);
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 200, damping: 30 });
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 16);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  // Active section tracker
-  useEffect(() => {
-    const ids = ["features", "ai-platform", "how-it-works", "for-schools"];
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) setActiveSection(entry.target.id);
-        }
-      },
-      { rootMargin: "-40% 0px -55% 0px" }
-    );
-    ids.forEach((id) => { const el = document.getElementById(id); if (el) observer.observe(el); });
-    return () => observer.disconnect();
+    const fn = () => setScrolled(window.scrollY > 12);
+    window.addEventListener("scroll", fn, { passive: true });
+    return () => window.removeEventListener("scroll", fn);
   }, []);
 
   return (
     <>
-      <NavProgressBar />
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-[2px] z-[60] origin-left bg-brand-600"
+        style={{ scaleX }}
+      />
 
       <motion.nav
-        initial={{ y: -60, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, ease: [0.25, 0.4, 0.25, 1] }}
-        className={`fixed top-0 left-0 right-0 z-50 nav-blur transition-all duration-300 ${
-          scrolled
-            ? "bg-dark/90 border-b border-dark-border shadow-[0_1px_0_0_rgba(255,255,255,0.05)]"
-            : "bg-transparent"
+        initial={{ y: -64, opacity: 0 }}
+        animate={{ y: 0,   opacity: 1 }}
+        transition={{ duration: 0.5, ease: [0.25, 0.4, 0.25, 1] }}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled ? "bg-white/95 backdrop-blur-xl border-b border-surface-border shadow-sm" : "bg-white"
         }`}
       >
-        <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 h-[68px] flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <motion.div
-              whileHover={{ scale: 1.08, rotate: 3 }}
-              transition={{ type: "spring", stiffness: 400, damping: 20 }}
-              className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center shadow-brand relative overflow-hidden"
-            >
-              <motion.div
-                className="absolute inset-0 bg-white/20"
-                initial={{ x: "-100%", skewX: "-20deg" }}
-                whileHover={{ x: "200%" }}
-                transition={{ duration: 0.4 }}
-              />
-              <span className="text-white text-sm font-black relative z-10">S</span>
-            </motion.div>
-            <span className="text-lg font-black text-white tracking-tight">Skippo</span>
-            <motion.span
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.8 }}
-              className="hidden sm:flex items-center gap-1 text-[9px] font-bold text-brand-400 bg-brand-950/80 border border-brand-800/50 px-1.5 py-0.5 rounded-full"
-            >
-              <span className="w-1 h-1 rounded-full bg-brand-400 animate-pulse" />
-              BETA
-            </motion.span>
+          <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
+            <img src="/logo.svg" alt="Skippo" className="w-9 h-9" />
+            <span className="text-xl font-black text-ink tracking-tight">Skippo</span>
           </Link>
 
-          {/* Desktop links with magnetic effect */}
-          <div className="hidden md:flex items-center gap-7">
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-10">
             {NAV_LINKS.map((l) => (
-              <div key={l.label} className="relative">
-                <MagneticLink label={l.label} href={l.href} />
-                {activeSection === l.href.replace("#", "") && (
-                  <motion.div
-                    layoutId="nav-indicator"
-                    className="absolute -bottom-px left-0 right-0 h-px bg-brand-500"
-                    transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                  />
-                )}
-              </div>
+              <a key={l.label} href={l.href}
+                className="text-sm font-bold text-ink/70 hover:text-ink transition-colors tracking-wide">
+                {l.label}
+              </a>
             ))}
           </div>
 
-          {/* Desktop CTAs */}
+          {/* CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <Link href="/contact" className="text-sm font-semibold text-zinc-400 hover:text-white transition-colors px-3 py-2">
-              Contact
+            <Link href="/signin"
+              className="px-5 py-2.5 rounded-xl text-sm font-bold text-brand-700 border-2 border-brand-200 hover:border-brand-400 hover:bg-brand-50 transition-all duration-200 active:scale-95">
+              Sign In
             </Link>
-            <motion.div
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
-              className="relative"
-            >
-              <motion.div
-                className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-brand-500 to-violet-500 opacity-0 blur-sm"
-                whileHover={{ opacity: 0.7 }}
-                transition={{ duration: 0.2 }}
-              />
-              <Link
-                href="/signup"
-                className="relative btn-shine px-4 py-2 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 text-white text-sm font-semibold shadow-brand hover:shadow-brand-lg transition-shadow"
-              >
-                Get beta access
-              </Link>
-            </motion.div>
+            <Link href="/signup"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 text-white text-sm font-bold shadow-brand hover:opacity-90 transition-opacity active:scale-95">
+              Get Started
+            </Link>
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            onClick={() => setMobileOpen((o) => !o)}
-            className="md:hidden p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
-          >
+          {/* Mobile menu toggle */}
+          <button onClick={() => setMobileOpen((o) => !o)}
+            className="md:hidden p-2 rounded-lg text-ink-muted hover:text-ink hover:bg-surface-muted transition-all">
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
@@ -285,31 +106,30 @@ function Navbar() {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-x-0 top-16 z-40 bg-dark/95 nav-blur border-b border-dark-border px-5 py-6 flex flex-col gap-4 md:hidden"
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-x-0 top-[68px] z-40 bg-white border-b border-surface-border px-6 py-6 flex flex-col gap-4 md:hidden shadow-lift"
           >
             {NAV_LINKS.map((l, i) => (
-              <motion.a
-                key={l.label}
-                href={l.href}
-                initial={{ opacity: 0, x: -12 }}
+              <motion.a key={l.label} href={l.href}
+                initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.06 }}
+                transition={{ delay: i * 0.05 }}
                 onClick={() => setMobileOpen(false)}
-                className="text-base font-semibold text-zinc-300 hover:text-white transition-colors py-1"
-              >
+                className="text-base font-bold text-ink hover:text-brand-600 transition-colors py-1">
                 {l.label}
               </motion.a>
             ))}
-            <div className="pt-2 flex flex-col gap-3 border-t border-dark-border">
-              <Link href="/contact" className="text-sm font-semibold text-zinc-400 hover:text-white transition-colors py-1">Contact</Link>
-              <Link href="/signup" className="px-4 py-3 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 text-white text-sm font-bold text-center shadow-brand">
-                Get beta access →
-              </Link>
-            </div>
+            <Link href="/signin"
+              className="px-5 py-3 rounded-xl border-2 border-brand-200 text-brand-700 text-sm font-bold text-center hover:bg-brand-50 transition-colors">
+              Sign In
+            </Link>
+            <Link href="/signup"
+              className="px-5 py-3 rounded-xl bg-gradient-to-r from-brand-600 to-violet-600 text-white text-sm font-bold text-center">
+              Get Started
+            </Link>
           </motion.div>
         )}
       </AnimatePresence>
@@ -317,394 +137,454 @@ function Navbar() {
   );
 }
 
-// ── Orbit CTA ring animation ───────────────────────────────────────────────────
+// ── Hero product visual ────────────────────────────────────────────────────────
 
-function OrbitRings() {
+function HeroVisual() {
   return (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-      {[120, 180, 240].map((size, i) => (
-        <motion.div
-          key={size}
-          className="absolute rounded-full border border-brand-500/10"
-          style={{ width: size, height: size }}
-          animate={{ scale: [1, 1.08, 1], opacity: [0.3, 0.15, 0.3] }}
-          transition={{ duration: 3 + i, repeat: Infinity, ease: "easeInOut", delay: i * 0.8 }}
-        />
-      ))}
-      <motion.div
-        className="absolute w-3 h-3 rounded-full bg-brand-500 blur-[1px]"
-        animate={{ scale: [1, 1.4, 1], opacity: [0.8, 0.4, 0.8] }}
-        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-      />
+    <div className="relative w-full">
+      {/* Soft shadow base */}
+      <div className="absolute -inset-4 rounded-3xl bg-gradient-to-b from-brand-100/60 via-violet-50/40 to-transparent blur-2xl" />
+
+      {/* Browser chrome wrapper */}
+      <div className="relative rounded-2xl overflow-hidden border border-surface-border shadow-[0_32px_80px_-16px_rgba(0,0,0,0.14)]">
+        {/* Chrome bar */}
+        <div className="flex items-center gap-2 px-4 py-3 bg-surface-muted border-b border-surface-border">
+          <span className="w-3 h-3 rounded-full bg-red-400" />
+          <span className="w-3 h-3 rounded-full bg-amber-400" />
+          <span className="w-3 h-3 rounded-full bg-emerald-400" />
+          <div className="mx-4 flex-1 bg-white rounded-md h-6 flex items-center px-3 border border-surface-border max-w-sm">
+            <span className="text-[11px] text-ink-faint">skippo.in/dashboard</span>
+          </div>
+        </div>
+
+        {/* Dashboard interior */}
+        <div className="bg-surface-soft grid grid-cols-[220px_1fr] min-h-[440px]">
+          {/* Sidebar */}
+          <div className="bg-white border-r border-surface-border p-4 space-y-1">
+            <div className="flex items-center gap-2 px-3 py-2 mb-4">
+              <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center">
+                <span className="text-white text-[11px] font-black">S</span>
+              </div>
+              <span className="text-sm font-black text-ink">Skippo</span>
+            </div>
+            {[
+              { icon: LayoutDashboard, label: "Dashboard",  active: true  },
+              { icon: Users,           label: "Students",   active: false },
+              { icon: Bus,             label: "Transport",  active: false },
+              { icon: GraduationCap,   label: "Classes",    active: false },
+              { icon: Zap,             label: "Fees",       active: false },
+              { icon: Phone,           label: "Messages",   active: false },
+              { icon: TrendingUp,      label: "Analytics",  active: false },
+            ].map(({ icon: Icon, label, active }) => (
+              <div key={label}
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                  active ? "bg-brand-50 text-brand-600" : "text-ink-muted hover:bg-surface-muted"
+                }`}>
+                <Icon size={14} />
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {/* Main panel */}
+          <div className="p-6 space-y-5">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-ink-muted">Good morning 👋</p>
+                <p className="text-lg font-black text-ink">Greenfield International School</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  12 buses live
+                </span>
+              </div>
+            </div>
+
+            {/* Stat cards */}
+            <div className="grid grid-cols-4 gap-3">
+              {[
+                { label: "Attendance",       value: "94.2%",  sub: "+1.8% vs yesterday", color: "text-brand-600",   bg: "bg-brand-50"   },
+                { label: "Collected today",  value: "₹1.45L", sub: "+12% vs yesterday",  color: "text-emerald-600", bg: "bg-emerald-50" },
+                { label: "Pending fees",     value: "₹8.76L", sub: "231 students",        color: "text-amber-600",   bg: "bg-amber-50"   },
+                { label: "Total students",   value: "1,248",  sub: "62 new this month",   color: "text-violet-600",  bg: "bg-violet-50"  },
+              ].map((s) => (
+                <div key={s.label} className={`${s.bg} rounded-xl p-3`}>
+                  <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
+                  <p className="text-[10px] font-semibold text-ink-muted mt-0.5">{s.label}</p>
+                  <p className="text-[9px] text-ink-faint mt-0.5">{s.sub}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Bottom row */}
+            <div className="grid grid-cols-3 gap-3">
+              {/* Live tracking map placeholder */}
+              <div className="col-span-2 bg-white rounded-xl border border-surface-border p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-black text-ink">Live Bus Tracking</p>
+                  <span className="text-[9px] font-bold text-emerald-600">LIVE</span>
+                </div>
+                <div className="relative h-28 bg-brand-50 rounded-lg overflow-hidden"
+                  style={{ backgroundImage: "linear-gradient(rgba(99,102,241,0.08) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.08) 1px,transparent 1px)", backgroundSize: "20px 20px" }}>
+                  {/* Route line */}
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 112">
+                    <path d="M 30 90 Q 100 60 160 75 Q 220 90 280 50 Q 340 20 380 40"
+                      fill="none" stroke="#6366f1" strokeWidth="2" strokeDasharray="6 4" opacity="0.4" />
+                  </svg>
+                  {/* Bus dot */}
+                  <motion.div
+                    className="absolute w-5 h-5 rounded-full bg-brand-600 border-2 border-white shadow-md flex items-center justify-center"
+                    style={{ top: "42%", left: "48%" }}
+                    animate={{ x: [-8, 8, -8], y: [4, -4, 4] }}
+                    transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <Bus size={8} className="text-white" />
+                  </motion.div>
+                  {/* Stop markers */}
+                  {[{ l: "8%", t: "76%" }, { l: "42%", t: "62%" }, { l: "72%", t: "38%" }].map((pos, i) => (
+                    <div key={i} className="absolute w-2.5 h-2.5 rounded-full bg-white border-2 border-brand-400 shadow"
+                      style={{ left: pos.l, top: pos.t }} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick actions */}
+              <div className="bg-white rounded-xl border border-surface-border p-3">
+                <p className="text-xs font-black text-ink mb-2">Quick Actions</p>
+                <div className="space-y-1.5">
+                  {[
+                    { label: "Send parent alert", color: "text-brand-600 bg-brand-50" },
+                    { label: "Collect fee",        color: "text-emerald-600 bg-emerald-50" },
+                    { label: "Mark attendance",    color: "text-violet-600 bg-violet-50" },
+                  ].map((a) => (
+                    <div key={a.label}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[10px] font-semibold ${a.color} cursor-pointer`}>
+                      <ChevronRight size={10} />
+                      {a.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-// ── Hero section ───────────────────────────────────────────────────────────────
+// ── 3D animated background ────────────────────────────────────────────────────
+
+const ORB_CONFIG = [
+  { w: 560, h: 560, lx: -8,  ty: -12, depth: 1.4, ca: "rgba(99,102,241,0.14)",  cb: "rgba(124,58,237,0.04)",  t: 22, dl: 0   },
+  { w: 440, h: 440, lx: 65,  ty: -8,  depth: 0.9, ca: "rgba(124,58,237,0.10)",  cb: "rgba(99,102,241,0.03)",  t: 28, dl: 3.5 },
+  { w: 380, h: 380, lx: 38,  ty: 52,  depth: 0.6, ca: "rgba(99,102,241,0.08)",  cb: "rgba(59,130,246,0.02)",  t: 19, dl: 7   },
+  { w: 300, h: 300, lx: 80,  ty: 48,  depth: 1.7, ca: "rgba(167,139,250,0.12)", cb: "rgba(196,181,253,0.03)", t: 24, dl: 1.5 },
+  { w: 220, h: 220, lx: 22,  ty: 38,  depth: 0.8, ca: "rgba(99,102,241,0.13)",  cb: "rgba(79,70,229,0.03)",   t: 16, dl: 10  },
+  { w: 180, h: 180, lx: 55,  ty: 22,  depth: 2.0, ca: "rgba(139,92,246,0.10)",  cb: "rgba(99,102,241,0.03)",  t: 20, dl: 5   },
+  { w: 140, h: 140, lx: 12,  ty: 65,  depth: 1.2, ca: "rgba(79,70,229,0.09)",   cb: "rgba(124,58,237,0.02)",  t: 14, dl: 8   },
+];
+
+const RING_CONFIG = [
+  { size: 340, lx: "8%",  ty: "18%", rx: 55, ry: -20, t: 18, dl: 0,   opacity: 0.12 },
+  { size: 220, lx: "68%", ty: "10%", rx: 40, ry: 15,  t: 24, dl: 2.5, opacity: 0.10 },
+  { size: 280, lx: "75%", ty: "55%", rx: 65, ry: 10,  t: 21, dl: 5,   opacity: 0.09 },
+  { size: 160, lx: "30%", ty: "62%", rx: 50, ry: -10, t: 16, dl: 7,   opacity: 0.11 },
+];
+
+function FloatingOrb({ cfg, springX, springY }: {
+  cfg: typeof ORB_CONFIG[0];
+  springX: ReturnType<typeof useSpring>;
+  springY: ReturnType<typeof useSpring>;
+}) {
+  const px = useTransform(springX, [-1, 1], [-cfg.depth * 28, cfg.depth * 28]);
+  const py = useTransform(springY, [-1, 1], [-cfg.depth * 18, cfg.depth * 18]);
+  return (
+    <motion.div className="absolute pointer-events-none" style={{ left: `${cfg.lx}%`, top: `${cfg.ty}%`, x: px, y: py }}>
+      <motion.div
+        style={{
+          width: cfg.w, height: cfg.h,
+          background: `radial-gradient(circle at 38% 38%, ${cfg.ca}, ${cfg.cb})`,
+          filter: "blur(55px)",
+          borderRadius: "50%",
+        }}
+        animate={{ y: [-18, 18, -18], scale: [1, 1.05, 1], rotate: [0, 8, 0] }}
+        transition={{ duration: cfg.t, repeat: Infinity, ease: "easeInOut", delay: cfg.dl }}
+      />
+    </motion.div>
+  );
+}
+
+function Ring3D({ cfg, springX, springY }: {
+  cfg: typeof RING_CONFIG[0];
+  springX: ReturnType<typeof useSpring>;
+  springY: ReturnType<typeof useSpring>;
+}) {
+  const px = useTransform(springX, [-1, 1], [-12, 12]);
+  const py = useTransform(springY, [-1, 1], [-8, 8]);
+  return (
+    <motion.div
+      className="absolute pointer-events-none"
+      style={{ left: cfg.lx, top: cfg.ty, x: px, y: py }}
+    >
+      <motion.div
+        style={{
+          width: cfg.size, height: cfg.size,
+          borderRadius: "50%",
+          border: `1.5px solid rgba(99,102,241,${cfg.opacity})`,
+          transformStyle: "preserve-3d",
+        }}
+        animate={{
+          rotateX: [cfg.rx - 20, cfg.rx + 20, cfg.rx - 20],
+          rotateY: [cfg.ry, cfg.ry + 360],
+          scale: [1, 1.04, 1],
+        }}
+        transition={{
+          rotateX: { duration: 8, repeat: Infinity, ease: "easeInOut" },
+          rotateY: { duration: cfg.t, repeat: Infinity, ease: "linear", delay: cfg.dl },
+          scale:   { duration: cfg.t * 0.7, repeat: Infinity, ease: "easeInOut", delay: cfg.dl },
+        }}
+      />
+    </motion.div>
+  );
+}
+
+function ParticleField({ springX, springY }: {
+  springX: ReturnType<typeof useSpring>;
+  springY: ReturnType<typeof useSpring>;
+}) {
+  const particles = Array.from({ length: 28 }, (_, i) => ({
+    id: i,
+    x: (i * 37 + (i % 5) * 19) % 96,
+    y: (i * 29 + (i % 7) * 13) % 92,
+    size: i % 3 === 0 ? 3 : i % 3 === 1 ? 2 : 1.5,
+    depth: 0.3 + (i % 5) * 0.35,
+    dur: 8 + (i % 7) * 2,
+    delay: (i * 0.4) % 6,
+  }));
+  return (
+    <>
+      {particles.map((p) => {
+        const px = useTransform(springX, [-1, 1], [-p.depth * 20, p.depth * 20]); // eslint-disable-line react-hooks/rules-of-hooks
+        const py = useTransform(springY, [-1, 1], [-p.depth * 12, p.depth * 12]); // eslint-disable-line react-hooks/rules-of-hooks
+        return (
+          <motion.div
+            key={p.id}
+            className="absolute rounded-full pointer-events-none"
+            style={{ left: `${p.x}%`, top: `${p.y}%`, width: p.size, height: p.size, x: px, y: py,
+              background: `rgba(99,102,241,${0.15 + (p.id % 4) * 0.08})` }}
+            animate={{ opacity: [0.2, 0.7, 0.2], scale: [1, 1.5, 1], y: [-10, 10, -10] }}
+            transition={{ duration: p.dur, repeat: Infinity, ease: "easeInOut", delay: p.delay }}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+function Hero3DBackground({ springX, springY }: {
+  springX: ReturnType<typeof useSpring>;
+  springY: ReturnType<typeof useSpring>;
+}) {
+  const gx  = useTransform(springX, [-1, 1], [35, 65]);
+  const gy  = useTransform(springY, [-1, 1], [30, 70]);
+  const gBg = useMotionTemplate`radial-gradient(900px circle at ${gx}% ${gy}%, rgba(99,102,241,0.07), transparent 60%)`;
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Interactive spotlight */}
+      <motion.div className="absolute inset-0" style={{ background: gBg }} />
+
+      {/* Subtle dot grid */}
+      <div className="absolute inset-0"
+        style={{
+          backgroundImage: "radial-gradient(circle, rgba(99,102,241,0.18) 1px, transparent 1px)",
+          backgroundSize: "44px 44px",
+          maskImage: "radial-gradient(ellipse 80% 80% at 50% 40%, black 40%, transparent 100%)",
+          WebkitMaskImage: "radial-gradient(ellipse 80% 80% at 50% 40%, black 40%, transparent 100%)",
+        }}
+      />
+
+      {/* 3D Perspective grid plane at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 h-72 overflow-hidden"
+        style={{ perspective: "600px" }}>
+        <motion.div
+          className="w-full h-full"
+          style={{
+            backgroundImage: "linear-gradient(rgba(99,102,241,0.08) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.08) 1px,transparent 1px)",
+            backgroundSize: "72px 72px",
+            transform: "rotateX(62deg)",
+            transformOrigin: "50% 100%",
+          }}
+          animate={{ backgroundPosition: ["0px 0px", "0px 72px"] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+        />
+        {/* Fade overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-white via-white/40 to-transparent" />
+      </div>
+
+      {/* Floating orbs */}
+      {ORB_CONFIG.map((cfg, i) => (
+        <FloatingOrb key={i} cfg={cfg} springX={springX} springY={springY} />
+      ))}
+
+      {/* 3D rings */}
+      {RING_CONFIG.map((cfg, i) => (
+        <Ring3D key={i} cfg={cfg} springX={springX} springY={springY} />
+      ))}
+
+      {/* Particles */}
+      <ParticleField springX={springX} springY={springY} />
+    </div>
+  );
+}
+
+// ── Hero ──────────────────────────────────────────────────────────────────────
 
 function Hero() {
-  const heroRef = useRef<HTMLElement>(null);
-  const mouseX  = useMotionValue(0);
-  const mouseY  = useMotionValue(0);
-  const spotlightBg = useMotionTemplate`radial-gradient(700px circle at ${mouseX}px ${mouseY}px, rgba(99,102,241,0.12), transparent 70%)`;
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const springX = useSpring(mouseX, { stiffness: 35, damping: 22 });
+  const springY = useSpring(mouseY, { stiffness: 35, damping: 22 });
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLElement>) => {
-    const rect = heroRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    mouseX.set(e.clientX - rect.left);
-    mouseY.set(e.clientY - rect.top);
-  }, [mouseX, mouseY]);
-
-  const words = ["School", "transport,", "reimagined."];
-
-  // 3D tilt for phone mockups
-  const phoneX = useMotionValue(0);
-  const phoneY = useMotionValue(0);
-  const rotX   = useSpring(useTransform(phoneY, [-300, 300], [8, -8]), { stiffness: 200, damping: 30 });
-  const rotY   = useSpring(useTransform(phoneX, [-300, 300], [-8, 8]), { stiffness: 200, damping: 30 });
-
-  function handlePhoneMove(e: React.MouseEvent<HTMLDivElement>) {
-    phoneX.set(e.clientX - window.innerWidth / 2);
-    phoneY.set(e.clientY - window.innerHeight / 2);
+  function handleMouseMove(e: React.MouseEvent<HTMLElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    mouseX.set((e.clientX - rect.left - rect.width  / 2) / (rect.width  / 2));
+    mouseY.set((e.clientY - rect.top  - rect.height / 2) / (rect.height / 2));
   }
 
   return (
     <section
-      ref={heroRef}
+      className="relative overflow-hidden bg-white pt-32 pb-0"
       onMouseMove={handleMouseMove}
-      className="relative min-h-screen flex flex-col justify-center overflow-hidden bg-dark dark-grid"
     >
-      <motion.div className="pointer-events-none absolute inset-0 z-0" style={{ background: spotlightBg }} />
+      <Hero3DBackground springX={springX} springY={springY} />
 
-      {/* Gradient mesh blobs */}
-      <motion.div
-        animate={{ x: [0, 30, 0], y: [0, -20, 0], scale: [1, 1.1, 1] }}
-        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-        className="mesh-blob pointer-events-none absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-brand-600/20"
-      />
-      <motion.div
-        animate={{ x: [0, -40, 0], y: [0, 30, 0], scale: [1, 1.15, 1] }}
-        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-        className="mesh-blob pointer-events-none absolute top-20 -right-32 w-[500px] h-[500px] rounded-full bg-violet-600/15"
-      />
-      <motion.div
-        animate={{ x: [0, 20, 0], y: [0, 40, 0] }}
-        transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 5 }}
-        className="mesh-blob pointer-events-none absolute bottom-20 left-1/3 w-[400px] h-[400px] rounded-full bg-brand-800/20"
-      />
-
-      <div className="relative z-10 max-w-6xl mx-auto px-5 pt-28 pb-20">
-        <div className="flex flex-col lg:flex-row items-center gap-16">
-
-          {/* Left: copy */}
-          <div className="flex-1 text-center lg:text-left">
-            {/* Badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="inline-flex items-center gap-2 glass border border-brand-500/30 rounded-full px-4 py-1.5 mb-8"
-            >
-              <motion.span
-                animate={{ scale: [1, 1.3, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="w-1.5 h-1.5 rounded-full bg-brand-400 flex-shrink-0"
-              />
-              <span className="text-xs font-semibold text-brand-300">Built for Indian schools · Beta open now</span>
-            </motion.div>
-
-            {/* Headline */}
-            <motion.h1
-              variants={staggerFast}
-              initial="hidden"
-              animate="show"
-              className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[1.02] tracking-tight mb-6"
-            >
-              {words.map((word, i) => (
-                <motion.span
-                  key={word}
-                  variants={fadeUp}
-                  className={`inline-block mr-[0.22em] ${i === 2 ? "text-gradient" : ""}`}
-                >
-                  {word}
-                </motion.span>
-              ))}
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-              className="text-lg text-zinc-400 leading-relaxed mb-8 max-w-lg mx-auto lg:mx-0"
-            >
-              Skippo connects parents, drivers, and school staff on one AI-powered platform —
-              live GPS, instant SOS alerts, attendance, and seamless daily operations.
-            </motion.p>
-
-            {/* ── CTA animation block ──────────────────────────────────── */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.65 }}
-              className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-10"
-            >
-              {/* Primary CTA with orbit rings */}
-              <div className="relative inline-flex justify-center lg:justify-start">
-                <OrbitRings />
-                <motion.div
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.96 }}
-                  className="relative z-10"
-                >
-                  <motion.div
-                    className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-brand-500 to-violet-500 opacity-40 blur-md"
-                    animate={{ opacity: [0.3, 0.6, 0.3] }}
-                    transition={{ duration: 2.5, repeat: Infinity }}
-                  />
-                  <Link
-                    href="/signup"
-                    className="btn-shine relative flex items-center justify-center gap-2 px-7 py-4 bg-gradient-to-r from-brand-600 to-violet-600 text-white rounded-2xl font-bold text-sm shadow-brand-lg"
-                  >
-                    Get beta access
-                    <motion.span
-                      animate={{ x: [0, 4, 0] }}
-                      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      <ArrowRight size={16} />
-                    </motion.span>
-                  </Link>
-                </motion.div>
-              </div>
-
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <a
-                  href="#how-it-works"
-                  className="flex items-center justify-center gap-2 px-7 py-4 glass border border-white/10 text-white rounded-2xl font-bold text-sm hover:bg-white/10 transition-colors"
-                >
-                  See how it works
-                </a>
-              </motion.div>
-            </motion.div>
-
-            {/* Trust bar */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.85 }}
-              className="flex flex-wrap items-center gap-6 justify-center lg:justify-start"
-            >
-              {[
-                { icon: <Shield size={13} />,  label: "Safe & private"  },
-                { icon: <MapPin size={13} />,  label: "Real-time GPS"   },
-                { icon: <Zap size={13} />,     label: "60s updates"     },
-                { icon: <Brain size={13} />,   label: "AI-powered"      },
-              ].map((t) => (
-                <motion.div
-                  key={t.label}
-                  whileHover={{ y: -2 }}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-300 transition-colors cursor-default"
-                >
-                  <span className="text-brand-500">{t.icon}</span>
-                  {t.label}
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-
-          {/* Right: 3D floating mockups */}
-          <div
-            className="relative flex-shrink-0 flex items-end gap-5 justify-center"
-            onMouseMove={handlePhoneMove}
+      <div className="relative z-10 max-w-7xl mx-auto px-6">
+        {/* Centered headline block */}
+        <div className="text-center max-w-4xl mx-auto mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, delay: 0.05 }}
+            className="inline-flex items-center gap-2 bg-brand-50 border border-brand-100 rounded-full px-4 py-1.5 mb-8"
           >
-            <motion.div
-              style={{ rotateX: rotX, rotateY: rotY, transformPerspective: 1200 }}
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.3, ease: [0.25, 0.4, 0.25, 1] }}
-            >
-              <motion.div
-                animate={{ y: [0, -14, 0], rotate: [0, 0.4, 0] }}
-                transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <ParentMockup />
-              </motion.div>
-            </motion.div>
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-500 flex-shrink-0" />
+            <span className="text-xs font-semibold text-brand-600">Built for schools in India</span>
+          </motion.div>
 
-            <motion.div
-              style={{ rotateX: rotX, rotateY: rotY, transformPerspective: 1200 }}
-              initial={{ opacity: 0, y: 60 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.5, ease: [0.25, 0.4, 0.25, 1] }}
-              className="hidden sm:block mb-10"
-            >
-              <motion.div
-                animate={{ y: [0, -10, 0], rotate: [0, -0.4, 0] }}
-                transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-              >
-                <DriverMockup />
-              </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            className="text-5xl sm:text-6xl lg:text-[72px] font-black text-ink leading-[1.04] tracking-tight mb-6"
+          >
+            Everything your school needs.{" "}
+            <span style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+              In one place.
+            </span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.28 }}
+            className="text-xl text-ink-muted leading-relaxed mb-10 max-w-2xl mx-auto"
+          >
+            Live bus tracking, AI lesson plans, fee collection, parent alerts, and analytics — all connected. Built for the way schools actually work.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center"
+          >
+            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+              <Link href="/signup"
+                className="flex items-center justify-center gap-2 px-8 py-4 bg-brand-600 text-white rounded-xl font-bold text-sm hover:bg-brand-700 transition-colors shadow-brand">
+                Get Started — it&apos;s free
+                <ArrowRight size={16} />
+              </Link>
             </motion.div>
-          </div>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <a href="#features"
+                className="flex items-center justify-center gap-2 px-8 py-4 bg-surface-muted border border-surface-border text-ink rounded-xl font-bold text-sm hover:bg-surface-soft transition-colors">
+                Explore features
+              </a>
+            </motion.div>
+          </motion.div>
         </div>
-      </div>
 
-      {/* Scroll indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.5, duration: 0.6 }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5"
-      >
-        <span className="text-xs font-medium text-zinc-600">Scroll</span>
-        <motion.div animate={{ y: [0, 6, 0] }} transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}>
-          <ChevronDown size={16} className="text-zinc-600" />
+        {/* Product visual — full width, bleeds into next section */}
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.55, ease: [0.25, 0.4, 0.25, 1] }}
+          className="relative"
+        >
+          <HeroVisual />
+          {/* Fade-out bottom */}
+          <div className="absolute bottom-0 inset-x-0 h-32 bg-gradient-to-t from-white to-transparent pointer-events-none" />
         </motion.div>
-      </motion.div>
+      </div>
     </section>
   );
 }
 
-// ── Phone mockups ──────────────────────────────────────────────────────────────
+// ── Social proof strip ────────────────────────────────────────────────────────
 
-function ParentMockup() {
+const PROOF_STATS = [
+  { value: "500+",  label: "Schools using Skippo"   },
+  { value: "60s",   label: "Bus location refresh"   },
+  { value: "100%",  label: "SOS delivery rate"       },
+  { value: "24h",   label: "Onboarding to live"      },
+  { value: "5",     label: "Platform surfaces"       },
+];
+
+function SocialProof() {
   return (
-    <div className="relative w-[260px]">
-      <div className="absolute inset-0 blur-3xl bg-brand-500/20 rounded-full scale-110" />
-      <div className="relative bg-dark-card border border-dark-border rounded-[2.5rem] overflow-hidden shadow-heavy">
-        <div className="h-9 bg-zinc-900 flex items-center justify-between px-5 pt-2">
-          <span className="text-[10px] font-semibold text-zinc-500">9:41</span>
-          <div className="w-14 h-3.5 bg-zinc-700 rounded-full" />
-          <div className="flex gap-1">
-            {[3, 2, 1].map((i) => <div key={i} className="w-1 rounded-sm bg-zinc-500" style={{ height: `${4 + i * 3}px` }} />)}
-          </div>
-        </div>
-        <div className="px-4 pb-6 space-y-3 bg-zinc-900">
-          <div className="pt-2">
-            <p className="text-[10px] text-zinc-500 font-medium">Good morning</p>
-            <p className="text-sm font-black text-white">Aarav&apos;s Bus</p>
-          </div>
-          <div className="bg-gradient-to-br from-brand-600 to-violet-600 rounded-2xl p-4 text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-8 translate-x-8" />
-            <p className="text-[9px] font-semibold text-white/70 uppercase tracking-wider">Arriving in</p>
-            <p className="text-3xl font-black mt-0.5">8 <span className="text-lg font-semibold text-white/80">min</span></p>
-            <div className="mt-2 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-green-300 animate-pulse-dot" />
-              <p className="text-[9px] font-semibold text-white/80">LIVE · Bus 12 · North Route A</p>
-            </div>
-          </div>
-          <div className="bg-zinc-800 rounded-xl p-3 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-brand-900/60 flex items-center justify-center flex-shrink-0">
-              <MapPin size={14} className="text-brand-400" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-white">Lakeview Stop</p>
-              <p className="text-[9px] text-zinc-500">Updated 42 seconds ago</p>
-            </div>
-          </div>
-          <div className="bg-zinc-800 rounded-xl p-3 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-brand-800 flex items-center justify-center">
-                <span className="text-[10px] font-black text-brand-300">RK</span>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-white">Rohit Kumar</p>
-                <p className="text-[9px] text-zinc-500">Your driver</p>
-              </div>
-            </div>
-            <div className="w-7 h-7 rounded-lg bg-green-900/50 flex items-center justify-center">
-              <Phone size={12} className="text-green-400" />
-            </div>
-          </div>
-          <div className="bg-amber-900/30 border border-amber-700/30 rounded-xl p-3 flex items-start gap-2">
-            <AlertTriangle size={12} className="text-amber-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-[10px] font-bold text-amber-300">Aarav boarded safely</p>
-              <p className="text-[9px] text-amber-500">Bus 12 at 7:42 AM · Stop confirmed</p>
-            </div>
-          </div>
+    <div className="border-y border-surface-border bg-surface-soft py-10">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="flex flex-wrap justify-center gap-x-16 gap-y-6">
+          {PROOF_STATS.map((s, i) => (
+            <motion.div
+              key={s.label}
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.08 }}
+              className="text-center"
+            >
+              <p className="text-3xl font-black text-ink mb-1">{s.value}</p>
+              <p className="text-xs font-semibold text-ink-muted uppercase tracking-wider">{s.label}</p>
+            </motion.div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-function DriverMockup() {
-  return (
-    <div className="relative w-[240px]">
-      <div className="absolute inset-0 blur-3xl bg-emerald-500/15 rounded-full scale-110" />
-      <div className="relative bg-zinc-900 border border-dark-border rounded-[2.5rem] overflow-hidden shadow-heavy">
-        <div className="h-9 bg-zinc-950 flex items-center justify-between px-5 pt-2">
-          <span className="text-[10px] font-semibold text-zinc-600">9:41</span>
-          <div className="w-14 h-3.5 bg-zinc-700 rounded-full" />
-          <div className="flex gap-1">
-            {[3, 2, 1].map((i) => <div key={i} className="w-1 rounded-sm bg-zinc-600" style={{ height: `${4 + i * 3}px` }} />)}
-          </div>
-        </div>
-        <div className="bg-zinc-950 px-4 pb-5 space-y-3">
-          <div className="pt-1">
-            <p className="text-[9px] text-zinc-600 font-medium">Driver Dashboard</p>
-            <p className="text-sm font-black text-white">Rohit Kumar</p>
-          </div>
-          <div className="bg-white/6 rounded-xl p-3 border border-white/5">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-bold text-white">Bus 12 · North Route A</p>
-              <span className="text-[8px] bg-green-500 text-white font-bold px-1.5 py-0.5 rounded-full">ACTIVE</span>
-            </div>
-            <div className="flex gap-2">
-              <div className="flex-1 bg-white/8 rounded-lg p-2 text-center">
-                <p className="text-base font-black text-white">3/4</p>
-                <p className="text-[8px] text-zinc-500">Boarded</p>
-              </div>
-              <div className="flex-1 bg-white/8 rounded-lg p-2 text-center">
-                <p className="text-base font-black text-green-400">8</p>
-                <p className="text-[8px] text-zinc-500">ETA min</p>
-              </div>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            {[
-              { name: "Aarav Roy",  status: "boarded", color: "bg-green-500" },
-              { name: "Mira Dutta", status: "boarded", color: "bg-green-500" },
-              { name: "Sia Das",    status: "absent",  color: "bg-amber-500" },
-            ].map((s) => (
-              <div key={s.name} className="bg-white/5 rounded-lg px-2.5 py-2 flex items-center gap-2">
-                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.color}`} />
-                <p className="text-[9px] font-bold text-white flex-1">{s.name}</p>
-                <span className={`text-[7px] font-bold px-1.5 py-0.5 rounded-full ${
-                  s.status === "boarded" ? "bg-green-500/20 text-green-400" : "bg-amber-500/20 text-amber-400"
-                }`}>
-                  {s.status.toUpperCase()}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="bg-red-900/25 border border-red-700/25 rounded-xl p-2.5 flex items-center gap-2">
-            <AlertTriangle size={12} className="text-red-400" />
-            <p className="text-[9px] font-bold text-red-300">SOS always accessible</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Ticker strip ───────────────────────────────────────────────────────────────
+// ── Ticker ────────────────────────────────────────────────────────────────────
 
 const TICKER_ITEMS = [
-  "Live GPS Tracking", "Instant SOS Alerts", "Student Roster Management",
-  "Driver Document Renewals", "Parent Notifications", "Trip History",
-  "Teacher Attendance", "Compliance Dashboard", "Route Deviation Alerts",
-  "AI ETA Prediction", "Custom Stop Overrides", "Unlimited Vehicle Tracking",
+  "Live GPS Tracking", "AI Lesson Plans", "Fee Collection", "Mass Parent Calls",
+  "SOS Alerts", "Student Roster", "Analytics Dashboard", "Teacher Attendance",
+  "Student Feedback", "Class Broadcasts", "Compliance Tracking", "ETA Prediction",
+  "Route Alerts", "Parent Notifications", "Driver Management",
 ];
 
 function TickerStrip() {
   const items = [...TICKER_ITEMS, ...TICKER_ITEMS];
   return (
-    <div className="border-y border-dark-border bg-dark/60 py-4 overflow-hidden">
-      <div className="ticker-wrap">
-        <div className="flex gap-12 animate-ticker whitespace-nowrap">
+    <div className="bg-ink py-4 overflow-hidden">
+      <div style={{ maskImage: "linear-gradient(to right,transparent 0%,black 8%,black 92%,transparent 100%)", WebkitMaskImage: "linear-gradient(to right,transparent 0%,black 8%,black 92%,transparent 100%)" }}>
+        <div className="flex gap-10 animate-ticker whitespace-nowrap">
           {items.map((item, i) => (
-            <span key={i} className="flex items-center gap-3 text-sm font-semibold text-zinc-500">
+            <span key={i} className="flex items-center gap-3 text-sm font-semibold text-zinc-400">
               <span className="w-1 h-1 rounded-full bg-brand-500 flex-shrink-0" />
               {item}
             </span>
@@ -715,322 +595,525 @@ function TickerStrip() {
   );
 }
 
-// ── AI-First Section ───────────────────────────────────────────────────────────
+// ── Section tag component ─────────────────────────────────────────────────────
 
-const AI_FEATURES = [
-  {
-    icon: TrendingUp,
-    title: "Smart ETA prediction",
-    body: "AI analyses traffic patterns, historical route data, and real-time pings to give parents accurate arrival times — not just raw GPS.",
-    color: "from-brand-600 to-violet-600",
-    iconBg: "bg-brand-900/60",
-    iconColor: "text-brand-400",
-    tag: "Parents",
-  },
-  {
-    icon: Eye,
-    title: "Route anomaly detection",
-    body: "The AI flags unexpected stops, route deviations, or unusual delays the moment they happen — triggering instant alerts before anyone notices.",
-    color: "from-red-600 to-orange-500",
-    iconBg: "bg-red-900/50",
-    iconColor: "text-red-400",
-    tag: "Real-time",
-  },
-  {
-    icon: MessageSquare,
-    title: "Teacher AI assistant",
-    body: "Teachers get instant attendance summaries, engagement pattern insights, and AI-drafted parent update messages — ready to send in one tap.",
-    color: "from-violet-600 to-purple-600",
-    iconBg: "bg-violet-900/50",
-    iconColor: "text-violet-400",
-    tag: "Teachers",
-  },
-  {
-    icon: Activity,
-    title: "Live fleet intelligence",
-    body: "The dashboard sees every vehicle in real time. AI surfaces outliers — late buses, missing pings, capacity issues — without manual checking.",
-    color: "from-emerald-600 to-teal-600",
-    iconBg: "bg-emerald-900/50",
-    iconColor: "text-emerald-400",
-    tag: "Schools",
-  },
-];
-
-function NeuralDots() {
-  const dots = Array.from({ length: 24 }, (_, i) => i);
+function SectionTag({ children, color = "brand" }: { children: React.ReactNode; color?: string }) {
+  const colors: Record<string, string> = {
+    brand:   "bg-brand-50 border-brand-100 text-brand-600",
+    violet:  "bg-violet-50 border-violet-100 text-violet-600",
+    emerald: "bg-emerald-50 border-emerald-100 text-emerald-600",
+    amber:   "bg-amber-50 border-amber-100 text-amber-600",
+  };
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {dots.map((i) => {
-        const cx = 10 + (i % 6) * 18;
-        const cy = 10 + Math.floor(i / 6) * 25;
-        return (
-          <motion.div
-            key={i}
-            className="absolute w-1 h-1 rounded-full bg-brand-500/30"
-            style={{ left: `${cx}%`, top: `${cy}%` }}
-            animate={{ opacity: [0.15, 0.6, 0.15], scale: [1, 1.4, 1] }}
-            transition={{ duration: 2 + (i % 4) * 0.5, repeat: Infinity, delay: i * 0.15 }}
-          />
-        );
-      })}
+    <div className={`inline-flex items-center gap-2 border rounded-full px-4 py-1.5 mb-6 ${colors[color]}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
+      <span className="text-xs font-semibold uppercase tracking-widest">{children}</span>
     </div>
   );
 }
 
-function AISection() {
-  const ref  = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
+// ── Transport feature section ──────────────────────────────────────────────────
 
+function TransportMockup() {
   return (
-    <section id="ai-platform" ref={ref} className="py-24 bg-dark border-t border-dark-border relative overflow-hidden">
-      <NeuralDots />
-      {/* Background glow */}
-      <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] rounded-full bg-brand-600/8 blur-3xl" />
-
-      <div className="relative z-10 max-w-6xl mx-auto px-5">
+    <div className="relative">
+      <div className="absolute -inset-4 bg-brand-100/50 rounded-3xl blur-2xl" />
+      <div className="relative bg-white rounded-2xl border border-surface-border shadow-lift overflow-hidden">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
-          <div className="inline-flex items-center gap-2 glass border border-brand-500/20 rounded-full px-4 py-1.5 mb-5">
-            <motion.div
-              animate={{ rotate: [0, 360] }}
-              transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-            >
-              <Cpu size={12} className="text-brand-400" />
-            </motion.div>
-            <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest">AI-first platform</span>
+        <div className="bg-brand-600 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-[10px] text-white/70 font-semibold">Bus 12 · North Route A</p>
+              <p className="text-base font-black text-white">Morning Trip</p>
+            </div>
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-white bg-white/20 px-2.5 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />LIVE
+            </span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-4">
-            Built on AI.{" "}
-            <span className="text-gradient">Live for everyone.</span>
-          </h2>
-          <p className="text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-            Skippo&apos;s AI layer works silently in real time — predicting, detecting, and assisting
-            so students, teachers, parents, and drivers never have to wait for answers.
-          </p>
-        </motion.div>
-
-        {/* Feature cards with 3D tilt */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {AI_FEATURES.map((f, i) => {
-            const Icon = f.icon;
-            return (
-              <Tilt3D
-                key={f.title}
-                className="relative rounded-3xl border border-dark-border bg-dark-card overflow-hidden group cursor-default"
-                strength={6}
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: 28 }}
-                  animate={inView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ duration: 0.55, delay: i * 0.1, ease: [0.25, 0.4, 0.25, 1] }}
-                >
-                  {/* Gradient top accent */}
-                  <div className={`absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r ${f.color} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                  {/* Subtle gradient bg on hover */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${f.color} opacity-0 group-hover:opacity-[0.04] transition-opacity duration-300`} />
-
-                  <div className="relative p-7">
-                    <div className="flex items-start justify-between mb-5">
-                      <div className={`w-12 h-12 ${f.iconBg} rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
-                        <Icon size={22} className={f.iconColor} />
-                      </div>
-                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full bg-gradient-to-r ${f.color} bg-opacity-20 text-white`}>
-                        {f.tag}
-                      </span>
-                    </div>
-                    <h3 className="text-base font-black text-white mb-2">{f.title}</h3>
-                    <p className="text-sm text-zinc-400 leading-relaxed">{f.body}</p>
-
-                    {/* Live indicator */}
-                    <div className="mt-5 flex items-center gap-2 text-xs font-semibold text-zinc-600">
-                      <motion.span
-                        className="w-1.5 h-1.5 rounded-full bg-emerald-500"
-                        animate={{ opacity: [1, 0.3, 1] }}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                      />
-                      Running live · no setup required
-                    </div>
-                  </div>
-                </motion.div>
-              </Tilt3D>
-            );
-          })}
+          {/* Mini map */}
+          <div className="relative h-24 bg-brand-700/40 rounded-xl overflow-hidden"
+            style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.05) 1px,transparent 1px)", backgroundSize: "16px 16px" }}>
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 300 96">
+              <path d="M 20 75 Q 80 50 130 65 Q 180 78 230 40 Q 265 18 285 30"
+                fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeDasharray="5 4" />
+            </svg>
+            <motion.div
+              className="absolute w-5 h-5 rounded-full bg-white border-2 border-brand-400 shadow-lg flex items-center justify-center"
+              style={{ top: "52%", left: "44%" }}
+              animate={{ x: [-6, 6, -6], y: [4, -4, 4] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Bus size={8} className="text-brand-600" />
+            </motion.div>
+          </div>
         </div>
 
-        {/* Bottom AI CTA strip */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="mt-10 relative rounded-3xl border border-brand-500/20 bg-gradient-to-r from-brand-950/60 via-dark-card to-violet-950/40 overflow-hidden p-8 flex flex-col sm:flex-row items-center justify-between gap-6"
-        >
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-0 left-0 w-64 h-full bg-gradient-to-r from-brand-600/10 to-transparent" />
-            <div className="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-violet-600/10 to-transparent" />
-          </div>
-          <div className="relative">
-            <div className="flex items-center gap-2 mb-1">
-              <Brain size={16} className="text-brand-400" />
-              <span className="text-sm font-black text-white">AI that learns your school&apos;s patterns</span>
+        {/* ETA + student list */}
+        <div className="p-4 space-y-3">
+          <div className="flex gap-3">
+            <div className="flex-1 bg-brand-50 rounded-xl p-3 text-center">
+              <p className="text-2xl font-black text-brand-600">8</p>
+              <p className="text-[9px] font-semibold text-brand-500">min ETA</p>
             </div>
-            <p className="text-sm text-zinc-400">Every route, every student, every day — the platform gets smarter over time.</p>
+            <div className="flex-1 bg-emerald-50 rounded-xl p-3 text-center">
+              <p className="text-2xl font-black text-emerald-600">34</p>
+              <p className="text-[9px] font-semibold text-emerald-500">boarded</p>
+            </div>
+            <div className="flex-1 bg-amber-50 rounded-xl p-3 text-center">
+              <p className="text-2xl font-black text-amber-600">2</p>
+              <p className="text-[9px] font-semibold text-amber-500">pending</p>
+            </div>
           </div>
-          <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} className="flex-shrink-0 relative">
-            <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-brand-500 to-violet-500 opacity-50 blur-sm" />
-            <Link
-              href="/signup"
-              className="relative btn-shine flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-brand-600 to-violet-600 text-white text-sm font-bold rounded-xl"
-            >
-              Try the AI platform <ArrowRight size={14} />
+
+          <div className="space-y-1.5">
+            {[
+              { name: "Aarav Roy",   status: "boarded",  c: "bg-emerald-500" },
+              { name: "Mira Dutta",  status: "boarded",  c: "bg-emerald-500" },
+              { name: "Sia Das",     status: "stop 4",   c: "bg-amber-400"   },
+            ].map((s) => (
+              <div key={s.name} className="flex items-center gap-2.5 bg-surface-soft rounded-lg px-3 py-2">
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.c}`} />
+                <p className="text-xs font-semibold text-ink flex-1">{s.name}</p>
+                <span className="text-[9px] text-ink-muted">{s.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TransportSection() {
+  const ref    = useRef<HTMLElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-100px" });
+
+  return (
+    <section ref={ref} className="py-28 bg-white" id="features">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid lg:grid-cols-2 gap-20 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -32 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.7 }}
+          >
+            <SectionTag color="brand">Transport &amp; Safety</SectionTag>
+            <h2 className="text-4xl lg:text-5xl font-black text-ink leading-tight tracking-tight mb-6">
+              Every parent knows where their child is.
+            </h2>
+            <p className="text-lg text-ink-muted leading-relaxed mb-8">
+              Live GPS updates every 60 seconds. Board and drop confirmations. One-tap SOS that reaches every parent on the route in seconds.
+            </p>
+            <motion.ul variants={stagger} initial="hidden" animate={inView ? "show" : "hidden"} className="space-y-4 mb-10">
+              {[
+                "Live bus position updates every 60 seconds",
+                "Automatic boarding and drop confirmations",
+                "One-tap SOS — 100% parent notification rate",
+                "No-show alerts when a student doesn't board",
+                "Driver contact directly from the parent app",
+              ].map((item) => (
+                <motion.li key={item} variants={fadeUp} className="flex items-start gap-3 text-sm text-ink-muted">
+                  <CheckCircle2 size={16} className="text-brand-500 flex-shrink-0 mt-0.5" />
+                  {item}
+                </motion.li>
+              ))}
+            </motion.ul>
+            <Link href="/signup" className="inline-flex items-center gap-2 text-sm font-bold text-brand-600 hover:text-brand-700 transition-colors">
+              Get started <ArrowRight size={14} />
             </Link>
           </motion.div>
-        </motion.div>
-      </div>
-    </section>
-  );
-}
 
-// ── Stats section ──────────────────────────────────────────────────────────────
-
-const STATS = [
-  { value: 60,  suffix: "s",  label: "Location refresh",   accent: "text-brand-400"   },
-  { value: 5,   suffix: "",   label: "Platform surfaces",   accent: "text-violet-400"  },
-  { value: 100, suffix: "%",  label: "SOS delivery rate",  accent: "text-emerald-400" },
-  { value: 24,  suffix: "h",  label: "Onboarding support", accent: "text-amber-400"   },
-];
-
-function StatsSection() {
-  const ref    = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
-  const counters = STATS.map((s) => {
-    const { count, ref: cRef } = useCountUp(s.value); // eslint-disable-line react-hooks/rules-of-hooks
-    return { ...s, count, cRef };
-  });
-
-  return (
-    <section ref={ref} className="py-20 bg-dark border-b border-dark-border">
-      <div className="max-w-6xl mx-auto px-5">
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          animate={inView ? "show" : "hidden"}
-          className="grid grid-cols-2 md:grid-cols-4 gap-8"
-        >
-          {counters.map((s) => (
-            <Tilt3D key={s.label} strength={5} className="relative text-center group">
-              <motion.div variants={fadeUp} className="relative rounded-2xl border border-transparent hover:border-dark-border p-4 transition-all">
-                <p className={`stat-value text-4xl md:text-5xl font-black mb-2 ${s.accent}`}>
-                  <motion.span ref={s.cRef as React.RefObject<HTMLSpanElement>}>{s.count}</motion.span>
-                  {s.suffix}
-                </p>
-                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{s.label}</p>
-              </motion.div>
-            </Tilt3D>
-          ))}
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-// ── Bento features section ─────────────────────────────────────────────────────
-
-const BENTO_FEATURES = [
-  { icon: MapPin,         title: "Live bus tracking",       body: "Parents see the bus position update every 60 seconds. No more anxious waiting at the stop.", accent: "from-brand-600 to-violet-600", iconBg: "bg-brand-900/60",   iconColor: "text-brand-400",   col: "md:col-span-2", dark: true },
-  { icon: AlertTriangle,  title: "One-tap SOS",             body: "Drivers trigger SOS from any screen. All parents on the route and school admin are alerted in seconds.", accent: "from-red-600 to-orange-600", iconBg: "bg-red-900/40",     iconColor: "text-red-400",     col: "md:col-span-1", dark: true },
-  { icon: Wrench,         title: "Breakdown coordination",  body: "Driver reports a breakdown, parents are notified instantly, and nearby buses can be contacted.", accent: "from-amber-600 to-yellow-600", iconBg: "bg-amber-900/40",   iconColor: "text-amber-400",   col: "md:col-span-1", dark: true },
-  { icon: ClipboardList,  title: "Digital student roster",  body: "Board and drop students in two taps. Custom stop overrides set by parents are shown per student.", accent: "from-emerald-600 to-teal-600", iconBg: "bg-emerald-900/40", iconColor: "text-emerald-400", col: "md:col-span-1", dark: true },
-  { icon: GraduationCap,  title: "Teacher attendance",      body: "Teachers take attendance on their phone, add notes per student, and parents get academic updates.", accent: "from-violet-600 to-purple-600", iconBg: "bg-violet-900/40",  iconColor: "text-violet-400",  col: "md:col-span-1", dark: true },
-  { icon: LayoutDashboard, title: "Admin dashboard",        body: "School admins manage routes, vehicles, compliance, messaging, and driver approvals — one place, full control.", accent: "from-sky-600 to-blue-600", iconBg: "bg-sky-900/40",     iconColor: "text-sky-400",     col: "md:col-span-1", dark: true },
-];
-
-function FeaturesSection() {
-  const ref    = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
-
-  return (
-    <section id="features" ref={ref} className="py-24 bg-dark">
-      <div className="max-w-6xl mx-auto px-5">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
-          <div className="inline-flex items-center gap-2 glass border border-brand-500/20 rounded-full px-4 py-1.5 mb-5">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
-            <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest">Everything you need</span>
-          </div>
-          <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-4">Built for every role</h2>
-          <p className="text-zinc-400 max-w-xl mx-auto">One platform, five surfaces — parents, drivers, teachers, and admins all connected.</p>
-        </motion.div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {BENTO_FEATURES.map((f, i) => {
-            const Icon = f.icon;
-            return (
-              <Tilt3D
-                key={f.title}
-                className={`relative rounded-3xl border border-dark-border bg-dark-card overflow-hidden group cursor-default ${f.col}`}
-                strength={7}
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: 28 }}
-                  animate={inView ? { opacity: 1, y: 0 } : {}}
-                  transition={{ duration: 0.55, delay: i * 0.08, ease: [0.25, 0.4, 0.25, 1] }}
-                >
-                  <div className={`absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r ${f.accent} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                  <div className={`absolute inset-0 bg-gradient-to-br ${f.accent} opacity-0 group-hover:opacity-[0.04] transition-opacity duration-300 rounded-3xl`} />
-                  <div className="relative p-6">
-                    <div className={`w-11 h-11 ${f.iconBg} rounded-2xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300`}>
-                      <Icon size={20} className={f.iconColor} />
-                    </div>
-                    <h3 className="text-base font-black text-white mb-2">{f.title}</h3>
-                    <p className="text-sm text-zinc-400 leading-relaxed">{f.body}</p>
-                  </div>
-                </motion.div>
-              </Tilt3D>
-            );
-          })}
+          <motion.div
+            initial={{ opacity: 0, x: 32 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.7, delay: 0.1 }}
+          >
+            <TransportMockup />
+          </motion.div>
         </div>
       </div>
     </section>
   );
 }
 
-// ── How it works ───────────────────────────────────────────────────────────────
+// ── AI teaching section ───────────────────────────────────────────────────────
+
+function TeacherMockup() {
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true });
+
+  useEffect(() => {
+    if (inView) setTimeout(() => setVisible(true), 400);
+  }, [inView]);
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="absolute -inset-4 bg-violet-100/50 rounded-3xl blur-2xl" />
+      <div className="relative bg-white rounded-2xl border border-surface-border shadow-lift overflow-hidden p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[10px] text-ink-muted">AI Lesson Planner</p>
+            <p className="text-sm font-black text-ink">Grade 8 — Mathematics</p>
+          </div>
+          <span className="text-[9px] font-bold text-violet-600 bg-violet-50 border border-violet-100 px-2 py-1 rounded-full">AI</span>
+        </div>
+
+        {/* Prompt input */}
+        <div className="bg-surface-muted rounded-xl p-3 border border-surface-border">
+          <p className="text-[10px] text-ink-muted mb-1">Topic</p>
+          <p className="text-xs font-semibold text-ink">Pythagoras Theorem — introduction &amp; applications</p>
+        </div>
+
+        {/* Generated plan */}
+        <AnimatePresence>
+          {visible && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              transition={{ duration: 0.6, ease: [0.25, 0.4, 0.25, 1] }}
+              className="space-y-2"
+            >
+              {[
+                { step: "Objective",     text: "Students understand and apply Pythagoras Theorem to right triangles." },
+                { step: "Warm-up (5m)",  text: "Quick quiz on squares and square roots from previous lesson." },
+                { step: "Teach (20m)",   text: "Diagram proof, formula derivation, 3 worked examples on board." },
+                { step: "Activity (15m)",text: "Partner worksheet — 8 problems increasing in difficulty." },
+                { step: "Wrap-up (5m)",  text: "3-2-1 exit ticket: 3 things learned, 2 questions, 1 real-world use." },
+              ].map((s, i) => (
+                <motion.div
+                  key={s.step}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.08 }}
+                  className="flex gap-2.5 bg-violet-50 rounded-lg p-2.5"
+                >
+                  <span className="text-[9px] font-black text-violet-600 whitespace-nowrap mt-0.5">{s.step}</span>
+                  <p className="text-[9px] text-ink-muted leading-relaxed">{s.text}</p>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1 bg-surface-muted rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-violet-500 rounded-full"
+              initial={{ width: 0 }}
+              animate={visible ? { width: "100%" } : {}}
+              transition={{ duration: 1.2, delay: 0.2 }}
+            />
+          </div>
+          <span className="text-[9px] font-bold text-violet-600 whitespace-nowrap">Plan ready</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeacherSection() {
+  const ref    = useRef<HTMLElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-100px" });
+
+  return (
+    <section ref={ref} className="py-28 bg-surface-soft border-t border-surface-border">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid lg:grid-cols-2 gap-20 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -32 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.7 }}
+            className="order-2 lg:order-1"
+          >
+            <TeacherMockup />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 32 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.7, delay: 0.1 }}
+            className="order-1 lg:order-2"
+          >
+            <SectionTag color="violet">AI for Teachers</SectionTag>
+            <h2 className="text-4xl lg:text-5xl font-black text-ink leading-tight tracking-tight mb-6">
+              From topic to lesson plan in seconds.
+            </h2>
+            <p className="text-lg text-ink-muted leading-relaxed mb-8">
+              Teachers type a topic — Skippo generates a complete, curriculum-aligned lesson plan instantly. No prep time lost. More time for students.
+            </p>
+            <motion.ul variants={stagger} initial="hidden" animate={inView ? "show" : "hidden"} className="space-y-4 mb-10">
+              {[
+                "AI generates full lesson plans from a single topic",
+                "Answer student questions from home, in real time",
+                "Send individual progress notes to every student",
+                "Broadcast class tasks and assignments instantly",
+                "Mark attendance and track class performance",
+              ].map((item) => (
+                <motion.li key={item} variants={fadeUp} className="flex items-start gap-3 text-sm text-ink-muted">
+                  <CheckCircle2 size={16} className="text-violet-500 flex-shrink-0 mt-0.5" />
+                  {item}
+                </motion.li>
+              ))}
+            </motion.ul>
+            <Link href="/signup" className="inline-flex items-center gap-2 text-sm font-bold text-violet-600 hover:text-violet-700 transition-colors">
+              Get started <ArrowRight size={14} />
+            </Link>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Fee & Admin section ───────────────────────────────────────────────────────
+
+function FeeMockup() {
+  return (
+    <div className="relative">
+      <div className="absolute -inset-4 bg-emerald-100/50 rounded-3xl blur-2xl" />
+      <div className="relative bg-white rounded-2xl border border-surface-border shadow-lift overflow-hidden">
+        <div className="bg-emerald-600 p-4">
+          <p className="text-[10px] text-white/70 font-semibold mb-1">Fee Overview</p>
+          <p className="text-3xl font-black text-white">₹12,45,320</p>
+          <p className="text-[10px] text-white/70 mt-1">Collected this month</p>
+          <div className="mt-3 flex gap-4">
+            <div>
+              <p className="text-sm font-black text-white">₹8.76L</p>
+              <p className="text-[9px] text-white/60">Pending (231)</p>
+            </div>
+            <div>
+              <p className="text-sm font-black text-emerald-200">94.2%</p>
+              <p className="text-[9px] text-white/60">Collection rate</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 space-y-3">
+          {/* Recent payments */}
+          <p className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">Recent payments</p>
+          {[
+            { name: "Aarav Roy",   amount: "₹12,000", time: "2m ago",  status: "paid" },
+            { name: "Mira Dutta",  amount: "₹8,500",  time: "18m ago", status: "paid" },
+            { name: "Arjun Singh", amount: "₹15,000", time: "1h ago",  status: "paid" },
+          ].map((p) => (
+            <div key={p.name} className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <span className="text-[9px] font-black text-emerald-600">{p.name[0]}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-ink truncate">{p.name}</p>
+                <p className="text-[9px] text-ink-muted">{p.time}</p>
+              </div>
+              <span className="text-xs font-black text-emerald-600">{p.amount}</span>
+            </div>
+          ))}
+
+          {/* Progress bar */}
+          <div className="pt-1">
+            <div className="flex justify-between text-[9px] font-semibold text-ink-muted mb-1">
+              <span>Collection progress</span>
+              <span>94.2%</span>
+            </div>
+            <div className="h-2 bg-surface-muted rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-emerald-500 rounded-full"
+                initial={{ width: 0 }}
+                whileInView={{ width: "94.2%" }}
+                viewport={{ once: true }}
+                transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeeSection() {
+  const ref    = useRef<HTMLElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-100px" });
+
+  return (
+    <section ref={ref} className="py-28 bg-white border-t border-surface-border">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid lg:grid-cols-2 gap-20 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -32 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.7 }}
+          >
+            <SectionTag color="emerald">Fees &amp; Administration</SectionTag>
+            <h2 className="text-4xl lg:text-5xl font-black text-ink leading-tight tracking-tight mb-6">
+              Fee collection that actually works.
+            </h2>
+            <p className="text-lg text-ink-muted leading-relaxed mb-8">
+              Define fee structures per class, let parents pay via Razorpay, and watch collection happen automatically. No follow-up calls, no spreadsheets.
+            </p>
+            <motion.ul variants={stagger} initial="hidden" animate={inView ? "show" : "hidden"} className="space-y-4 mb-10">
+              {[
+                "Custom fee structures per class or student group",
+                "Parents pay instantly via Razorpay — UPI, cards, net banking",
+                "Automatic receipts and payment confirmations",
+                "Pending fee reports with one-click parent reminders",
+                "Smart analytics dashboard for admin decisions",
+              ].map((item) => (
+                <motion.li key={item} variants={fadeUp} className="flex items-start gap-3 text-sm text-ink-muted">
+                  <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                  {item}
+                </motion.li>
+              ))}
+            </motion.ul>
+            <Link href="/signup" className="inline-flex items-center gap-2 text-sm font-bold text-emerald-600 hover:text-emerald-700 transition-colors">
+              Get started <ArrowRight size={14} />
+            </Link>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 32 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.7, delay: 0.1 }}
+          >
+            <FeeMockup />
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Parent communication section ──────────────────────────────────────────────
+
+function CommsMockup() {
+  return (
+    <div className="relative">
+      <div className="absolute -inset-4 bg-amber-100/40 rounded-3xl blur-2xl" />
+      <div className="relative bg-white rounded-2xl border border-surface-border shadow-lift overflow-hidden p-5 space-y-3">
+        <div>
+          <p className="text-[10px] text-ink-muted">Mass Call Campaign</p>
+          <p className="text-sm font-black text-ink">Parent-Teacher Meeting — Thu 24 Apr</p>
+        </div>
+
+        {/* Campaign status */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: "Calls sent",    value: "847", color: "text-brand-600 bg-brand-50"   },
+            { label: "Answered",      value: "792", color: "text-emerald-600 bg-emerald-50" },
+            { label: "Pending",       value: "55",  color: "text-amber-600 bg-amber-50"   },
+          ].map((s) => (
+            <div key={s.label} className={`${s.color.split(" ")[1]} rounded-xl p-2.5 text-center`}>
+              <p className={`text-xl font-black ${s.color.split(" ")[0]}`}>{s.value}</p>
+              <p className="text-[8px] font-semibold text-ink-muted mt-0.5">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Notification preview */}
+        <div className="bg-surface-soft rounded-xl border border-surface-border p-3 space-y-2">
+          <p className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">Recent notifications sent</p>
+          {[
+            { type: "📞", msg: "PTM reminder call delivered",       time: "3m ago"  },
+            { type: "✅", msg: "Fee receipt sent to Priya Sharma",  time: "12m ago" },
+            { type: "📍", msg: "Bus 7 arrived — 28 parents alerted",time: "1h ago"  },
+            { type: "🚨", msg: "SOS cleared — parents notified",    time: "2h ago"  },
+          ].map((n) => (
+            <div key={n.msg} className="flex items-start gap-2">
+              <span className="text-sm flex-shrink-0">{n.type}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-semibold text-ink truncate">{n.msg}</p>
+                <p className="text-[8px] text-ink-faint">{n.time}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CommsSection() {
+  const ref    = useRef<HTMLElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-100px" });
+
+  return (
+    <section ref={ref} className="py-28 bg-surface-soft border-t border-surface-border">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid lg:grid-cols-2 gap-20 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -32 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.7 }}
+            className="order-2 lg:order-1"
+          >
+            <CommsMockup />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 32 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.7, delay: 0.1 }}
+            className="order-1 lg:order-2"
+          >
+            <SectionTag color="amber">Parent Communication</SectionTag>
+            <h2 className="text-4xl lg:text-5xl font-black text-ink leading-tight tracking-tight mb-6">
+              Reach every parent in minutes.
+            </h2>
+            <p className="text-lg text-ink-muted leading-relaxed mb-8">
+              Schedule AI-driven voice calls to all parents at once. Boarding alerts, fee reminders, PTM invites — one campaign, zero manual effort.
+            </p>
+            <motion.ul variants={stagger} initial="hidden" animate={inView ? "show" : "hidden"} className="space-y-4 mb-10">
+              {[
+                "AI voice calls delivered to hundreds of parents at once",
+                "Automatic boarding and drop notifications",
+                "Bulk fee reminders with parent-specific details",
+                "Emergency SOS alerts reach all route parents in seconds",
+                "Teacher progress notes sent directly to guardians",
+              ].map((item) => (
+                <motion.li key={item} variants={fadeUp} className="flex items-start gap-3 text-sm text-ink-muted">
+                  <CheckCircle2 size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                  {item}
+                </motion.li>
+              ))}
+            </motion.ul>
+            <Link href="/signup" className="inline-flex items-center gap-2 text-sm font-bold text-amber-600 hover:text-amber-700 transition-colors">
+              Get started <ArrowRight size={14} />
+            </Link>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── How it works ──────────────────────────────────────────────────────────────
 
 const HOW_IT_WORKS = [
   {
-    icon: School, label: "For schools", color: "from-brand-600 to-violet-600",
-    iconBg: "bg-brand-900/40", iconColor: "text-brand-400",
+    icon: School,       label: "For schools",
+    iconBg: "bg-brand-50",  iconColor: "text-brand-600",  stepColor: "bg-brand-600",
     steps: [
-      { title: "Register your school",      body: "Sign up in minutes with your school details and fleet size." },
-      { title: "Add vehicles & routes",     body: "Configure routes, stops, and vehicle assignments from the dashboard." },
-      { title: "Invite drivers & parents",  body: "Send invite links. Everyone is on board without manual data entry." },
+      { title: "Sign up your school",      body: "Fill in your details — we review and activate your account within 24 hours."    },
+      { title: "Configure routes & fees",  body: "Add teachers, set fee structures by class, and configure your bus routes."       },
+      { title: "Operations on autopilot",  body: "Schedule parent calls, track buses live, and get smart analytics daily."        },
     ],
   },
   {
-    icon: Users, label: "For parents", color: "from-amber-500 to-orange-500",
-    iconBg: "bg-amber-900/40", iconColor: "text-amber-400",
+    icon: GraduationCap, label: "For teachers",
+    iconBg: "bg-violet-50", iconColor: "text-violet-600", stepColor: "bg-violet-600",
     steps: [
-      { title: "Download the parent app",   body: "Sign up with your phone number, link your child, and pick their bus route." },
-      { title: "Track live, every morning", body: "See the bus on a live map. AI alerts arrive before the bus does." },
-      { title: "Stay informed all day",     body: "Board/drop confirmations, progress notes, and emergency alerts in one place." },
+      { title: "Accept your invite",       body: "Your school sends an invite link — set up your classes in minutes."              },
+      { title: "Build lessons with AI",    body: "Type a topic, get a complete lesson plan. No prep time required."                },
+      { title: "Stay connected anywhere",  body: "Answer questions, send feedback, and broadcast tasks from your phone."           },
     ],
   },
   {
-    icon: Bus, label: "For drivers", color: "from-emerald-500 to-teal-500",
-    iconBg: "bg-emerald-900/40", iconColor: "text-emerald-400",
+    icon: Users,         label: "For parents",
+    iconBg: "bg-amber-50",  iconColor: "text-amber-600",  stepColor: "bg-amber-500",
     steps: [
-      { title: "Join with your invite code", body: "Use the invite token from your school or self-register in under 2 minutes." },
-      { title: "Run your route",             body: "Start a trip, board students with one tap, drop at custom stops." },
-      { title: "Safety always covered",      body: "SOS and Breakdown buttons are one tap away at all times during a trip." },
+      { title: "Download the parent app",  body: "Sign up with your phone number, link your child, and select their route."        },
+      { title: "Track the bus live",       body: "See the bus on a live map. Alerts arrive before the bus does."                   },
+      { title: "Stay informed all day",    body: "Board & drop confirmations, teacher notes, fee receipts — one place."            },
     ],
   },
 ];
@@ -1040,59 +1123,60 @@ function HowItWorksSection() {
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section id="how-it-works" ref={ref} className="py-24 bg-dark border-t border-dark-border">
-      <div className="max-w-6xl mx-auto px-5">
+    <section id="how-it-works" ref={ref} className="py-28 bg-white border-t border-surface-border">
+      <div className="max-w-7xl mx-auto px-6">
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-20"
         >
-          <div className="inline-flex items-center gap-2 glass border border-brand-500/20 rounded-full px-4 py-1.5 mb-5">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-            <span className="text-xs font-semibold text-violet-400 uppercase tracking-widest">Simple setup</span>
-          </div>
-          <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-4">How Skippo works</h2>
-          <p className="text-zinc-400 max-w-xl mx-auto">From onboarding to daily operations — everything is designed to be instant.</p>
+          <SectionTag>How it works</SectionTag>
+          <h2 className="text-4xl lg:text-5xl font-black text-ink tracking-tight mb-4">
+            Up and running in 24 hours.
+          </h2>
+          <p className="text-lg text-ink-muted max-w-xl mx-auto">
+            From sign-up to live operations — every role has a clear, simple path.
+          </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-10">
           {HOW_IT_WORKS.map((role, ri) => {
             const Icon = role.icon;
             return (
               <motion.div
                 key={role.label}
-                initial={{ opacity: 0, y: 32 }}
+                initial={{ opacity: 0, y: 28 }}
                 animate={inView ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: ri * 0.15, ease: [0.25, 0.4, 0.25, 1] }}
-                className="flex flex-col"
+                transition={{ duration: 0.6, delay: ri * 0.15 }}
               >
-                <div className="flex flex-col items-center mb-8 text-center">
-                  <div className={`w-14 h-14 rounded-3xl ${role.iconBg} border border-white/5 flex items-center justify-center mb-3`}>
-                    <Icon size={24} className={role.iconColor} />
+                <div className="flex items-center gap-3 mb-8">
+                  <div className={`w-12 h-12 rounded-2xl ${role.iconBg} flex items-center justify-center`}>
+                    <Icon size={22} className={role.iconColor} />
                   </div>
-                  <h3 className="font-black text-white text-lg">{role.label}</h3>
+                  <h3 className="font-black text-ink text-lg">{role.label}</h3>
                 </div>
-                <div className="flex flex-col gap-0">
+
+                <div className="space-y-0">
                   {role.steps.map((step, si) => (
                     <motion.div
                       key={step.title}
-                      initial={{ opacity: 0, x: -16 }}
+                      initial={{ opacity: 0, x: -10 }}
                       animate={inView ? { opacity: 1, x: 0 } : {}}
-                      transition={{ duration: 0.5, delay: ri * 0.15 + si * 0.1 + 0.2 }}
+                      transition={{ delay: ri * 0.15 + si * 0.1 + 0.25 }}
                       className="flex gap-4"
                     >
                       <div className="flex flex-col items-center">
-                        <div className={`flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br ${role.color} text-white font-black text-sm flex items-center justify-center shadow-brand z-10`}>
+                        <div className={`w-9 h-9 rounded-full ${role.stepColor} text-white font-black text-sm flex items-center justify-center flex-shrink-0 z-10`}>
                           {si + 1}
                         </div>
                         {si < role.steps.length - 1 && (
-                          <div className="w-px flex-1 my-1 bg-gradient-to-b from-white/10 to-transparent" />
+                          <div className="w-px flex-1 my-1.5 bg-surface-border" />
                         )}
                       </div>
-                      <div className={`pb-${si < role.steps.length - 1 ? "6" : "0"} pt-1`}>
-                        <p className="font-black text-white mb-1 text-sm">{step.title}</p>
-                        <p className="text-sm text-zinc-400 leading-relaxed">{step.body}</p>
+                      <div className={si < role.steps.length - 1 ? "pb-7 pt-1" : "pt-1"}>
+                        <p className="font-black text-ink text-sm mb-1">{step.title}</p>
+                        <p className="text-sm text-ink-muted leading-relaxed">{step.body}</p>
                       </div>
                     </motion.div>
                   ))}
@@ -1106,128 +1190,112 @@ function HowItWorksSection() {
   );
 }
 
-// ── App lifecycle animation section ───────────────────────────────────────────
+// ── App lifecycle interactive ─────────────────────────────────────────────────
 
 const LIFECYCLE_SCREENS = [
   {
-    id: "login",
-    label: "Login",
-    emoji: "🔑",
-    color: "from-brand-600 to-violet-600",
+    id: "login", label: "Login", emoji: "🔑", color: "bg-brand-600",
     title: "Sign in instantly",
-    desc: "OTP-based login — no passwords, no friction. Parents and drivers are in within 30 seconds.",
+    desc: "OTP-based login — no passwords. Parents and drivers are in within 30 seconds.",
     screen: (
       <div className="space-y-3 px-3">
         <div className="text-center pt-2 pb-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-500 to-violet-600 mx-auto mb-2 flex items-center justify-center">
-            <span className="text-white text-sm font-black">S</span>
-          </div>
-          <p className="text-xs font-black text-white">Welcome to Skippo</p>
-          <p className="text-[9px] text-zinc-500">Enter your phone to continue</p>
+          <img src="/logo.svg" alt="Skippo" className="w-10 h-10 mx-auto mb-2" />
+          <p className="text-xs font-black text-ink">Welcome to Skippo</p>
+          <p className="text-[9px] text-ink-muted">Enter your phone to continue</p>
         </div>
-        <div className="bg-zinc-800 rounded-xl p-3 flex items-center gap-2">
-          <span className="text-[11px] text-zinc-500">+91</span>
-          <div className="w-px h-4 bg-zinc-700" />
-          <span className="text-[11px] text-zinc-400">98765 43210</span>
+        <div className="bg-surface-muted rounded-xl p-3 flex items-center gap-2 border border-surface-border">
+          <span className="text-[11px] text-ink-muted">+91</span>
+          <div className="w-px h-4 bg-surface-border" />
+          <span className="text-[11px] text-ink">98765 43210</span>
         </div>
-        <div className="bg-gradient-to-r from-brand-600 to-violet-600 rounded-xl p-3 text-center">
+        <div className="bg-brand-600 rounded-xl p-3 text-center">
           <p className="text-[11px] font-black text-white">Send OTP →</p>
         </div>
       </div>
     ),
   },
   {
-    id: "dashboard",
-    label: "Dashboard",
-    emoji: "🏠",
-    color: "from-emerald-600 to-teal-600",
+    id: "dashboard", label: "Dashboard", emoji: "🏠", color: "bg-emerald-500",
     title: "Your child's morning, at a glance",
-    desc: "Parents see live bus ETA, boarding confirmation, and driver contact the moment they open the app.",
+    desc: "Live bus ETA, boarding confirmation, and driver contact — the moment the app opens.",
     screen: (
       <div className="space-y-2 px-3">
         <div className="pt-2">
-          <p className="text-[9px] text-zinc-500">Good morning, Priya</p>
-          <p className="text-xs font-black text-white">Aarav&apos;s Bus</p>
+          <p className="text-[9px] text-ink-muted">Good morning, Priya</p>
+          <p className="text-xs font-black text-ink">Aarav&apos;s Bus</p>
         </div>
-        <div className="bg-gradient-to-br from-brand-600 to-violet-600 rounded-xl p-3 text-white">
+        <div className="bg-brand-600 rounded-xl p-3 text-white">
           <p className="text-[8px] text-white/70 uppercase tracking-wider">Arriving in</p>
           <p className="text-xl font-black">8 <span className="text-xs font-semibold text-white/80">min</span></p>
           <div className="flex items-center gap-1 mt-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-300 animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
             <p className="text-[8px] font-semibold text-white/80">LIVE · North Route A</p>
           </div>
         </div>
         <div className="flex gap-2">
-          <div className="flex-1 bg-zinc-800 rounded-lg p-2 text-center">
-            <p className="text-[9px] font-black text-emerald-400">✓ Boarded</p>
+          <div className="flex-1 bg-emerald-50 rounded-lg p-2 text-center border border-emerald-100">
+            <p className="text-[9px] font-black text-emerald-600">✓ Boarded</p>
           </div>
-          <div className="flex-1 bg-zinc-800 rounded-lg p-2 text-center">
-            <p className="text-[9px] font-black text-white">Call driver</p>
+          <div className="flex-1 bg-surface-muted rounded-lg p-2 text-center border border-surface-border">
+            <p className="text-[9px] font-black text-ink">Call driver</p>
           </div>
         </div>
       </div>
     ),
   },
   {
-    id: "tracking",
-    label: "Live Track",
-    emoji: "📍",
-    color: "from-amber-500 to-orange-500",
+    id: "tracking", label: "Live Track", emoji: "📍", color: "bg-amber-500",
     title: "Real-time map, every 60 seconds",
-    desc: "The bus marker moves as the driver pings location. Parents always know exactly where it is.",
+    desc: "The bus marker updates as the driver pings location. Parents always know exactly where it is.",
     screen: (
       <div className="space-y-2 px-3">
         <div className="pt-2 flex items-center justify-between">
-          <p className="text-xs font-black text-white">Live Tracking</p>
-          <span className="flex items-center gap-1 text-[8px] font-bold text-emerald-400">
-            <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />LIVE
+          <p className="text-xs font-black text-ink">Live Tracking</p>
+          <span className="flex items-center gap-1 text-[8px] font-bold text-emerald-600">
+            <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />LIVE
           </span>
         </div>
-        <div className="bg-zinc-800 rounded-xl overflow-hidden h-24 relative flex items-center justify-center">
-          <div className="absolute inset-0 opacity-20"
-            style={{ backgroundImage: "linear-gradient(rgba(99,102,241,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.3) 1px, transparent 1px)", backgroundSize: "16px 16px" }}
-          />
-          <Route size={14} className="text-brand-400 z-10" />
+        <div className="bg-brand-50 rounded-xl overflow-hidden h-24 relative flex items-center justify-center border border-brand-100"
+          style={{ backgroundImage: "linear-gradient(rgba(99,102,241,0.1) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.1) 1px,transparent 1px)", backgroundSize: "16px 16px" }}>
+          <Route size={14} className="text-brand-300 z-10" />
           <motion.div
-            className="absolute w-4 h-4 rounded-full bg-brand-500 border-2 border-white shadow-lg shadow-brand-500/50 z-10"
+            className="absolute w-4 h-4 rounded-full bg-brand-500 border-2 border-white shadow-md z-10"
             animate={{ x: [-20, 20, -20], y: [10, -10, 10] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           />
         </div>
-        <div className="bg-zinc-800 rounded-lg p-2 flex items-center gap-2">
-          <MapPin size={10} className="text-brand-400 flex-shrink-0" />
+        <div className="bg-surface-muted rounded-lg p-2 flex items-center gap-2 border border-surface-border">
+          <MapPin size={10} className="text-brand-500 flex-shrink-0" />
           <div>
-            <p className="text-[9px] font-bold text-white">Lakeview Stop</p>
-            <p className="text-[8px] text-zinc-500">Updated 42s ago</p>
+            <p className="text-[9px] font-bold text-ink">Lakeview Stop</p>
+            <p className="text-[8px] text-ink-muted">Updated 42s ago</p>
           </div>
         </div>
       </div>
     ),
   },
   {
-    id: "sos",
-    label: "SOS Alert",
-    emoji: "🚨",
-    color: "from-red-600 to-orange-600",
+    id: "sos", label: "SOS Alert", emoji: "🚨", color: "bg-red-500",
     title: "Emergency in one tap",
-    desc: "Drivers trigger SOS from any screen. All parents on the route receive an instant alert within seconds.",
+    desc: "Drivers trigger SOS from any screen. All parents on the route are notified within seconds.",
     screen: (
       <div className="space-y-2 px-3">
         <div className="pt-2">
-          <p className="text-xs font-black text-white">Emergency</p>
-          <p className="text-[9px] text-zinc-500">One tap, full coverage</p>
+          <p className="text-xs font-black text-ink">Emergency</p>
+          <p className="text-[9px] text-ink-muted">One tap, full coverage</p>
         </div>
         <motion.div
-          className="rounded-2xl bg-red-500/20 border border-red-500/40 p-4 flex flex-col items-center gap-2"
-          animate={{ boxShadow: ["0 0 0px rgba(239,68,68,0)", "0 0 20px rgba(239,68,68,0.4)", "0 0 0px rgba(239,68,68,0)"] }}
+          className="rounded-2xl bg-red-50 border border-red-200 p-4 flex flex-col items-center gap-2"
+          animate={{ boxShadow: ["0 0 0px rgba(239,68,68,0)", "0 0 20px rgba(239,68,68,0.2)", "0 0 0px rgba(239,68,68,0)"] }}
           transition={{ duration: 2, repeat: Infinity }}
         >
-          <AlertTriangle size={20} className="text-red-400" />
-          <p className="text-[10px] font-black text-red-300 text-center">SOS · All parents notified</p>
-          <p className="text-[8px] text-red-400 text-center">Help is on the way · Stay calm</p>
+          <AlertTriangle size={20} className="text-red-500" />
+          <p className="text-[10px] font-black text-red-700 text-center">SOS · All parents notified</p>
+          <p className="text-[8px] text-red-500 text-center">Help is on the way · Stay calm</p>
         </motion.div>
-        <div className="bg-zinc-800 rounded-lg p-2">
-          <p className="text-[8px] text-zinc-400">28 parents notified · 0:04s delivery</p>
+        <div className="bg-surface-muted rounded-lg p-2 border border-surface-border">
+          <p className="text-[8px] text-ink-muted">28 parents notified · 4s delivery</p>
         </div>
       </div>
     ),
@@ -1237,153 +1305,115 @@ const LIFECYCLE_SCREENS = [
 function AppLifecycleSection() {
   const ref    = useRef<HTMLElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
-  const [active, setActive] = useState(0);
+  const [active,   setActive]   = useState(0);
   const [progress, setProgress] = useState(0);
 
-  // Auto-cycle screens
+  // Track timer state in a ref so the interval closure is never stale
+  const timerRef = useRef({ active: 0, progress: 0 });
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) {
-          setActive((a) => (a + 1) % LIFECYCLE_SCREENS.length);
-          return 0;
-        }
-        return p + 2;
-      });
+    const t = setInterval(() => {
+      timerRef.current.progress += 2;
+      if (timerRef.current.progress >= 100) {
+        timerRef.current.progress = 0;
+        timerRef.current.active = (timerRef.current.active + 1) % LIFECYCLE_SCREENS.length;
+        setActive(timerRef.current.active);
+      }
+      setProgress(timerRef.current.progress);
     }, 60);
-    return () => clearInterval(interval);
+    return () => clearInterval(t);
   }, []);
+
+  function goTo(i: number) {
+    timerRef.current = { active: i, progress: 0 };
+    setActive(i);
+    setProgress(0);
+  }
 
   const screen = LIFECYCLE_SCREENS[active];
 
   return (
-    <section ref={ref} className="py-24 bg-dark border-t border-dark-border overflow-hidden">
-      <div className="max-w-6xl mx-auto px-5">
+    <section ref={ref} className="py-28 bg-surface-soft border-t border-surface-border overflow-hidden">
+      <div className="max-w-7xl mx-auto px-6">
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-20"
         >
-          <div className="inline-flex items-center gap-2 glass border border-brand-500/20 rounded-full px-4 py-1.5 mb-5">
-            <Activity size={12} className="text-brand-400" />
-            <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest">App in action</span>
-          </div>
-          <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-4">
-            See the full journey
-          </h2>
-          <p className="text-zinc-400 max-w-xl mx-auto">From login to live tracking to emergency response — the entire experience in one platform.</p>
+          <SectionTag><Activity size={12} className="inline mr-1" />App in action</SectionTag>
+          <h2 className="text-4xl lg:text-5xl font-black text-ink tracking-tight mb-4">See the full experience</h2>
+          <p className="text-lg text-ink-muted max-w-xl mx-auto">From login to live tracking to emergency response — the entire journey in one platform.</p>
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-16 items-center">
-          {/* Phone frame */}
           <motion.div
-            initial={{ opacity: 0, x: -32 }}
+            initial={{ opacity: 0, x: -28 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.7, ease: [0.25, 0.4, 0.25, 1] }}
+            transition={{ duration: 0.7 }}
             className="flex justify-center"
           >
             <div className="relative w-[260px]">
-              {/* Glow */}
-              <motion.div
-                className={`absolute inset-0 blur-3xl rounded-full scale-110 bg-gradient-to-br ${screen.color} opacity-25`}
-                animate={{ opacity: [0.2, 0.35, 0.2] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              {/* Phone shell */}
-              <div className="relative bg-dark-card border border-dark-border rounded-[2.5rem] overflow-hidden shadow-heavy">
-                {/* Status bar */}
-                <div className="h-9 bg-zinc-900 flex items-center justify-between px-5 pt-2">
-                  <span className="text-[10px] font-semibold text-zinc-500">9:41</span>
-                  <div className="w-14 h-3.5 bg-zinc-700 rounded-full" />
+              <div className="absolute -inset-8 bg-brand-100/50 rounded-full blur-3xl pointer-events-none" />
+              <div className="relative bg-white rounded-[2.5rem] overflow-hidden shadow-heavy border border-surface-border">
+                <div className="h-9 bg-surface-soft flex items-center justify-between px-5 pt-2 border-b border-surface-border">
+                  <span className="text-[10px] font-semibold text-ink-muted">9:41</span>
+                  <div className="w-14 h-3.5 bg-surface-border rounded-full" />
                   <div className="flex gap-1">
-                    {[3, 2, 1].map((i) => <div key={i} className="w-1 rounded-sm bg-zinc-500" style={{ height: `${4 + i * 3}px` }} />)}
+                    {[3, 2, 1].map((i) => (
+                      <div key={i} className="w-1 rounded-sm bg-ink-faint" style={{ height: `${4 + i * 3}px` }} />
+                    ))}
                   </div>
                 </div>
-
-                {/* Screen tabs inside phone */}
-                <div className="bg-zinc-900 px-3 pt-2 pb-1 flex gap-1.5">
+                <div className="bg-surface-soft px-3 pt-2 pb-1 flex gap-1.5 border-b border-surface-border">
                   {LIFECYCLE_SCREENS.map((s, i) => (
-                    <button
-                      key={s.id}
-                      onClick={() => { setActive(i); setProgress(0); }}
-                      className={`flex-1 py-1 rounded-lg text-[8px] font-bold transition-all ${
-                        active === i
-                          ? "bg-gradient-to-r " + s.color + " text-white"
-                          : "text-zinc-600 hover:text-zinc-400"
-                      }`}
-                    >
+                    <button key={s.id} onClick={() => goTo(i)}
+                      className={`flex-1 py-1 rounded-lg text-[8px] font-bold transition-all ${active === i ? `${s.color} text-white` : "text-ink-faint hover:text-ink-muted"}`}>
                       {s.emoji}
                     </button>
                   ))}
                 </div>
-
-                {/* Screen content */}
-                <div className="bg-zinc-900 min-h-[260px] py-2">
+                <div className="bg-white min-h-[260px] py-2">
                   <AnimatePresence mode="wait">
-                    <motion.div
-                      key={active}
-                      initial={{ opacity: 0, x: 20 }}
+                    <motion.div key={active}
+                      initial={{ opacity: 0, x: 16 }}
                       animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.3, ease: "easeOut" }}
-                    >
+                      exit={{ opacity: 0, x: -16 }}
+                      transition={{ duration: 0.25 }}>
                       {screen.screen}
                     </motion.div>
                   </AnimatePresence>
                 </div>
-
-                {/* Progress bar at bottom */}
-                <div className="h-1 bg-zinc-800">
-                  <motion.div
-                    className={`h-full bg-gradient-to-r ${screen.color}`}
-                    style={{ width: `${progress}%` }}
-                    transition={{ ease: "linear" }}
-                  />
+                <div className="h-1 bg-surface-muted">
+                  <motion.div className={`h-full ${screen.color}`} style={{ width: `${progress}%` }} transition={{ ease: "linear" }} />
                 </div>
               </div>
             </div>
           </motion.div>
 
-          {/* Step list */}
           <motion.div
-            initial={{ opacity: 0, x: 32 }}
+            initial={{ opacity: 0, x: 28 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.7, delay: 0.15, ease: [0.25, 0.4, 0.25, 1] }}
-            className="space-y-4"
+            transition={{ duration: 0.7, delay: 0.15 }}
+            className="space-y-3"
           >
             {LIFECYCLE_SCREENS.map((s, i) => (
-              <motion.button
-                key={s.id}
-                onClick={() => { setActive(i); setProgress(0); }}
+              <motion.button key={s.id} onClick={() => goTo(i)}
                 className={`w-full text-left rounded-2xl border transition-all duration-300 overflow-hidden ${
-                  active === i
-                    ? "border-brand-500/40 bg-dark-card"
-                    : "border-dark-border bg-transparent hover:bg-dark-card/50"
+                  active === i ? "border-brand-200 bg-white shadow-lift" : "border-surface-border bg-transparent hover:bg-white"
                 }`}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-              >
+                whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
                 <div className="p-5">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center text-base flex-shrink-0`}>
-                      {s.emoji}
-                    </div>
-                    <div>
-                      <p className="font-black text-white text-sm">{s.title}</p>
-                      <p className="text-xs text-zinc-500 font-medium">{s.label}</p>
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className={`w-9 h-9 rounded-xl ${s.color} flex items-center justify-center text-base flex-shrink-0`}>{s.emoji}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-ink text-sm truncate">{s.title}</p>
+                      <p className="text-xs text-ink-muted">{s.label}</p>
                     </div>
                     {active === i && (
-                      <motion.div
-                        className="ml-auto"
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                      >
-                        <span className="flex items-center gap-1 text-[9px] font-bold text-brand-400">
-                          <span className="w-1 h-1 rounded-full bg-brand-400 animate-pulse" />
-                          LIVE
-                        </span>
-                      </motion.div>
+                      <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 flex-shrink-0">
+                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />LIVE
+                      </span>
                     )}
                   </div>
                   <AnimatePresence>
@@ -1392,19 +1422,15 @@ function AppLifecycleSection() {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="text-sm text-zinc-400 leading-relaxed"
-                      >
+                        className="text-sm text-ink-muted leading-relaxed mt-2">
                         {s.desc}
                       </motion.p>
                     )}
                   </AnimatePresence>
                 </div>
                 {active === i && (
-                  <div className="h-0.5 bg-zinc-800">
-                    <motion.div
-                      className={`h-full bg-gradient-to-r ${s.color}`}
-                      style={{ width: `${progress}%` }}
-                    />
+                  <div className="h-0.5 bg-surface-muted">
+                    <motion.div className={`h-full ${s.color}`} style={{ width: `${progress}%` }} />
                   </div>
                 )}
               </motion.button>
@@ -1416,66 +1442,13 @@ function AppLifecycleSection() {
   );
 }
 
-// ── App surfaces strip ─────────────────────────────────────────────────────────
-
-const APP_SURFACES = [
-  { label: "Parent App",  color: "bg-brand-600",  desc: "iOS & Android", sub: "Live tracking, alerts, progress" },
-  { label: "Driver App",  color: "bg-emerald-600", desc: "Android-first", sub: "Trip control, SOS, roster"       },
-  { label: "Teacher App", color: "bg-violet-600",  desc: "iOS & Android", sub: "Attendance, notes, progress"     },
-  { label: "Dashboard",   color: "bg-amber-600",   desc: "Web browser",   sub: "Admin control center"            },
-];
-
-function AppSurfacesSection() {
-  const ref    = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
-
-  return (
-    <section ref={ref} className="py-20 bg-dark border-t border-dark-border">
-      <div className="max-w-6xl mx-auto px-5">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
-          <h2 className="text-3xl font-black text-white mb-3">One platform, five surfaces</h2>
-          <p className="text-zinc-400">Every role gets a dedicated, purpose-built experience.</p>
-        </motion.div>
-
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          animate={inView ? "show" : "hidden"}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4"
-        >
-          {APP_SURFACES.map((s) => (
-            <Tilt3D key={s.label} strength={8}>
-              <motion.div
-                variants={fadeUp}
-                className="bg-dark-card border border-dark-border rounded-3xl p-5 group cursor-default relative overflow-hidden"
-              >
-                <div className={`w-10 h-10 ${s.color} rounded-2xl mb-4 group-hover:scale-110 transition-transform duration-300 flex items-center justify-center shadow-md`}>
-                  <Sparkles size={16} className="text-white" />
-                </div>
-                <p className="font-black text-white text-sm mb-0.5">{s.label}</p>
-                <p className="text-xs font-semibold text-zinc-500 mb-2">{s.desc}</p>
-                <p className="text-xs text-zinc-500 leading-relaxed">{s.sub}</p>
-              </motion.div>
-            </Tilt3D>
-          ))}
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-// ── Testimonials ───────────────────────────────────────────────────────────────
+// ── Testimonials ──────────────────────────────────────────────────────────────
 
 const TESTIMONIALS = [
-  { quote: "Skippo reduced our daily transport chaos to a five-minute morning routine. Parents stopped calling to ask where the bus is.", name: "Priya Sen",    role: "Principal, Sunrise Academy" },
-  { quote: "The SOS button alone is worth it. We had one incident and every parent was notified in under 30 seconds.",                   name: "Rajesh Nair",   role: "Transport Manager, DPS Kochi" },
-  { quote: "Our drivers love it. They went from keeping paper rosters to a one-tap digital attendance. Night and day difference.",       name: "Ananya Sharma", role: "Admin, Delhi Modern School" },
-  { quote: "Parents trust us more because they can see exactly where their child is. That's priceless for a school.",                   name: "Kiran Mehta",   role: "Director, Greenfield Academy" },
+  { quote: "Skippo turned our daily transport chaos into a five-minute morning routine. Parents stopped calling to ask where the bus is.",      name: "Priya Sen",    role: "Principal, Sunrise Academy",     initial: "PS" },
+  { quote: "The SOS feature alone changed everything. One incident, and every parent was notified in under 30 seconds.",                        name: "Rajesh Nair",  role: "Transport Manager, DPS Kochi",   initial: "RN" },
+  { quote: "Our drivers went from paper rosters to one-tap digital attendance. The difference is night and day.",                               name: "Ananya Sharma",role: "Admin, Delhi Modern School",     initial: "AS" },
+  { quote: "Parents trust us more because they can see exactly where their child is, every step of the way.",                                   name: "Kiran Mehta",  role: "Director, Greenfield Academy",   initial: "KM" },
 ];
 
 function TestimonialsSection() {
@@ -1484,36 +1457,36 @@ function TestimonialsSection() {
   const items  = [...TESTIMONIALS, ...TESTIMONIALS];
 
   return (
-    <section ref={ref} className="py-24 bg-dark border-t border-dark-border overflow-hidden">
-      <div className="max-w-6xl mx-auto px-5 mb-12">
+    <section ref={ref} className="py-28 bg-white border-t border-surface-border overflow-hidden">
+      <div className="max-w-7xl mx-auto px-6 mb-14">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
           className="text-center"
         >
-          <div className="flex items-center justify-center gap-1 mb-4">
-            {[...Array(5)].map((_, i) => <Star key={i} size={16} className="fill-amber-400 text-amber-400" />)}
+          <div className="flex justify-center gap-1 mb-4">
+            {[...Array(5)].map((_, i) => <Star key={i} size={18} className="fill-amber-400 text-amber-400" />)}
           </div>
-          <h2 className="text-3xl font-black text-white mb-2">Loved by schools across India</h2>
-          <p className="text-zinc-400">Hear from the educators and admins who run on Skippo every day.</p>
+          <h2 className="text-4xl font-black text-ink mb-3">Schools love Skippo</h2>
+          <p className="text-lg text-ink-muted">Hear from the educators and admins who run on it every day.</p>
         </motion.div>
       </div>
-      <div className="ticker-wrap">
-        <div className="flex gap-5 animate-ticker">
+      <div style={{ maskImage: "linear-gradient(to right,transparent 0%,black 6%,black 94%,transparent 100%)", WebkitMaskImage: "linear-gradient(to right,transparent 0%,black 6%,black 94%,transparent 100%)", overflow: "hidden" }}>
+        <div className="flex gap-6 animate-ticker">
           {items.map((t, i) => (
-            <div key={i} className="flex-shrink-0 w-80 bg-dark-card border border-dark-border rounded-3xl p-6">
-              <div className="flex gap-1 mb-4">
-                {[...Array(5)].map((_, j) => <Star key={j} size={12} className="fill-amber-400 text-amber-400" />)}
+            <div key={i} className="flex-shrink-0 w-[360px] bg-white border border-surface-border rounded-2xl p-7 shadow-card">
+              <div className="flex gap-1 mb-5">
+                {[...Array(5)].map((_, j) => <Star key={j} size={13} className="fill-amber-400 text-amber-400" />)}
               </div>
-              <p className="text-sm text-zinc-300 leading-relaxed mb-5 italic">&ldquo;{t.quote}&rdquo;</p>
+              <p className="text-sm text-ink leading-relaxed mb-6">&ldquo;{t.quote}&rdquo;</p>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-brand-800 flex items-center justify-center flex-shrink-0">
-                  <span className="text-[10px] font-black text-brand-300">{t.name.split(" ").map((n) => n[0]).join("")}</span>
+                <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-[10px] font-black text-brand-600">{t.initial}</span>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-white">{t.name}</p>
-                  <p className="text-[11px] text-zinc-500">{t.role}</p>
+                  <p className="text-sm font-bold text-ink">{t.name}</p>
+                  <p className="text-xs text-ink-muted">{t.role}</p>
                 </div>
               </div>
             </div>
@@ -1524,17 +1497,18 @@ function TestimonialsSection() {
   );
 }
 
-// ── For schools / pilot section ────────────────────────────────────────────────
+// ── For schools / pricing ─────────────────────────────────────────────────────
 
-const PILOT_FEATURES = [
-  "Up to 10 vehicles included",
+const SCHOOL_FEATURES = [
   "Unlimited parent accounts",
-  "Real-time GPS tracking",
-  "Unlimited vehicular tracking (Beta)",
-  "SOS & breakdown flows",
+  "Real-time GPS tracking — all routes",
+  "SOS & breakdown emergency flows",
   "AI-powered ETA & anomaly detection",
-  "Teacher & admin portal",
-  "Priority onboarding support",
+  "AI lesson plans for all teachers",
+  "Fee collection via Razorpay",
+  "Mass AI voice calls to guardians",
+  "Admin analytics dashboard",
+  "Priority onboarding & support",
 ];
 
 function ForSchoolsSection() {
@@ -1542,43 +1516,43 @@ function ForSchoolsSection() {
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section id="for-schools" ref={ref} className="py-24 bg-dark border-t border-dark-border">
-      <div className="max-w-6xl mx-auto px-5">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          {/* Left */}
+    <section id="for-schools" ref={ref} className="py-28 bg-surface-soft border-t border-surface-border">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid lg:grid-cols-2 gap-20 items-center">
+
+          {/* Left — why */}
           <motion.div
-            initial={{ opacity: 0, x: -32 }}
+            initial={{ opacity: 0, x: -28 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.7, ease: [0.25, 0.4, 0.25, 1] }}
+            transition={{ duration: 0.7 }}
           >
-            <div className="inline-flex items-center gap-2 glass border border-brand-500/20 rounded-full px-4 py-1.5 mb-6">
-              <span className="text-xs font-semibold text-brand-400 uppercase tracking-widest">Why schools choose Skippo</span>
-            </div>
-            <h2 className="text-4xl font-black text-white tracking-tight mb-5">
-              Every morning, every student,{" "}
-              <span className="text-gradient">every stop</span>.
+            <SectionTag>Why schools choose Skippo</SectionTag>
+            <h2 className="text-4xl lg:text-5xl font-black text-ink leading-tight tracking-tight mb-6">
+              Every morning. Every student.{" "}
+              <span style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                Every stop.
+              </span>
             </h2>
-            <p className="text-zinc-400 leading-relaxed mb-10">
-              Managing school transport is complex. Skippo reduces that complexity to a few taps —
-              for drivers, parents, and administrators alike.
+            <p className="text-lg text-ink-muted leading-relaxed mb-10">
+              Managing a school is complex. Skippo reduces that complexity to a few taps — for drivers, parents, teachers, and administrators alike.
             </p>
 
             <motion.div variants={stagger} initial="hidden" animate={inView ? "show" : "hidden"} className="space-y-6">
               {[
-                { icon: AlertTriangle, title: "No missed drops",      body: "Automatically alerts parents when a student is still on the bus when the trip ends.", color: "text-red-400",     bg: "bg-red-900/30"     },
-                { icon: ClipboardList, title: "Compliance reminders", body: "Vehicle fitness certs, insurance, and permit renewals are tracked and surfaced automatically.", color: "text-amber-400",  bg: "bg-amber-900/30"  },
-                { icon: Bus,           title: "Multi-vehicle drivers", body: "A driver with multiple bus assignments switches vehicles in two taps.", color: "text-brand-400",  bg: "bg-brand-900/30"  },
-                { icon: Shield,        title: "Works on any device",  body: "Web apps work in any browser. Native apps are available for iOS and Android.", color: "text-emerald-400", bg: "bg-emerald-900/30" },
+                { icon: AlertTriangle, title: "No missed drops",       body: "Automatically alerts parents when a student is still on the bus when the trip ends.", color: "text-red-600",     bg: "bg-red-50"     },
+                { icon: ClipboardList, title: "Compliance on autopilot",body: "Vehicle fitness certificates, insurance, and permit renewals — tracked and surfaced automatically.", color: "text-amber-600", bg: "bg-amber-50" },
+                { icon: Bus,           title: "Multi-vehicle drivers",  body: "A driver with multiple bus assignments switches vehicles in two taps.", color: "text-brand-600", bg: "bg-brand-50" },
+                { icon: Shield,        title: "Works everywhere",       body: "Web apps in any browser. Native iOS & Android apps for parents, teachers, and drivers.", color: "text-emerald-600", bg: "bg-emerald-50" },
               ].map((item) => {
                 const ItemIcon = item.icon;
                 return (
                   <motion.div key={item.title} variants={fadeUp} className="flex gap-4">
-                    <div className={`w-9 h-9 rounded-xl ${item.bg} flex items-center justify-center flex-shrink-0 mt-0.5 border border-white/5`}>
-                      <ItemIcon size={16} className={item.color} />
+                    <div className={`w-10 h-10 rounded-xl ${item.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                      <ItemIcon size={18} className={item.color} />
                     </div>
                     <div>
-                      <p className="font-black text-white text-sm mb-0.5">{item.title}</p>
-                      <p className="text-sm text-zinc-400 leading-relaxed">{item.body}</p>
+                      <p className="font-black text-ink text-sm mb-0.5">{item.title}</p>
+                      <p className="text-sm text-ink-muted leading-relaxed">{item.body}</p>
                     </div>
                   </motion.div>
                 );
@@ -1586,64 +1560,38 @@ function ForSchoolsSection() {
             </motion.div>
           </motion.div>
 
-          {/* Right: pilot card */}
+          {/* Right — what's included */}
           <motion.div
-            initial={{ opacity: 0, x: 32, scale: 0.96 }}
+            initial={{ opacity: 0, x: 28, scale: 0.97 }}
             animate={inView ? { opacity: 1, x: 0, scale: 1 } : {}}
-            transition={{ duration: 0.7, delay: 0.15, ease: [0.25, 0.4, 0.25, 1] }}
+            transition={{ duration: 0.7, delay: 0.15 }}
           >
-            <Tilt3D strength={5} className="relative">
-              <div className="absolute -inset-[1px] rounded-4xl bg-gradient-to-br from-brand-500/40 via-violet-500/20 to-brand-800/40 blur-sm" />
-              <div className="relative bg-dark-card rounded-4xl border border-dark-border p-8 overflow-hidden">
-                {/* Animated bg accent */}
-                <motion.div
-                  className="absolute top-0 right-0 w-48 h-48 rounded-full bg-brand-600/8 blur-2xl"
-                  animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-                  transition={{ duration: 4, repeat: Infinity }}
-                />
-                <div className="relative">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-dot" />
-                    <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Beta · Limited spots</p>
-                  </div>
-                  <h3 className="text-3xl font-black text-white mb-2">Free beta access</h3>
-                  <p className="text-zinc-400 text-sm mb-3">
-                    Beta access includes <span className="text-brand-400 font-bold">unlimited vehicular tracking</span> — all buses, all routes, all the time. No credit card. No commitment.
-                  </p>
+            <div className="relative bg-white rounded-3xl border border-surface-border p-8 shadow-lift overflow-hidden">
+              <div className="absolute top-0 right-0 w-56 h-56 bg-brand-50 rounded-full -translate-y-28 translate-x-28 pointer-events-none" />
+              <div className="relative">
+                <h3 className="text-2xl font-black text-ink mb-2">What&apos;s included</h3>
+                <p className="text-ink-muted text-sm mb-7">
+                  Everything your school needs to run — transport, academics, fees, and parent communication — in a single subscription.
+                </p>
 
-                  {/* Beta badge */}
-                  <div className="inline-flex items-center gap-2 bg-brand-950/60 border border-brand-800/50 rounded-xl px-3 py-2 mb-6">
-                    <Zap size={12} className="text-brand-400" />
-                    <span className="text-xs font-bold text-brand-300">Beta = Unlimited vehicle tracking unlocked</span>
-                  </div>
+                <ul className="space-y-3.5 mb-8">
+                  {SCHOOL_FEATURES.map((f) => (
+                    <li key={f} className="flex items-center gap-3 text-sm text-ink-muted">
+                      <CheckCircle2 size={16} className="text-brand-500 flex-shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
 
-                  <motion.ul variants={stagger} initial="hidden" animate={inView ? "show" : "hidden"} className="space-y-3 mb-8">
-                    {PILOT_FEATURES.map((f) => (
-                      <motion.li key={f} variants={fadeUp} className="flex items-center gap-3 text-sm text-zinc-300">
-                        <CheckCircle2 size={16} className={f.includes("Beta") || f.includes("AI") ? "text-brand-400 flex-shrink-0" : "text-brand-500 flex-shrink-0"} />
-                        <span className={f.includes("Beta") ? "text-brand-300 font-semibold" : ""}>{f}</span>
-                      </motion.li>
-                    ))}
-                  </motion.ul>
-
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="relative">
-                    <motion.div
-                      className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-brand-500 to-violet-500 opacity-60 blur-sm"
-                      animate={{ opacity: [0.4, 0.7, 0.4] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                    <Link
-                      href="/signup"
-                      className="btn-shine relative flex items-center justify-center gap-2 w-full py-4 bg-gradient-to-r from-brand-600 to-violet-600 text-white text-center rounded-2xl font-bold hover:shadow-brand-lg transition-shadow"
-                    >
-                      Get beta access — it&apos;s free
-                      <ArrowRight size={16} />
-                    </Link>
-                  </motion.div>
-                  <p className="text-center text-xs text-zinc-600 mt-4">We&apos;ll get in touch within 24 hours.</p>
-                </div>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Link href="/signup"
+                    className="flex items-center justify-center gap-2 w-full py-4 bg-brand-600 text-white rounded-2xl font-bold hover:bg-brand-700 transition-colors shadow-brand">
+                    Get Started — it&apos;s free <ArrowRight size={16} />
+                  </Link>
+                </motion.div>
+                <p className="text-center text-xs text-ink-faint mt-4">No credit card required · We&apos;ll set you up within 24 hours</p>
               </div>
-            </Tilt3D>
+            </div>
           </motion.div>
         </div>
       </div>
@@ -1651,51 +1599,50 @@ function ForSchoolsSection() {
   );
 }
 
-// ── CTA banner ─────────────────────────────────────────────────────────────────
+// ── Final CTA ─────────────────────────────────────────────────────────────────
 
 function CTASection() {
   const ref    = useRef<HTMLElement>(null);
   const inView = useInView(ref, { once: true, margin: "-60px" });
 
   return (
-    <section ref={ref} className="py-24 relative overflow-hidden bg-dark border-t border-dark-border">
+    <section ref={ref} className="relative py-28 overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0 bg-brand-600" />
       <motion.div
-        animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.25, 0.15] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-brand-600/20 blur-3xl"
+        animate={{ scale: [1, 1.15, 1], opacity: [0.08, 0.18, 0.08] }}
+        transition={{ duration: 12, repeat: Infinity }}
+        className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-white blur-3xl pointer-events-none"
       />
-      <div className="relative z-10 max-w-3xl mx-auto px-5 text-center">
+      <motion.div
+        animate={{ scale: [1, 1.1, 1], opacity: [0.06, 0.14, 0.06] }}
+        transition={{ duration: 16, repeat: Infinity, delay: 3 }}
+        className="absolute top-1/2 right-1/4 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-violet-400 blur-3xl pointer-events-none"
+      />
+
+      <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
         <motion.div
           initial={{ opacity: 0, y: 32 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.7 }}
         >
-          <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-5">
-            Ready to transform your school&apos;s transport?
+          <p className="text-white/70 font-semibold text-sm uppercase tracking-widest mb-6">Join 500+ schools across India</p>
+          <h2 className="text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight mb-6">
+            Ready to transform how your school runs?
           </h2>
-          <p className="text-zinc-400 mb-10 text-lg leading-relaxed">
-            Join the schools already running safer, smarter routes with Skippo.
+          <p className="text-white/75 text-lg leading-relaxed mb-12 max-w-2xl mx-auto">
+            Live in 24 hours. Every bus, every student, every parent — connected.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="relative">
-              <motion.div
-                className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-brand-500 to-violet-500 opacity-50 blur-md"
-                animate={{ opacity: [0.3, 0.6, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              <Link
-                href="/signup"
-                className="btn-shine relative flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-brand-600 to-violet-600 text-white rounded-2xl font-bold hover:shadow-brand-lg transition-shadow text-sm"
-              >
-                Get beta access — it&apos;s free
-                <ArrowRight size={16} />
+            <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+              <Link href="/signup"
+                className="flex items-center justify-center gap-2 px-10 py-4 bg-white text-brand-700 rounded-2xl font-bold text-base hover:bg-brand-50 transition-colors shadow-lg">
+                Get Started — it&apos;s free <ArrowRight size={18} />
               </Link>
             </motion.div>
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                href="/contact"
-                className="flex items-center justify-center gap-2 px-8 py-4 glass border border-white/10 text-white rounded-2xl font-bold hover:bg-white/10 transition-colors text-sm"
-              >
+              <Link href="/contact"
+                className="flex items-center justify-center gap-2 px-10 py-4 bg-white/10 border border-white/25 text-white rounded-2xl font-bold text-base hover:bg-white/20 transition-colors">
                 Talk to the team
               </Link>
             </motion.div>
@@ -1706,70 +1653,76 @@ function CTASection() {
   );
 }
 
-// ── Footer ─────────────────────────────────────────────────────────────────────
+// ── Footer ────────────────────────────────────────────────────────────────────
 
 function Footer() {
   return (
-    <footer className="bg-zinc-950 border-t border-dark-border py-14">
-      <div className="max-w-6xl mx-auto px-5">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
-          <div className="col-span-2 md:col-span-1">
+    <footer className="bg-white border-t border-surface-border py-16">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-14">
+          <div className="col-span-2">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-violet-600 flex items-center justify-center shadow-brand">
-                <span className="text-white text-sm font-black">S</span>
-              </div>
-              <span className="text-white font-black text-lg">Skippo</span>
+              <img src="/logo.svg" alt="Skippo" className="w-8 h-8" />
+              <span className="text-ink font-black text-xl">Skippo</span>
             </div>
-            <p className="text-zinc-500 text-sm leading-relaxed">The AI-powered operations platform for school transport.</p>
+            <p className="text-ink-muted text-sm leading-relaxed max-w-xs">
+              The all-in-one operations platform for schools — transport, academics, fees, and parent communication.
+            </p>
           </div>
           <div>
-            <p className="text-white font-bold text-xs uppercase tracking-widest mb-4">Product</p>
-            <ul className="space-y-2.5">
-              {["Features", "AI Platform", "How it works", "For schools"].map((l) => (
-                <li key={l}><a href="#" className="text-sm text-zinc-500 hover:text-white transition-colors">{l}</a></li>
+            <p className="text-ink font-bold text-xs uppercase tracking-widest mb-4">Product</p>
+            <ul className="space-y-3">
+              {[
+                { label: "Features",     href: "#features"     },
+                { label: "How it works", href: "#how-it-works" },
+                { label: "For schools",  href: "#for-schools"  },
+              ].map((l) => (
+                <li key={l.label}><a href={l.href} className="text-sm text-ink-muted hover:text-ink transition-colors">{l.label}</a></li>
               ))}
             </ul>
           </div>
           <div>
-            <p className="text-white font-bold text-xs uppercase tracking-widest mb-4">Company</p>
-            <ul className="space-y-2.5">
+            <p className="text-ink font-bold text-xs uppercase tracking-widest mb-4">Company</p>
+            <ul className="space-y-3">
               {[{ label: "About", href: "#" }, { label: "Contact", href: "/contact" }, { label: "Privacy", href: "#" }, { label: "Terms", href: "#" }].map((l) => (
-                <li key={l.label}><Link href={l.href} className="text-sm text-zinc-500 hover:text-white transition-colors">{l.label}</Link></li>
+                <li key={l.label}><Link href={l.href} className="text-sm text-ink-muted hover:text-ink transition-colors">{l.label}</Link></li>
               ))}
             </ul>
           </div>
           <div>
-            <p className="text-white font-bold text-xs uppercase tracking-widest mb-4">Get started</p>
-            <ul className="space-y-2.5">
-              <li><Link href="/signup" className="text-sm text-zinc-500 hover:text-white transition-colors">Register your school</Link></li>
-              <li><a href="#" className="text-sm text-zinc-500 hover:text-white transition-colors">Parent app</a></li>
-              <li><a href="#" className="text-sm text-zinc-500 hover:text-white transition-colors">Driver app</a></li>
+            <p className="text-ink font-bold text-xs uppercase tracking-widest mb-4">Platform</p>
+            <ul className="space-y-3">
+              {["Parent App", "Driver App", "Teacher App", "Admin Dashboard"].map((l) => (
+                <li key={l}><a href="#" className="text-sm text-ink-muted hover:text-ink transition-colors">{l}</a></li>
+              ))}
             </ul>
           </div>
         </div>
-        <div className="border-t border-dark-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-zinc-600">© 2026 Skippo. Built in India 🇮🇳</p>
-          <p className="text-xs text-zinc-600">Keeping every child safe, every day.</p>
+
+        <div className="border-t border-surface-border pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-xs text-ink-faint">© 2026 Skippo Technologies Pvt. Ltd. Built in India 🇮🇳</p>
+          <p className="text-xs text-ink-faint">Keeping every child safe, every day.</p>
         </div>
       </div>
     </footer>
   );
 }
 
-// ── Page ───────────────────────────────────────────────────────────────────────
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-dark">
+    <div className="min-h-screen bg-white">
       <Navbar />
       <Hero />
+      <SocialProof />
       <TickerStrip />
-      <AISection />
-      <StatsSection />
-      <FeaturesSection />
+      <TransportSection />
+      <TeacherSection />
+      <FeeSection />
+      <CommsSection />
       <HowItWorksSection />
       <AppLifecycleSection />
-      <AppSurfacesSection />
       <TestimonialsSection />
       <ForSchoolsSection />
       <CTASection />

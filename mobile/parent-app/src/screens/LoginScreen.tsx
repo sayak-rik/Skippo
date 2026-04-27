@@ -47,12 +47,12 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
         {/* ── Brand mark ──────────────────────────────────────────────── */}
         <View style={styles.hero}>
           <LinearGradient
-            colors={["#4f46e5", "#7c3aed"]}
+            colors={["#FFB300", "#F59E0B"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.logoMark}
           >
-            <Text style={styles.logoText}>SK</Text>
+            <Text style={styles.logoText}>S</Text>
           </LinearGradient>
           <Text style={styles.kicker}>Skippo · Parent</Text>
           <Text style={styles.headline}>Know every{"\n"}moment of the day.</Text>
@@ -156,13 +156,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.xs,
-    shadowColor: "#4f46e5",
+    shadowColor: "#FFB300",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 8,
   },
-  logoText: { color: "#fff", fontWeight: "900", fontSize: 18, letterSpacing: -0.5 },
+  logoText: { color: "#1C2E6E", fontWeight: "900", fontSize: 18, letterSpacing: -0.5 },
   kicker: {
     fontSize: 12,
     fontWeight: "700",
