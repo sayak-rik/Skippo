@@ -5,6 +5,28 @@ import { usePathname } from "next/navigation";
 import { dashboardModules } from "../lib/modules";
 import styles from "./dashboard.module.css";
 
+function SchoolAvatar({ name, logoUrl }: { name: string; logoUrl?: string }) {
+  const initials = name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+
+  if (logoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={logoUrl} alt={name} className={styles.schoolAvatarImg} />
+    );
+  }
+
+  return (
+    <div className={styles.schoolAvatarInitials} aria-label={name}>
+      {initials}
+    </div>
+  );
+}
+
 const NAV_ITEMS = [
   { href: "/dashboard",                    icon: "⊞",  label: "Dashboard"      },
   { href: "/dashboard/students",           icon: "👤",  label: "Students"       },
@@ -29,19 +51,31 @@ export function Sidebar() {
       ? pathname === "/dashboard"
       : pathname === href || pathname.startsWith(href + "/");
 
+  // In production these come from the session / tenant API
+  const schoolName = "Sunshine Public School";
+  const schoolLogoUrl = "";
+
   return (
     <aside className={styles.sidebar}>
-      {/* Brand */}
+      {/* Skippo brand mark */}
       <div className={styles.brandBlock}>
         <div className={styles.logoRow}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.svg" alt="Skippo" className={styles.logoMark} />
           <div>
             <div className={styles.brandName}>Skippo</div>
-            <div className={styles.schoolName}>Sunshine Public School</div>
           </div>
-          <span className={styles.schoolChevron}>▾</span>
         </div>
+      </div>
+
+      {/* School identity */}
+      <div className={styles.schoolBlock}>
+        <SchoolAvatar name={schoolName} logoUrl={schoolLogoUrl || undefined} />
+        <div className={styles.schoolInfo}>
+          <div className={styles.schoolName}>{schoolName}</div>
+          <div className={styles.schoolRole}>Admin</div>
+        </div>
+        <span className={styles.schoolChevron}>▾</span>
       </div>
 
       {/* Nav */}

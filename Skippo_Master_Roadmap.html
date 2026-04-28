@@ -712,8 +712,130 @@
     <li>No critical issues in the happy path of trip start, board, drop, attendance sync, and parent notifications</li>
   </ul>
 
-  <h2>17. Final Recommendation</h2>
+  <h2>17. School Onboarding Playbook</h2>
+  <p>This section describes the end-to-end operational process for bringing a new school onto the Skippo platform — from first contact through their first working day on the dashboard.</p>
+
+  <h3>Step 1 — Interest Capture (School → Skippo)</h3>
+  <p>A school administrator or decision-maker fills in the contact form on <strong>skippo.co.in</strong>. The backend creates a <code>RegistrationInterest</code> record with status <strong>pending</strong>. The Skippo operations team receives an automated email notification immediately.</p>
+
+  <h3>Step 2 — Lead Review (Skippo Dashboard → Leads Module)</h3>
+  <p>Any Skippo super-admin can open the <strong>Leads</strong> module at <code>/dashboard/leads</code>. The table shows all incoming enquiries with their status, school name, contact, and submission date. The team filters by <strong>status = pending</strong> to see new inbound interest. Leads progress through three statuses:</p>
+  <table>
+    <tr>
+      <th>Status</th>
+      <th>Meaning</th>
+      <th>Who sets it</th>
+    </tr>
+    <tr>
+      <td><strong>Pending</strong></td>
+      <td>Form submitted, not yet reviewed</td>
+      <td>Auto-set on form submission</td>
+    </tr>
+    <tr>
+      <td><strong>Contacted</strong></td>
+      <td>Team has spoken to the school; demo or follow-up scheduled</td>
+      <td>Skippo ops team manually via PATCH on the lead</td>
+    </tr>
+    <tr>
+      <td><strong>Onboarded</strong></td>
+      <td>School provisioned and credentials sent</td>
+      <td>Auto-set when SchoolProvisionView is called with <code>lead_id</code></td>
+    </tr>
+  </table>
+
+  <h3>Step 3 — School Provisioning (Skippo Super Admin)</h3>
+  <p>Once the school agrees to onboard, a Skippo super-admin calls the <strong>School Provision API</strong>:</p>
+  <div class="callout">
+    <strong>POST</strong> /api/tenancy/provision/<br /><br />
+    <strong>Body fields:</strong><br />
+    <code>school_name</code> — full display name (e.g. "Greenfield Public School")<br />
+    <code>school_slug</code> — unique URL-safe ID (auto-derived if omitted, e.g. "greenfield-public")<br />
+    <code>admin_email</code> — primary admin's email address<br />
+    <code>admin_name</code> — admin's full name (optional)<br />
+    <code>lead_id</code> — ID of the RegistrationInterest record (optional; auto-marks lead as Onboarded)<br /><br />
+    <strong>Response includes:</strong><br />
+    <code>school.slug</code> → this becomes the school's <strong>username / School ID</strong><br />
+    <code>admin.username</code> → same as admin email<br />
+    <code>admin.temp_password</code> → a 12-character secure temporary password<br />
+    <code>school.dashboard_url</code> → direct link to the school's dashboard login
+  </div>
+  <p>The provisioning step automatically:</p>
+  <ul>
+    <li>Creates a <code>School</code> record with a unique slug</li>
+    <li>Creates a <code>TenantConfig</code> (timezone, feature flags, logo URL placeholder)</li>
+    <li>Creates or updates the admin <code>User</code> account</li>
+    <li>Sets a temporary password on the admin account</li>
+    <li>Marks the linked lead as <strong>Onboarded</strong></li>
+  </ul>
+
+  <h3>Step 4 — Credentials Delivery (Skippo → School Admin)</h3>
+  <p>After provisioning, the Skippo ops team sends a <strong>Welcome Email</strong> to the admin containing:</p>
+  <ul>
+    <li><strong>School ID (username):</strong> their <code>school_slug</code> (e.g. <code>greenfield-public</code>)</li>
+    <li><strong>Admin email</strong> (used as the login identifier)</li>
+    <li><strong>Temporary password</strong> (from the provisioning API response)</li>
+    <li><strong>Dashboard URL:</strong> <code>https://dashboard.skippo.app/login?school=greenfield-public</code></li>
+    <li>Instructions to change the password on first login</li>
+  </ul>
+  <div class="callout">
+    <strong>Security note:</strong> The temporary password is single-use and should be changed by the admin on first login. It is returned only in the provisioning API response and transmitted only via the welcome email — it is never stored in plaintext on the server (Django's <code>set_password</code> hashes it with PBKDF2).
+  </div>
+
+  <h3>Step 5 — First Login (School Admin → Dashboard)</h3>
+  <p>The school admin opens the dashboard login page and enters their <strong>School ID</strong> and <strong>admin email</strong>. The system sends a 6-digit OTP to the email; the admin enters it to complete authentication. On first login, the dashboard detects that <code>TenantConfig.onboarding_complete = False</code> and presents a <strong>First-Time Setup Banner</strong>.</p>
+
+  <h3>Step 6 — First-Time Dashboard Setup</h3>
+  <p>The settings page (<code>/dashboard/settings</code>) prompts the admin to complete their school profile. Key steps shown in the setup checklist:</p>
+  <table>
+    <tr>
+      <th>Step</th>
+      <th>Action</th>
+      <th>Effect</th>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Upload school logo (PNG / JPG / SVG, recommended 256×256 px)</td>
+      <td>Logo stored in object storage; <code>TenantConfig.logo_url</code> updated; appears in sidebar and all school-branded surfaces</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>If no logo uploaded, school name initials are auto-generated as a placeholder avatar</td>
+      <td>Two-letter initials (e.g. "GP" for Greenfield Public) shown with a navy gradient background everywhere a logo would appear</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Confirm school name, timezone, and academic year</td>
+      <td>Updates <code>TenantConfig</code>; affects all date-based reporting</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Invite first teacher via the Teachers module</td>
+      <td>Generates invite link; teacher receives signup email</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Add first students and link parent phone numbers</td>
+      <td>Parents can now log into the Parent App</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>Assign drivers and set up first route</td>
+      <td>Driver App access unlocked; live tracking becomes operational</td>
+    </tr>
+  </table>
+  <p>Once the admin saves the school profile, <code>TenantConfig.onboarding_complete</code> is set to <code>True</code> and the setup banner is dismissed permanently.</p>
+
+  <h3>Logo Display Rules</h3>
+  <ul>
+    <li>If <code>TenantConfig.logo_url</code> is set → show the school's uploaded logo</li>
+    <li>If no logo uploaded → show a two-letter initial avatar (first letter of each word in the school name, max two letters) with a navy gradient background</li>
+    <li>The Skippo shield logo always appears separately as the platform brand mark — it is never replaced by the school logo</li>
+    <li>School logo appears in: dashboard sidebar school block, settings page, and any school-branded export headers</li>
+  </ul>
+
+  <h2>18. Final Recommendation</h2>
   <p>Skippo should be built as a modular school operations platform with transport as the initial wedge and parent trust as the retention engine. The strongest execution strategy is to build reliable core systems first, then layer the teacher experience, message center, compliance workflows, and premium dashboard experience on top.</p>
+  <p>For school onboarding, the combination of a clean provisioning API (school slug + admin email + temp password) and a first-time dashboard setup flow (logo upload, student import, teacher invite) creates a repeatable, low-friction path from sales close to first operational day.</p>
   <p>If executed in this order, Skippo can launch a strong school pilot without losing the broader vision of becoming a full-stack operating system for school-parent coordination.</p>
 </body>
 </html>

@@ -15,7 +15,7 @@ const ENQUIRY_TYPES = [
 ];
 
 const CONTACT_ITEMS = [
-  { icon: Mail,  title: "Email us",  body: "hello@skippo.in",   sub: "We respond within 24 hours." },
+  { icon: Mail,  title: "Email us",  body: "hello@skippo.co.in",   sub: "We respond within 24 hours." },
   { icon: Phone, title: "Call us",   body: "+91 98765 00000",   sub: "Mon–Fri, 9 AM – 6 PM IST"   },
   { icon: MapPin, title: "Office",   body: "Kolkata, West Bengal", sub: "India 🇮🇳"               },
 ];

@@ -48,3 +48,5 @@ class TenantConfig(TimestampedModel):
     timezone = models.CharField(max_length=64, default="Asia/Kolkata")
     feature_flags = models.JSONField(default=dict, blank=True)
     ai_tokens_per_teacher_per_day = models.PositiveSmallIntegerField(default=5)
+    logo_url = models.URLField(blank=True, default="")
+    onboarding_complete = models.BooleanField(default=False)

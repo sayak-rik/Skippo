@@ -19,6 +19,7 @@ import {
 
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
+import { SkippoLogo } from "../components/SkippoLogo";
 import { api } from "../lib/api";
 import { useDriverSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
@@ -48,14 +49,7 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
       >
         {/* Brand */}
         <View style={styles.hero}>
-          <LinearGradient
-            colors={["#FFB300", "#F59E0B"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.logoMark}
-          >
-            <Text style={styles.logoText}>S</Text>
-          </LinearGradient>
+          <SkippoLogo size={52} />
           <Text style={styles.kicker}>Skippo · Driver</Text>
           <Text style={styles.headline}>Run trips fast.{"\n"}Stay visible.</Text>
           <Text style={styles.sub}>
@@ -142,20 +136,6 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
 const styles = StyleSheet.create({
   kav: { flex: 1, gap: spacing.lg },
   hero: { gap: spacing.sm, marginTop: spacing.md },
-  logoMark: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.xs,
-    shadowColor: "#FFB300",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  logoText: { color: "#1C2E6E", fontWeight: "900", fontSize: 18, letterSpacing: -0.5 },
   kicker: {
     fontSize: 12,
     fontWeight: "700",

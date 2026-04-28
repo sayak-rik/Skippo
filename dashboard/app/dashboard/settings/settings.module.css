@@ -1,0 +1,204 @@
+.page {
+  padding: 32px;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.pageTitle {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+
+.pageSubtitle {
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin: -20px 0 0 0;
+  line-height: 1.6;
+}
+
+/* First-time banner */
+.setupBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid #fde68a;
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+
+.setupIcon {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.setupBannerTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+
+.setupBannerText {
+  font-size: 13px;
+  color: #b45309;
+  line-height: 1.5;
+}
+
+/* Section */
+.section {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sectionTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+/* Brand row */
+.brandRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.brandInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.brandName {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.3px;
+}
+
+.brandSlug {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.uploadActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.uploadBtn {
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.uploadBtn:hover { opacity: 0.88; }
+.uploadBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.removeBtn {
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.removeBtn:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.uploadHint {
+  font-size: 11px;
+  color: var(--ink-dim);
+  margin: 0;
+}
+
+/* Info rows */
+.infoRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--stroke);
+}
+
+.infoRow:last-of-type {
+  border-bottom: none;
+}
+
+.infoLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 160px;
+}
+
+.infoValue {
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface-muted);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.infoNote {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--surface-muted);
+  border-radius: 10px;
+  border-left: 3px solid var(--brand);
+}
+
+/* Save */
+.saveRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.saveBtn {
+  background: linear-gradient(135deg, #1C2E6E 0%, #2d4a9e 100%);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 28px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  letter-spacing: 0.2px;
+}
+
+.saveBtn:hover { opacity: 0.9; }

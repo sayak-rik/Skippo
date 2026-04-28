@@ -115,7 +115,7 @@ function InvitePanel({onClose}:{onClose:()=>void}){
   function toggleClass(c:string){setForm(f=>({...f,classes:f.classes.includes(c)?f.classes.filter(x=>x!==c):[...f.classes,c]}));}
   async function send(){
     setStep("sent");
-    setLink(`https://app.skippo.in/teacher/signup?token=${Math.random().toString(36).slice(2,10)}`);
+    setLink(`https://app.skippo.co.in/teacher/signup?token=${Math.random().toString(36).slice(2,10)}`);
   }
   return (
     <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={{position:"fixed",inset:0,background:"rgba(4,13,20,0.85)",backdropFilter:"blur(10px)",zIndex:100,display:"flex",justifyContent:"flex-end"}} onClick={onClose}>

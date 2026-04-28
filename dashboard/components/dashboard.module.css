@@ -63,6 +63,62 @@
   font-size: 12px;
 }
 
+/* School identity block */
+.schoolBlock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--stroke);
+  cursor: pointer;
+}
+
+.schoolBlock:hover { background: var(--surface-muted); }
+
+.schoolAvatarImg {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.schoolAvatarInitials {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1C2E6E 0%, #2d4a9e 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: -0.3px;
+  flex-shrink: 0;
+}
+
+.schoolInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.schoolName {
+  font-size: 12px;
+  color: var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.schoolRole {
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-top: 1px;
+}
+
 /* Nav */
 .navSection {
   flex: 1;

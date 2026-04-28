@@ -148,24 +148,24 @@ function HeroVisual() {
       {/* Browser chrome wrapper */}
       <div className="relative rounded-2xl overflow-hidden border border-surface-border shadow-[0_32px_80px_-16px_rgba(0,0,0,0.14)]">
         {/* Chrome bar */}
-        <div className="flex items-center gap-2 px-4 py-3 bg-surface-muted border-b border-surface-border">
-          <span className="w-3 h-3 rounded-full bg-red-400" />
-          <span className="w-3 h-3 rounded-full bg-amber-400" />
-          <span className="w-3 h-3 rounded-full bg-emerald-400" />
-          <div className="mx-4 flex-1 bg-white rounded-md h-6 flex items-center px-3 border border-surface-border max-w-sm">
-            <span className="text-[11px] text-ink-faint">skippo.in/dashboard</span>
+        <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-surface-muted border-b border-surface-border">
+          <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-red-400" />
+          <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-amber-400" />
+          <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-emerald-400" />
+          <div className="mx-2 sm:mx-4 flex-1 bg-white rounded-md h-5 sm:h-6 flex items-center px-2 sm:px-3 border border-surface-border max-w-xs sm:max-w-sm">
+            <span className="text-[10px] sm:text-[11px] text-ink-faint">skippo.co.in/dashboard</span>
           </div>
         </div>
 
-        {/* Dashboard interior */}
-        <div className="bg-surface-soft grid grid-cols-[220px_1fr] min-h-[440px]">
-          {/* Sidebar */}
-          <div className="bg-white border-r border-surface-border p-4 space-y-1">
-            <div className="flex items-center gap-2 px-3 py-2 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center">
-                <span className="text-white text-[11px] font-black">S</span>
+        {/* Dashboard interior — sidebar hidden on mobile */}
+        <div className="bg-surface-soft flex min-h-[280px] sm:min-h-[360px] lg:min-h-[440px]">
+          {/* Sidebar — md+ only */}
+          <div className="hidden md:flex md:w-[180px] lg:w-[220px] bg-white border-r border-surface-border p-3 lg:p-4 flex-col space-y-1 flex-shrink-0">
+            <div className="flex items-center gap-2 px-2 lg:px-3 py-2 mb-3 lg:mb-4">
+              <div className="w-6 h-6 lg:w-7 lg:h-7 rounded-lg bg-brand-600 flex items-center justify-center">
+                <span className="text-white text-[10px] lg:text-[11px] font-black">S</span>
               </div>
-              <span className="text-sm font-black text-ink">Skippo</span>
+              <span className="text-xs lg:text-sm font-black text-ink">Skippo</span>
             </div>
             {[
               { icon: LayoutDashboard, label: "Dashboard",  active: true  },
@@ -177,91 +177,87 @@ function HeroVisual() {
               { icon: TrendingUp,      label: "Analytics",  active: false },
             ].map(({ icon: Icon, label, active }) => (
               <div key={label}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                  active ? "bg-brand-50 text-brand-600" : "text-ink-muted hover:bg-surface-muted"
+                className={`flex items-center gap-2 px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg text-[11px] lg:text-xs font-semibold ${
+                  active ? "bg-brand-50 text-brand-600" : "text-ink-muted"
                 }`}>
-                <Icon size={14} />
+                <Icon size={13} />
                 {label}
               </div>
             ))}
           </div>
 
           {/* Main panel */}
-          <div className="p-6 space-y-5">
+          <div className="flex-1 min-w-0 p-3 sm:p-4 lg:p-6 space-y-3 lg:space-y-5">
             {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-ink-muted">Good morning 👋</p>
-                <p className="text-lg font-black text-ink">Greenfield International School</p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs text-ink-muted">Good morning 👋</p>
+                <p className="text-sm sm:text-base lg:text-lg font-black text-ink truncate">Greenfield International School</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  12 buses live
-                </span>
-              </div>
+              <span className="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 sm:px-3 py-1 rounded-full whitespace-nowrap flex-shrink-0">
+                <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="hidden sm:inline">12 buses live</span>
+                <span className="sm:hidden">12 live</span>
+              </span>
             </div>
 
-            {/* Stat cards */}
-            <div className="grid grid-cols-4 gap-3">
+            {/* Stat cards — 2×2 on mobile, 4 across on lg */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">
               {[
-                { label: "Attendance",       value: "94.2%",  sub: "+1.8% vs yesterday", color: "text-brand-600",   bg: "bg-brand-50"   },
-                { label: "Collected today",  value: "₹1.45L", sub: "+12% vs yesterday",  color: "text-emerald-600", bg: "bg-emerald-50" },
-                { label: "Pending fees",     value: "₹8.76L", sub: "231 students",        color: "text-amber-600",   bg: "bg-amber-50"   },
-                { label: "Total students",   value: "1,248",  sub: "62 new this month",   color: "text-violet-600",  bg: "bg-violet-50"  },
+                { label: "Attendance",    value: "94.2%",  sub: "+1.8% today",    color: "text-brand-600",   bg: "bg-brand-50"   },
+                { label: "Collected",     value: "₹1.45L", sub: "+12% yesterday", color: "text-emerald-600", bg: "bg-emerald-50" },
+                { label: "Pending fees",  value: "₹8.76L", sub: "231 students",   color: "text-amber-600",   bg: "bg-amber-50"   },
+                { label: "Students",      value: "1,248",  sub: "62 new",         color: "text-violet-600",  bg: "bg-violet-50"  },
               ].map((s) => (
-                <div key={s.label} className={`${s.bg} rounded-xl p-3`}>
-                  <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
-                  <p className="text-[10px] font-semibold text-ink-muted mt-0.5">{s.label}</p>
-                  <p className="text-[9px] text-ink-faint mt-0.5">{s.sub}</p>
+                <div key={s.label} className={`${s.bg} rounded-xl p-2.5 lg:p-3`}>
+                  <p className={`text-base sm:text-lg lg:text-xl font-black ${s.color}`}>{s.value}</p>
+                  <p className="text-[9px] sm:text-[10px] font-semibold text-ink-muted mt-0.5">{s.label}</p>
+                  <p className="text-[8px] sm:text-[9px] text-ink-faint mt-0.5 hidden sm:block">{s.sub}</p>
                 </div>
               ))}
             </div>
 
-            {/* Bottom row */}
-            <div className="grid grid-cols-3 gap-3">
-              {/* Live tracking map placeholder */}
-              <div className="col-span-2 bg-white rounded-xl border border-surface-border p-3">
+            {/* Bottom row — stacks on small, side-by-side on sm+ */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 lg:gap-3">
+              {/* Live tracking map */}
+              <div className="sm:col-span-2 bg-white rounded-xl border border-surface-border p-2.5 lg:p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-black text-ink">Live Bus Tracking</p>
+                  <p className="text-[11px] sm:text-xs font-black text-ink">Live Bus Tracking</p>
                   <span className="text-[9px] font-bold text-emerald-600">LIVE</span>
                 </div>
-                <div className="relative h-28 bg-brand-50 rounded-lg overflow-hidden"
+                <div className="relative h-20 sm:h-24 lg:h-28 bg-brand-50 rounded-lg overflow-hidden"
                   style={{ backgroundImage: "linear-gradient(rgba(99,102,241,0.08) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.08) 1px,transparent 1px)", backgroundSize: "20px 20px" }}>
-                  {/* Route line */}
                   <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 112">
                     <path d="M 30 90 Q 100 60 160 75 Q 220 90 280 50 Q 340 20 380 40"
                       fill="none" stroke="#6366f1" strokeWidth="2" strokeDasharray="6 4" opacity="0.4" />
                   </svg>
-                  {/* Bus dot */}
                   <motion.div
-                    className="absolute w-5 h-5 rounded-full bg-brand-600 border-2 border-white shadow-md flex items-center justify-center"
+                    className="absolute w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-brand-600 border-2 border-white shadow-md flex items-center justify-center"
                     style={{ top: "42%", left: "48%" }}
                     animate={{ x: [-8, 8, -8], y: [4, -4, 4] }}
                     transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
                   >
-                    <Bus size={8} className="text-white" />
+                    <Bus size={7} className="text-white" />
                   </motion.div>
-                  {/* Stop markers */}
                   {[{ l: "8%", t: "76%" }, { l: "42%", t: "62%" }, { l: "72%", t: "38%" }].map((pos, i) => (
-                    <div key={i} className="absolute w-2.5 h-2.5 rounded-full bg-white border-2 border-brand-400 shadow"
+                    <div key={i} className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-white border-2 border-brand-400 shadow"
                       style={{ left: pos.l, top: pos.t }} />
                   ))}
                 </div>
               </div>
 
               {/* Quick actions */}
-              <div className="bg-white rounded-xl border border-surface-border p-3">
-                <p className="text-xs font-black text-ink mb-2">Quick Actions</p>
-                <div className="space-y-1.5">
+              <div className="bg-white rounded-xl border border-surface-border p-2.5 lg:p-3">
+                <p className="text-[11px] sm:text-xs font-black text-ink mb-2">Quick Actions</p>
+                <div className="grid grid-cols-3 sm:grid-cols-1 gap-1 sm:gap-1.5">
                   {[
-                    { label: "Send parent alert", color: "text-brand-600 bg-brand-50" },
-                    { label: "Collect fee",        color: "text-emerald-600 bg-emerald-50" },
-                    { label: "Mark attendance",    color: "text-violet-600 bg-violet-50" },
+                    { label: "Send alert",  color: "text-brand-600 bg-brand-50" },
+                    { label: "Collect fee", color: "text-emerald-600 bg-emerald-50" },
+                    { label: "Attendance",  color: "text-violet-600 bg-violet-50" },
                   ].map((a) => (
                     <div key={a.label}
-                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[10px] font-semibold ${a.color} cursor-pointer`}>
-                      <ChevronRight size={10} />
+                      className={`flex items-center justify-center sm:justify-start gap-1 sm:gap-2 px-1.5 sm:px-2 py-1.5 rounded-lg text-[9px] sm:text-[10px] font-semibold text-center sm:text-left ${a.color}`}>
+                      <ChevronRight size={9} className="hidden sm:block" />
                       {a.label}
                     </div>
                   ))}
@@ -463,60 +459,83 @@ function Hero() {
       <Hero3DBackground springX={springX} springY={springY} />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6">
-        {/* Centered headline block */}
-        <div className="text-center max-w-4xl mx-auto mb-16">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.05 }}
-            className="inline-flex items-center gap-2 bg-brand-50 border border-brand-100 rounded-full px-4 py-1.5 mb-8"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-500 flex-shrink-0" />
-            <span className="text-xs font-semibold text-brand-600">Built for schools in India</span>
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-            className="text-5xl sm:text-6xl lg:text-[72px] font-black text-ink leading-[1.04] tracking-tight mb-6"
-          >
-            Everything your school needs.{" "}
-            <span style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-              In one place.
+        {/* Revex-style badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.05 }}
+          className="flex justify-center mb-10"
+        >
+          <div className="inline-flex items-center rounded-full border border-surface-border bg-white shadow-sm overflow-hidden">
+            <span className="text-[11px] font-medium text-ink-muted px-4 py-1.5">
+              Built with love for
             </span>
-          </motion.h1>
+            <span className="flex items-center gap-1.5 bg-[#FFB300] text-[#1C2E6E] text-[11px] font-black px-3 py-1.5 tracking-wide uppercase">
+              🇮🇳 India
+            </span>
+          </div>
+        </motion.div>
 
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.28 }}
-            className="text-xl text-ink-muted leading-relaxed mb-10 max-w-2xl mx-auto"
+        {/* Massive headline */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.1 }}
+          className="text-center mb-8"
+        >
+          <h1
+            className="font-black uppercase text-ink leading-[0.92] tracking-[-0.03em] block"
+            style={{ fontSize: "clamp(52px, 10.5vw, 148px)" }}
           >
-            Live bus tracking, AI lesson plans, fee collection, parent alerts, and analytics — all connected. Built for the way schools actually work.
-          </motion.p>
+            <span className="block">Everything your</span>
+            <span className="block">
+              school{" "}
+              <span
+                className="inline-block rounded-[0.2em]"
+                style={{
+                  background: "#FFB300",
+                  color: "#1C2E6E",
+                  padding: "0.02em 0.18em 0.06em",
+                  lineHeight: "inherit",
+                }}
+              >
+                needs.
+              </span>
+            </span>
+          </h1>
+        </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center"
+        {/* Subtext */}
+        <motion.p
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.28 }}
+          className="text-center text-lg text-ink-muted leading-relaxed mb-10 max-w-xl mx-auto"
+        >
+          Live bus tracking, AI lesson plans, fee collection, and parent alerts — all connected in one platform.
+        </motion.p>
+
+        {/* CTAs */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.38 }}
+          className="flex flex-col sm:flex-row gap-3 justify-center mb-20"
+        >
+          <Link
+            href="/signup"
+            className="flex items-center justify-center gap-2 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm hover:bg-ink-soft transition-colors active:scale-[0.97]"
           >
-            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-              <Link href="/signup"
-                className="flex items-center justify-center gap-2 px-8 py-4 bg-brand-600 text-white rounded-xl font-bold text-sm hover:bg-brand-700 transition-colors shadow-brand">
-                Get Started — it&apos;s free
-                <ArrowRight size={16} />
-              </Link>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <a href="#features"
-                className="flex items-center justify-center gap-2 px-8 py-4 bg-surface-muted border border-surface-border text-ink rounded-xl font-bold text-sm hover:bg-surface-soft transition-colors">
-                Explore features
-              </a>
-            </motion.div>
-          </motion.div>
-        </div>
+            Get Started
+            <ArrowRight size={16} />
+          </Link>
+          <a
+            href="#features"
+            className="flex items-center justify-center gap-2 px-8 py-4 border-2 border-surface-border text-ink rounded-2xl font-bold text-sm hover:border-ink/20 hover:bg-surface-soft transition-all active:scale-[0.97]"
+          >
+            Explore features
+          </a>
+        </motion.div>
 
         {/* Product visual — full width, bleeds into next section */}
         <motion.div
@@ -1586,10 +1605,10 @@ function ForSchoolsSection() {
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                   <Link href="/signup"
                     className="flex items-center justify-center gap-2 w-full py-4 bg-brand-600 text-white rounded-2xl font-bold hover:bg-brand-700 transition-colors shadow-brand">
-                    Get Started — it&apos;s free <ArrowRight size={16} />
+                    Get Started<ArrowRight size={16} />
                   </Link>
                 </motion.div>
-                <p className="text-center text-xs text-ink-faint mt-4">No credit card required · We&apos;ll set you up within 24 hours</p>
+                <p className="text-center text-xs text-ink-faint mt-4">No pre payment required · We&apos;ll set you up within 24 hours</p>
               </div>
             </div>
           </motion.div>
@@ -1637,7 +1656,7 @@ function CTASection() {
             <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
               <Link href="/signup"
                 className="flex items-center justify-center gap-2 px-10 py-4 bg-white text-brand-700 rounded-2xl font-bold text-base hover:bg-brand-50 transition-colors shadow-lg">
-                Get Started — it&apos;s free <ArrowRight size={18} />
+                Get Started<ArrowRight size={18} />
               </Link>
             </motion.div>
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
@@ -1684,7 +1703,7 @@ function Footer() {
           <div>
             <p className="text-ink font-bold text-xs uppercase tracking-widest mb-4">Company</p>
             <ul className="space-y-3">
-              {[{ label: "About", href: "#" }, { label: "Contact", href: "/contact" }, { label: "Privacy", href: "#" }, { label: "Terms", href: "#" }].map((l) => (
+              {[{ label: "About", href: "#" }, { label: "Contact", href: "/contact" }, { label: "Privacy", href: "/privacy" }, { label: "Terms", href: "/terms" }].map((l) => (
                 <li key={l.label}><Link href={l.href} className="text-sm text-ink-muted hover:text-ink transition-colors">{l.label}</Link></li>
               ))}
             </ul>
@@ -1692,8 +1711,13 @@ function Footer() {
           <div>
             <p className="text-ink font-bold text-xs uppercase tracking-widest mb-4">Platform</p>
             <ul className="space-y-3">
-              {["Parent App", "Driver App", "Teacher App", "Admin Dashboard"].map((l) => (
-                <li key={l}><a href="#" className="text-sm text-ink-muted hover:text-ink transition-colors">{l}</a></li>
+              {[
+                { label: "Parent App",      href: "/app/parent"  },
+                { label: "Driver App",      href: "/app/driver"  },
+                { label: "Teacher App",     href: "/app/teacher" },
+                { label: "Admin Dashboard", href: "/signup"      },
+              ].map((l) => (
+                <li key={l.label}><Link href={l.href} className="text-sm text-ink-muted hover:text-ink transition-colors">{l.label}</Link></li>
               ))}
             </ul>
           </div>

@@ -160,7 +160,7 @@ export default function LoginPage() {
 
               <p className={styles.footer}>
                 Don&apos;t have access?{" "}
-                <a href="https://skippo.in/signup" className={styles.link}>
+                <a href="https://skippo.co.in/signup" className={styles.link}>
                   Request school onboarding
                 </a>
               </p>

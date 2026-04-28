@@ -1,4 +1,7 @@
 import re
+import secrets
+import string
+import threading
 
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
@@ -8,6 +11,21 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.tenancy.models import RegistrationInterest, School, TenantConfig
+from integrations.email_service import notify_new_enquiry
+
+
+def _generate_temp_password(length: int = 12) -> str:
+    alphabet = string.ascii_letters + string.digits + "!@#$"
+    # Guarantee at least one of each required class
+    pwd = [
+        secrets.choice(string.ascii_uppercase),
+        secrets.choice(string.ascii_lowercase),
+        secrets.choice(string.digits),
+        secrets.choice("!@#$"),
+    ]
+    pwd += [secrets.choice(alphabet) for _ in range(length - 4)]
+    secrets.SystemRandom().shuffle(pwd)
+    return "".join(pwd)
 
 User = get_user_model()
 
@@ -24,14 +42,29 @@ class RegistrationInterestCreateView(APIView):
         if not name or not email:
             return Response({"detail": "name and email are required."}, status=400)
 
+        phone   = data.get("phone", "")
+        school  = data.get("school", "")
+        message = data.get("message", "")
+        enquiry = data.get("enquiry_type", "")
+
         interest = RegistrationInterest.objects.create(
-            enquiry_type=data.get("enquiry_type", ""),
+            enquiry_type=enquiry,
             name=name,
             email=email,
-            phone=data.get("phone", ""),
-            school_name=data.get("school", ""),
-            message=data.get("message", ""),
+            phone=phone,
+            school_name=school,
+            message=message,
         )
+
+        # Notify the team via the email microservice — runs in a daemon thread
+        # so it never blocks the API response.
+        threading.Thread(
+            target=notify_new_enquiry,
+            kwargs=dict(name=name, email=email, phone=phone, school=school,
+                        message=message, enquiry_type=enquiry),
+            daemon=True,
+        ).start()
+
         return Response({"id": interest.id, "status": "received"}, status=201)
 
 
@@ -113,6 +146,7 @@ class SchoolProvisionView(APIView):
         # Create or fetch admin user
         admin_name = (request.data.get("admin_name") or "").strip()
         first, _, last = admin_name.partition(" ")
+        temp_password = _generate_temp_password()
         user, created = User.objects.get_or_create(
             email=admin_email,
             defaults=dict(
@@ -124,9 +158,12 @@ class SchoolProvisionView(APIView):
             ),
         )
         if not created:
-            # Existing user — just update their default school
             user.default_school = school
             user.save(update_fields=["default_school"])
+
+        # Always (re)set the temp password so the caller can share it
+        user.set_password(temp_password)
+        user.save(update_fields=["password"])
 
         # Mark lead as onboarded if provided
         lead_id = request.data.get("lead_id")
@@ -134,6 +171,17 @@ class SchoolProvisionView(APIView):
             RegistrationInterest.objects.filter(pk=lead_id).update(status="onboarded")
 
         return Response({
-            "school": {"id": school.id, "name": school.name, "slug": school.slug},
-            "admin":  {"id": user.id, "email": user.email, "created": created},
+            "school": {
+                "id": school.id,
+                "name": school.name,
+                "slug": school.slug,
+                "dashboard_url": f"https://dashboard.skippo.app/login?school={school.slug}",
+            },
+            "admin": {
+                "id": user.id,
+                "email": user.email,
+                "created": created,
+                "username": admin_email,
+                "temp_password": temp_password,
+            },
         }, status=201)

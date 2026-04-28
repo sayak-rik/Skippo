@@ -3,6 +3,7 @@ import {
   KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { Screen } from "../components/Screen";
+import { SkippoLogo } from "../components/SkippoLogo";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { api } from "../lib/api";
 import { useTeacherSessionStore } from "../store/session";
@@ -30,9 +31,7 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.kav}>
         {/* Header */}
         <View style={styles.headerBlock}>
-          <View style={styles.logoMark}>
-            <Text style={styles.logoText}>SK</Text>
-          </View>
+          <SkippoLogo size={48} />
           <Text style={styles.kicker}>Skippo · Teacher</Text>
           <Text style={styles.headline}>Your classroom,{"\n"}always in sync.</Text>
           <Text style={styles.sub}>
@@ -111,16 +110,6 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
 const styles = StyleSheet.create({
   kav: { flex: 1, gap: spacing.lg },
   headerBlock: { gap: spacing.sm, marginTop: spacing.md },
-  logoMark: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.md,
-    backgroundColor: "#FFB300",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.xs,
-  },
-  logoText: { color: "#1C2E6E", fontWeight: "900", fontSize: 18, letterSpacing: -0.5 },
   kicker: {
     fontSize: 12,
     fontWeight: "700",
