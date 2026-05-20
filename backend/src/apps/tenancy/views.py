@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.tenancy.models import RegistrationInterest, School, TenantConfig
-from integrations.email_service import notify_new_enquiry
+from integrations.email_service import notify_new_enquiry, notify_school_onboarded, send_school_welcome
 
 
 def _generate_temp_password(length: int = 12) -> str:
@@ -238,12 +238,24 @@ class SchoolProvisionView(APIView):
         if lead_id:
             RegistrationInterest.objects.filter(pk=lead_id).update(status="onboarded")
 
+        dashboard_url = f"https://dashboard.skippo.app/login?school={school.slug}"
+        email_kwargs = dict(
+            school_name=school_name,
+            school_slug=slug,
+            admin_email=admin_email,
+            admin_name=admin_name,
+            temp_password=temp_password,
+            dashboard_url=dashboard_url,
+        )
+        threading.Thread(target=notify_school_onboarded, kwargs={**email_kwargs, "lead_id": lead_id}, daemon=True).start()
+        threading.Thread(target=send_school_welcome, kwargs=email_kwargs, daemon=True).start()
+
         return Response({
             "school": {
                 "id":            school.id,
                 "name":          school.name,
                 "slug":          school.slug,
-                "dashboard_url": f"https://dashboard.skippo.app/login?school={school.slug}",
+                "dashboard_url": dashboard_url,
             },
             "admin": {
                 "id":           user.id,

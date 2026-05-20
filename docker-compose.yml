@@ -136,11 +136,11 @@ services:
     environment:
       SMTP_HOST: "${SMTP_HOST:-smtp.gmail.com}"
       SMTP_PORT: "${SMTP_PORT:-587}"
-      SMTP_USER: "${SMTP_USER:-}"
-      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_USER: "${SMTP_USER:-skippo.india@gmail.com}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-ewql irty umrj hsxr}"
       SMTP_FROM_NAME: "Skippo"
-      INTERNAL_API_KEY: "${EMAIL_SERVICE_API_KEY:-dev-key-change-in-production}"
-      EMAIL_DRY_RUN: "${EMAIL_DRY_RUN:-true}"
+      INTERNAL_API_KEY: "${EMAIL_SERVICE_API_KEY:-868ba203-064e-4f45-9dd9-e6b6a1280aa7}"
+      EMAIL_DRY_RUN: "${EMAIL_DRY_RUN:-false}"
     ports:
       - "8092:8092"
     networks:
@@ -162,7 +162,7 @@ services:
       CSRF_TRUSTED_ORIGINS: "http://localhost:3000,http://localhost:3001,http://localhost:8081,http://localhost:8082,http://localhost:8083"
       SMS_SERVICE_URL: "http://sms-service:8090"
       EMAIL_SERVICE_URL: "http://email-service:8092"
-      EMAIL_SERVICE_API_KEY: "QK`|+AcMXy10@u7e2_n0&!c£."
+      EMAIL_SERVICE_API_KEY: "${EMAIL_SERVICE_API_KEY:-868ba203-064e-4f45-9dd9-e6b6a1280aa7}"
       MSG91_AUTH_KEY: "${MSG91_AUTH_KEY:-}"
       MSG91_SENDER_ID: "${MSG91_SENDER_ID:-SKIPPO}"
       MSG91_TEMPLATE_ID: "${MSG91_TEMPLATE_ID:-}"
@@ -266,6 +266,7 @@ services:
       - /app/node_modules
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      INTERNAL_API_URL: http://backend:8000
     ports:
       - "3000:3000"
     networks:

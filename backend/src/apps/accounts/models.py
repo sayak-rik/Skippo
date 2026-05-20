@@ -115,6 +115,7 @@ class OTPRequest(TimestampedModel):
     class Role(models.TextChoices):
         PARENT = "parent", "Parent"
         DRIVER = "driver", "Driver"
+        ADMIN  = "admin",  "Admin"
 
     class Purpose(models.TextChoices):
         LOGIN = "login", "Login"

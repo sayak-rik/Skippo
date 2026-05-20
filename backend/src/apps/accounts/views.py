@@ -22,6 +22,7 @@ from common.demo_state import (
     validate_invite,
 )
 from common.sms import send_sms
+from integrations.email_service import send_otp_email
 
 User = get_user_model()
 
@@ -54,9 +55,14 @@ class AdminLoginView(APIView):
         if not email or not password:
             return Response({"detail": "email and password are required."}, status=400)
 
-        try:
-            user = User.objects.get(email__iexact=email)
-        except User.DoesNotExist:
+        # Prefer superuser > staff when duplicates exist (data-level deduplication pending)
+        user = (
+            User.objects
+            .filter(email__iexact=email)
+            .order_by("-is_superuser", "-is_staff", "id")
+            .first()
+        )
+        if user is None:
             return Response({"detail": "Invalid credentials."}, status=401)
 
         if not user.check_password(password):
@@ -234,6 +240,9 @@ class OTPRequestView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        import logging
+        log = logging.getLogger(__name__)
+
         contact = request.data.get("contact", "").strip()
         channel = request.data.get("channel", "sms")
         role = request.data.get("role", "")
@@ -241,7 +250,7 @@ class OTPRequestView(APIView):
         purpose = request.data.get("purpose", OTPRequest.Purpose.LOGIN)
         context = request.data.get("context", {})
 
-        if not contact or role not in ("parent", "driver") or not school_slug:
+        if not contact or role not in ("parent", "driver", "admin") or not school_slug:
             return Response(
                 {"detail": "contact, role, and school_slug are required."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -258,16 +267,34 @@ class OTPRequestView(APIView):
             return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
 
         # Verify the contact exists for the given role + school
-        if role == "parent":
-            exists = ParentProfile.objects.filter(school=school, phone=contact).exists()
-        else:
-            exists = DriverProfile.objects.filter(school=school, phone=contact).exists()
-
-        if not exists:
-            return Response(
-                {"detail": "No account found for this contact at the given school."},
-                status=status.HTTP_404_NOT_FOUND,
+        fallback_email = None  # used for SMS→email fallback
+        if role == "admin":
+            user = (
+                User.objects
+                .filter(email__iexact=contact, default_school=school)
+                .first()
             )
+            if user is None:
+                return Response(
+                    {"detail": "No admin account found for this email at the given school."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        elif role == "parent":
+            profile = ParentProfile.objects.filter(school=school, phone=contact).select_related("user").first()
+            if profile is None:
+                return Response(
+                    {"detail": "No account found for this contact at the given school."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            fallback_email = profile.user.email or None
+        else:  # driver
+            profile = DriverProfile.objects.filter(school=school, phone=contact).select_related("user").first()
+            if profile is None:
+                return Response(
+                    {"detail": "No account found for this contact at the given school."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            fallback_email = profile.user.email or None
 
         code = _generate_otp()
         OTPRequest.objects.create(
@@ -281,12 +308,18 @@ class OTPRequestView(APIView):
             context=context if isinstance(context, dict) else {},
         )
 
-        if channel == "sms":
-            send_sms(to=contact, message=f"Your Skippo OTP is {code}. Valid for {_OTP_TTL_MINUTES} minutes.")
-        # Email channel: wire to email backend when ready; for now the code is logged in dev
+        if channel == "email" or role == "admin":
+            # For admin the contact IS the email; for email channel contact is the email address.
+            send_otp_email(to=contact, code=code, ttl_minutes=_OTP_TTL_MINUTES, school_name=school.name)
         else:
-            import logging
-            logging.getLogger(__name__).info("EMAIL OTP for %s: %s", contact, code)
+            # SMS channel — try MSG91, fall back to email if it fails
+            sms_ok = send_sms(to=contact, message=f"Your Skippo OTP is {code}. Valid for {_OTP_TTL_MINUTES} minutes.")
+            if not sms_ok:
+                log.warning("SMS failed for %s; attempting email fallback", contact)
+                if fallback_email:
+                    send_otp_email(to=fallback_email, code=code, ttl_minutes=_OTP_TTL_MINUTES, school_name=school.name)
+                else:
+                    log.warning("No fallback email found for contact %s", contact)
 
         return Response({"detail": "OTP sent."}, status=status.HTTP_200_OK)
 
@@ -318,7 +351,7 @@ class OTPVerifyView(APIView):
         school_slug = request.data.get("school_slug", "").strip()
         purpose = request.data.get("purpose", OTPRequest.Purpose.LOGIN)
 
-        if not contact or not code or role not in ("parent", "driver") or not school_slug:
+        if not contact or not code or role not in ("parent", "driver", "admin") or not school_slug:
             return Response(
                 {"detail": "contact, code, role, and school_slug are required."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -365,7 +398,11 @@ class OTPVerifyView(APIView):
             return Response({"confirmed": True, "context": otp.context})
 
         # Login purpose — look up the profile and return JWT tokens
-        if role == "parent":
+        if role == "admin":
+            user = User.objects.filter(email__iexact=contact, default_school=school).first()
+            if user is None:
+                return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+        elif role == "parent":
             try:
                 profile = ParentProfile.objects.select_related("user").get(school=school, phone=contact)
             except ParentProfile.DoesNotExist:

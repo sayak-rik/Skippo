@@ -299,3 +299,5 @@ docker-compose exec backend python manage.py migrate
 docker-compose exec backend python manage.py create_skippo_superuser
 
  | `Open http://localhost:3001/admin/login and sign in with roysayak200@gmail.com / @algo123RIK`
+ cd /Users/sayakroy/Documents/Projects/Skippo/backend
+python manage.py createsuperuser --email roysayak200@gmail.com --username sayakroy

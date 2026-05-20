@@ -11,8 +11,10 @@ logger = logging.getLogger(__name__)
 EMAIL_SERVICE_URL = os.getenv("EMAIL_SERVICE_URL", "http://localhost:8092")
 EMAIL_SERVICE_API_KEY = os.getenv("EMAIL_SERVICE_API_KEY", "dev-key-change-in-production")
 
-CONTACT_EMAIL = "contact@skippo.co.in"
-SUPPORT_EMAIL = "support@skippo.co.in"
+# CONTACT_EMAIL = "contact@skippo.co.in"
+# SUPPORT_EMAIL = "support@skippo.co.in"
+SUPPORT_EMAIL = "skippo.india@gmail.com"
+CONTACT_EMAIL = "skippo.india@gmail.com"
 
 SUPPORT_ENQUIRY_TYPES = {"Support / bug report"}
 
@@ -64,6 +66,156 @@ def _build_html(title: str, subtitle: str, tag: str, tag_color: str, fields: lis
       <div class="footer">This notification was sent automatically by Skippo · skippo.co.in</div>
     </div></body></html>
     """).strip()
+
+
+def notify_school_onboarded(
+    *,
+    school_name: str,
+    school_slug: str,
+    admin_email: str,
+    admin_name: str,
+    temp_password: str,
+    dashboard_url: str,
+    lead_id: int | None,
+) -> None:
+    """Fire-and-forget: notify Skippo root ops email when a new school is provisioned."""
+    html = _build_html(
+        title="New school onboarded",
+        subtitle=f"{school_name} is now live on Skippo",
+        tag="Onboarding",
+        tag_color="#059669",
+        fields=[
+            ("School name",    school_name),
+            ("School slug",    school_slug),
+            ("Dashboard URL",  dashboard_url),
+            ("Admin email",    admin_email),
+            ("Admin name",     admin_name or "—"),
+            ("Temp password",  temp_password),
+            ("Lead ID",        str(lead_id) if lead_id else "—"),
+        ],
+        message="A new school has been provisioned. Send the credentials to the admin and archive this record.",
+    )
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            resp = client.post(
+                f"{EMAIL_SERVICE_URL}/send",
+                json={
+                    "to":      CONTACT_EMAIL,
+                    "subject": f"[Skippo] New school onboarded — {school_name}",
+                    "html":    html,
+                },
+                headers={"X-Api-Key": EMAIL_SERVICE_API_KEY},
+            )
+            resp.raise_for_status()
+            logger.info("Onboarding notification sent → %s (school: %s)", CONTACT_EMAIL, school_name)
+    except Exception as exc:
+        logger.warning("Onboarding notification failed (non-fatal): %s", exc)
+
+
+def send_school_welcome(
+    *,
+    school_name: str,
+    school_slug: str,
+    admin_email: str,
+    admin_name: str,
+    temp_password: str,
+    dashboard_url: str,
+) -> None:
+    """Fire-and-forget: send welcome credentials email to the new school admin."""
+    display_name = admin_name.split()[0] if admin_name else "there"
+    welcome_message = (
+        f"Welcome to Skippo, {display_name}!\n\n"
+        f"Your school dashboard is ready. Use the credentials below to sign in for the first time. "
+        f"You will be prompted to change your password after logging in.\n\n"
+        f"Once signed in, complete the quick setup checklist to upload your school logo, "
+        f"confirm your timezone, and invite your first teachers."
+    )
+    html = _build_html(
+        title="Welcome to Skippo",
+        subtitle=f"Your dashboard for {school_name} is ready",
+        tag="Welcome",
+        tag_color="#4f46e5",
+        fields=[
+            ("School ID",      school_slug),
+            ("Login email",    admin_email),
+            ("Temp password",  temp_password),
+            ("Dashboard URL",  f'<a href="{dashboard_url}" style="color:#4f46e5">{dashboard_url}</a>'),
+        ],
+        message=welcome_message,
+    )
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            resp = client.post(
+                f"{EMAIL_SERVICE_URL}/send",
+                json={
+                    "to":       admin_email,
+                    "subject":  f"Welcome to Skippo — your {school_name} dashboard is ready",
+                    "html":     html,
+                    "reply_to": CONTACT_EMAIL,
+                },
+                headers={"X-Api-Key": EMAIL_SERVICE_API_KEY},
+            )
+            resp.raise_for_status()
+            logger.info("Welcome email sent → %s (school: %s)", admin_email, school_name)
+    except Exception as exc:
+        logger.warning("Welcome email failed (non-fatal): %s", exc)
+
+
+def send_otp_email(*, to: str, code: str, ttl_minutes: int = 10, school_name: str = "") -> bool:
+    """Send a one-time password email. Returns True on success, False on failure."""
+    context = f" for {school_name}" if school_name else ""
+    html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<style>
+{_BASE_STYLE}
+.otp-box {{
+  background: #eef2ff; border-radius: 12px; padding: 24px 32px; text-align: center;
+  margin: 24px 0;
+}}
+.otp-code {{
+  font-size: 40px; font-weight: 900; letter-spacing: 10px; color: #4f46e5;
+  font-family: 'Courier New', monospace;
+}}
+.otp-note {{
+  font-size: 13px; color: #71717a; margin-top: 8px;
+}}
+</style></head>
+<body><div class="wrap">
+  <div class="header" style="background:#4f46e5;">
+    <h1>Skippo Sign-in Code</h1>
+    <p>Your one-time password{context}</p>
+  </div>
+  <div class="body">
+    <p style="font-size:15px;color:#3f3f46;margin-bottom:0;">
+      Use the code below to sign in to your Skippo dashboard. It expires in
+      <strong>{ttl_minutes} minutes</strong> and can only be used once.
+    </p>
+    <div class="otp-box">
+      <div class="otp-code">{code}</div>
+      <div class="otp-note">Do not share this code with anyone.</div>
+    </div>
+    <p style="font-size:13px;color:#a1a1aa;">
+      If you didn't request this, you can safely ignore this email.
+    </p>
+  </div>
+  <div class="footer">Sent by Skippo · skippo.co.in</div>
+</div></body></html>"""
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            resp = client.post(
+                f"{EMAIL_SERVICE_URL}/send",
+                json={
+                    "to":      to,
+                    "subject": "Your Skippo sign-in code",
+                    "html":    html,
+                },
+                headers={"X-Api-Key": EMAIL_SERVICE_API_KEY},
+            )
+            resp.raise_for_status()
+            logger.info("OTP email sent → %s", to)
+            return True
+    except Exception as exc:
+        logger.warning("OTP email failed to %s: %s", to, exc)
+        return False
 
 
 def notify_new_enquiry(*, name: str, email: str, phone: str, school: str, message: str, enquiry_type: str) -> None:
