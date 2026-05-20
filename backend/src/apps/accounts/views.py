@@ -42,6 +42,39 @@ def _jwt_for_user(user) -> dict:
     return {"refresh": str(refresh), "access": str(refresh.access_token)}
 
 
+class AdminLoginView(APIView):
+    """Email + password login for staff and superusers. Returns JWT tokens."""
+
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = (request.data.get("email") or "").strip().lower()
+        password = request.data.get("password", "")
+        if not email or not password:
+            return Response({"detail": "email and password are required."}, status=400)
+
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            return Response({"detail": "Invalid credentials."}, status=401)
+
+        if not user.check_password(password):
+            return Response({"detail": "Invalid credentials."}, status=401)
+
+        if not user.is_staff:
+            return Response({"detail": "Access denied. Staff only."}, status=403)
+
+        tokens = _jwt_for_user(user)
+        return Response({
+            **tokens,
+            "role": "superuser" if user.is_superuser else "staff",
+            "name": user.get_full_name() or user.email,
+            "email": user.email,
+            "id": user.id,
+        })
+
+
 class AccountsRootView(APIView):
     """Liveness probe for the accounts module."""
 

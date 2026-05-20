@@ -1,12 +1,7 @@
-// ---------------------------------------------------------------------------
-// LoginScreen – parent OTP login.
-// Clean, minimalist hero + form.  "New parent? Sign up" link at bottom
-// navigates to the 3-step SignupScreen.
-// ---------------------------------------------------------------------------
-
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -25,15 +20,41 @@ import { spacing } from "../theme/spacing";
 
 export function LoginScreen({ navigation }: { navigation?: any }) {
   const login = useSessionStore((s) => s.login);
-  const [loading, setLoading] = useState(false);
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  async function handleLogin() {
+  async function handleRequestOtp() {
+    const contact = phone.trim();
+    if (!contact) {
+      Alert.alert("Missing field", "Please enter your phone number.");
+      return;
+    }
     setLoading(true);
     try {
-      const { data } = await api.post("/api/auth/demo-login/", { role: "parent" });
+      await api.post("/api/auth/otp/request/", { contact, channel: "sms", role: "parent" });
+      setOtpSent(true);
+    } catch {
+      Alert.alert("Error", "Could not send OTP. Please check your number and try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    const contact = phone.trim();
+    const code = otp.trim();
+    if (!code) {
+      Alert.alert("Missing field", "Please enter the OTP.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await api.post("/api/auth/otp/verify/", { contact, code, role: "parent" });
       login(data);
+    } catch {
+      Alert.alert("Invalid OTP", "The code you entered is incorrect or has expired. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -45,7 +66,7 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.kav}
       >
-        {/* ── Brand mark ──────────────────────────────────────────────── */}
+        {/* Brand */}
         <View style={styles.hero}>
           <SkippoLogo size={52} />
           <Text style={styles.kicker}>Skippo · Parent</Text>
@@ -55,7 +76,7 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
           </Text>
         </View>
 
-        {/* ── Stat row ─────────────────────────────────────────────────── */}
+        {/* Stat pills */}
         <View style={styles.pills}>
           {[
             { value: "Live", label: "Bus tracking" },
@@ -69,16 +90,15 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
           ))}
         </View>
 
-        {/* ── Login form ────────────────────────────────────────────────── */}
+        {/* Form */}
         <View style={styles.form}>
-          {/* Gradient accent bar */}
           <LinearGradient
             colors={["#4f46e5", "#7c3aed"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.formAccent}
           />
-          <Text style={styles.formTitle}>Sign in</Text>
+          <Text style={styles.formTitle}>{otpSent ? "Enter OTP" : "Sign in"}</Text>
 
           <View style={styles.field}>
             <Text style={styles.label}>Phone number</Text>
@@ -89,24 +109,29 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
               keyboardType="phone-pad"
               value={phone}
               onChangeText={setPhone}
+              editable={!otpSent}
             />
           </View>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>One-time password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter OTP"
-              placeholderTextColor={palette.inkFaint}
-              keyboardType="number-pad"
-              secureTextEntry
-              value={otp}
-              onChangeText={setOtp}
-            />
-          </View>
+          {otpSent && (
+            <View style={styles.field}>
+              <Text style={styles.label}>One-time password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter 6-digit OTP"
+                placeholderTextColor={palette.inkFaint}
+                keyboardType="number-pad"
+                secureTextEntry
+                value={otp}
+                onChangeText={setOtp}
+                autoFocus
+                maxLength={6}
+              />
+            </View>
+          )}
 
           <TouchableOpacity
-            onPress={handleLogin}
+            onPress={otpSent ? handleVerifyOtp : handleRequestOtp}
             disabled={loading}
             activeOpacity={0.85}
             style={loading ? styles.btnLoading : undefined}
@@ -117,14 +142,22 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
               end={{ x: 1, y: 0 }}
               style={styles.btn}
             >
-              <Text style={styles.btnText}>{loading ? "Connecting…" : "Continue"}</Text>
+              <Text style={styles.btnText}>
+                {loading
+                  ? otpSent ? "Verifying…" : "Sending OTP…"
+                  : otpSent ? "Verify & sign in" : "Send OTP"}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <Text style={styles.hint}>Demo — tap Continue to enter with sample data.</Text>
+          {otpSent && (
+            <TouchableOpacity onPress={() => { setOtpSent(false); setOtp(""); }} activeOpacity={0.7}>
+              <Text style={styles.resendText}>← Change number or resend</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* ── Signup link ───────────────────────────────────────────────── */}
+        {/* Signup link */}
         <TouchableOpacity
           style={styles.signupLink}
           onPress={() => navigation?.navigate?.("Signup")}
@@ -237,7 +270,7 @@ const styles = StyleSheet.create({
   },
   btnLoading: { opacity: 0.6 },
   btnText: { color: "#fff", fontWeight: "800", fontSize: 15, letterSpacing: 0.2 },
-  hint: { fontSize: 12, color: palette.inkFaint, textAlign: "center" },
+  resendText: { fontSize: 13, color: palette.inkSoft, textAlign: "center" },
   signupLink: { alignItems: "center", paddingVertical: spacing.sm },
   signupText: { fontSize: 13, color: palette.inkSoft },
   signupBold: { color: palette.brand, fontWeight: "700" },

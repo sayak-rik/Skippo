@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Skippo — Greenfield Public School",
+  title: "Skippo — School Dashboard",
   description: "School operations dashboard for transport, academics, compliance, and parent communications.",
 };
 

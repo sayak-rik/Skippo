@@ -23,17 +23,16 @@ Unified school operations platform — transport tracking, academics, compliance
 
 ## Running the full stack
 
-```bash
-# From the repo root
-docker compose up --build
-```
+See [SETUP.md](SETUP.md) for the full setup guide, including profile-based commands for starting individual layers (backend / frontend / mobile) and working with single services.
 
-All services start in dependency order. The backend waits for Postgres and Redis health checks before running migrations and starting Daphne.
-
-To run only the infrastructure (Postgres + Redis + backend) without the frontends:
+Quick start:
 
 ```bash
-docker compose up --build postgres redis backend backend-worker backend-beat
+# Everything
+docker compose --profile backend --profile frontend --profile mobile up -d
+
+# Backend + infra only
+docker compose --profile backend up -d
 ```
 
 ---
@@ -290,3 +289,13 @@ The backend reads from environment variables with safe defaults for local develo
 | `DJANGO_DEBUG` | `False` | Debug mode |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | Comma-separated allowed origins |
 | `GOOGLE_MAPS_API_KEY` | _(empty)_ | Optional — maps fall back to static mock data |
+
+
+# 1. Rebuild the backend container (new migration + management command)
+docker-compose up --build -d backend
+
+# 2. Run migration + create the superuser
+docker-compose exec backend python manage.py migrate
+docker-compose exec backend python manage.py create_skippo_superuser
+
+ | `Open http://localhost:3001/admin/login and sign in with roysayak200@gmail.com / @algo123RIK`

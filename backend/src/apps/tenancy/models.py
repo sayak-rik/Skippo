@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
 
@@ -22,6 +23,13 @@ class RegistrationInterest(TimestampedModel):
     message      = models.TextField(blank=True)
     status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     admin_notes  = models.TextField(blank=True)
+    assigned_to  = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assigned_leads",
+    )
 
     class Meta:
         ordering = ["-created_at"]

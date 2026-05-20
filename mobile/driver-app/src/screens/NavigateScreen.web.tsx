@@ -13,21 +13,20 @@ import { useDriverDashboard } from "../hooks/useDriverDashboard";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
 
-const DEMO_STOPS = [
-  { name: "Greenfield School", isSchool: true,  done: true  },
-  { name: "Lakeview Stop",     isSchool: false, done: true  },
-  { name: "Pine Street",       isSchool: false, done: false },
-  { name: "Metro Corner",      isSchool: false, done: false },
-  { name: "City Center",       isSchool: false, done: false },
-];
-
 export function NavigateScreen() {
   const { data } = useDriverDashboard();
 
-  const nextStop   = data?.trip?.nextStop   ?? "Pine Street";
+  const nextStop   = data?.trip?.nextStop   ?? "";
   const routeName  = data?.vehicle?.routeName ?? "Route";
   const etaMinutes = data?.trip?.etaMinutes ?? "–";
   const shift      = data?.trip?.shift      ?? "";
+
+  type Stop = { name: string; isSchool: boolean; done: boolean };
+  const stops: Stop[] = (data?.route?.stops ?? []).map((s: any) => ({
+    name: s.name,
+    isSchool: s.is_school ?? false,
+    done: s.is_completed ?? false,
+  }));
 
   return (
     <Screen>
@@ -51,7 +50,12 @@ export function NavigateScreen() {
       {/* ── Route stop list ─────────────────────────────────────────────── */}
       <InfoCard title="Route stops" subtitle="Tap the mobile app to navigate">
         <View style={styles.stopList}>
-          {DEMO_STOPS.map((stop, idx) => (
+          {stops.length === 0 && (
+            <Text style={{ color: palette.inkSoft, fontSize: 13, textAlign: "center", paddingVertical: 8 }}>
+              Route stops will appear here once a trip is active.
+            </Text>
+          )}
+          {stops.map((stop, idx) => (
             <View key={stop.name} style={styles.stopRow}>
               <View style={styles.stopLineCol}>
                 <View style={[
@@ -61,7 +65,7 @@ export function NavigateScreen() {
                     : stop.name === nextStop ? styles.stopDotNext
                     : styles.stopDotPending,
                 ]} />
-                {idx < DEMO_STOPS.length - 1 && <View style={styles.stopLine} />}
+                {idx < stops.length - 1 && <View style={styles.stopLine} />}
               </View>
               <View style={styles.stopInfo}>
                 <Text style={[

@@ -119,7 +119,7 @@ const SCREENSHOTS = [
         <div className="grid grid-cols-3 gap-1">
           {[
             { v: "4/5", l: "Attendance", c: "bg-emerald-500/30 text-emerald-200" },
-            { v: "A−", l: "Performance", c: "bg-amber-500/30 text-amber-200" },
+            { v: "A−", l: "", c: "bg-amber-500/30 text-amber-200" },
             { v: "2", l: "Highlights", c: "bg-violet-500/30 text-violet-200" },
           ].map((s) => (
             <div key={s.l} className={`${s.c} rounded-lg p-2 text-center`}>
@@ -210,25 +210,35 @@ export default function ParentAppPage() {
               initial={{ opacity: 0, x: 32 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.7, delay: 0.1 }}
-              className="flex justify-center gap-4"
+              className="flex justify-center items-start gap-4 pt-4"
             >
               {SCREENSHOTS.map((s, i) => (
                 <motion.div
                   key={s.label}
-                  initial={{ opacity: 0, y: 24 }}
+                  initial={{ opacity: 0, y: 32 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.2 + i * 0.1 }}
-                  className={`relative w-[140px] ${i === 1 ? "mt-0" : i === 0 ? "mt-8" : "mt-16"}`}
+                  transition={{ duration: 0.6, delay: 0.2 + i * 0.12 }}
+                  className={`relative w-[165px] ${i === 0 ? "mt-10" : i === 1 ? "mt-0" : "mt-16"}`}
                 >
-                  <div className={`rounded-[1.75rem] overflow-hidden border border-white/20 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.2)] ${s.color}`}>
-                    <div className="h-6 flex items-center justify-center">
-                      <div className="w-10 h-2 bg-black/20 rounded-full" />
+                  <motion.div
+                    animate={{ y: [0, -12, 0] }}
+                    transition={{
+                      duration: 3.8,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: i * 1.0,
+                    }}
+                  >
+                    <div className={`rounded-[1.75rem] overflow-hidden border border-white/20 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.25)] ${s.color}`}>
+                      <div className="h-6 flex items-center justify-center">
+                        <div className="w-10 h-2 bg-black/20 rounded-full" />
+                      </div>
+                      {s.content}
+                      <div className="h-4 flex items-center justify-center pb-1">
+                        <div className="w-8 h-1 bg-white/30 rounded-full" />
+                      </div>
                     </div>
-                    {s.content}
-                    <div className="h-4 flex items-center justify-center pb-1">
-                      <div className="w-8 h-1 bg-white/30 rounded-full" />
-                    </div>
-                  </div>
+                  </motion.div>
                 </motion.div>
               ))}
             </motion.div>

@@ -1,14 +1,13 @@
 import { create } from "zustand";
+import { setAuthToken } from "../lib/api";
 
 type DriverSessionState = {
   isAuthenticated: boolean;
   driverName: string;
   token: string | null;
   activeTripId: number | null;
-  // True for self-signup drivers until admin approves (req 6)
   isPendingApproval: boolean;
   signupRequestId: number | null;
-  // Aadhaar number ties multiple vehicle assignments (req 13)
   aadharNumber: string;
   login: (payload: {
     name: string;
@@ -25,13 +24,14 @@ type DriverSessionState = {
 
 export const useDriverSessionStore = create<DriverSessionState>((set) => ({
   isAuthenticated: false,
-  driverName: "Rohit Kumar",
+  driverName: "",
   token: null,
   activeTripId: null,
   isPendingApproval: false,
   signupRequestId: null,
   aadharNumber: "",
-  login: (payload) =>
+  login: (payload) => {
+    setAuthToken(payload.token);
     set({
       isAuthenticated: true,
       driverName: payload.name,
@@ -39,17 +39,19 @@ export const useDriverSessionStore = create<DriverSessionState>((set) => ({
       isPendingApproval: payload.is_pending_approval ?? false,
       signupRequestId: payload.signup_request_id ?? null,
       aadharNumber: payload.aadhar_number ?? "",
-    }),
-  logout: () =>
+    });
+  },
+  logout: () => {
+    setAuthToken(null);
     set({
       isAuthenticated: false,
       activeTripId: null,
       token: null,
       isPendingApproval: false,
       signupRequestId: null,
-    }),
+    });
+  },
   startTrip: (tripId) => set({ activeTripId: tripId }),
   endTrip: () => set({ activeTripId: null }),
-  // Called when admin approves the self-signup request
   approvalGranted: () => set({ isPendingApproval: false }),
 }));

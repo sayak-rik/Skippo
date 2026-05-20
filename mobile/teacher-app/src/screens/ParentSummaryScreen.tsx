@@ -8,16 +8,15 @@ import { Chip } from "../components/Chip";
 import { Screen } from "../components/Screen";
 import { SectionTitle } from "../components/SectionTitle";
 import { useTeacherEndOfDayReports } from "../hooks/useTeacherReports";
-import { useTeacherDashboard } from "../hooks/useTeacherDashboard";
+import { useProgressNotes } from "../hooks/useTeacherDashboard";
 import { palette } from "../theme/palette";
 import { radius, spacing } from "../theme/spacing";
-import { mockProgressNotes } from "../data/mock";
 
 const FILTER_OPTIONS = ["All", "Unread", "Academic", "Behavior", "Concern"];
 
 export function ParentSummaryScreen() {
   const { data: reports, isLoading } = useTeacherEndOfDayReports();
-  const { data: dashboard } = useTeacherDashboard();
+  const { data: allNotes = [] } = useProgressNotes();
   const [filter, setFilter] = useState("All");
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
 
@@ -26,7 +25,7 @@ export function ParentSummaryScreen() {
     0
   ) ?? 0;
 
-  const notes = mockProgressNotes.filter((n) => {
+  const notes = allNotes.filter((n: any) => {
     if (filter === "Unread") return !n.isReadByParent;
     if (filter === "All") return true;
     return n.category === filter.toLowerCase();
@@ -71,8 +70,8 @@ export function ParentSummaryScreen() {
       <SectionTitle title="Student Summaries" />
       {(reports ?? []).map((item: any) => {
         const isExpanded = expandedStudent === item.studentName;
-        const studentNotes = mockProgressNotes.filter(
-          (n) => n.studentName === item.studentName
+        const studentNotes = allNotes.filter(
+          (n: any) => n.studentName === item.studentName
         );
         return (
           <TouchableOpacity

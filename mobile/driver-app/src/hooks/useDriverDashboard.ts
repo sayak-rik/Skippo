@@ -1,17 +1,5 @@
-// ---------------------------------------------------------------------------
-// Driver app data hooks
-//
-// useDriverDashboard   – full dashboard (vehicle, trip, students, renewals)
-// useDriverActions     – mutations: startTrip, endTrip, board, drop, SOS, breakdown
-// useNearbyVehicles    – list of nearby school vehicles for breakdown (req 12)
-// useDriverVehicles    – all vehicles assigned to this driver (req 13)
-// usePingLocation      – posts a GPS ping every 60 s during active trip (req 1)
-// ---------------------------------------------------------------------------
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
 import { api } from "../lib/api";
-import { mockNearbyVehicles, mockDriverVehicles } from "../data/mock";
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
@@ -59,13 +47,11 @@ export function useDriverActions() {
     onSuccess: invalidate,
   });
 
-  /** SOS – critical emergency; alerts all parents (req 10, 11). */
   const triggerSos = useMutation({
     mutationFn: async () => api.post("/api/notifications/sos/"),
     onSuccess: invalidate,
   });
 
-  /** Breakdown – alerts all parents, enables nearby-vehicle contact (req 10, 11). */
   const triggerBreakdown = useMutation({
     mutationFn: async () => api.post("/api/notifications/breakdown/"),
     onSuccess: invalidate,
@@ -74,34 +60,26 @@ export function useDriverActions() {
   return { startTrip, endTrip, boardStudent, dropStudent, triggerSos, triggerBreakdown };
 }
 
-// ── Nearby vehicles for breakdown (req 12) ────────────────────────────────────
+// ── Nearby vehicles for breakdown ────────────────────────────────────────────
 
 export function useNearbyVehicles() {
   return useQuery({
     queryKey: ["nearby-vehicles"],
     queryFn: async () => {
-      try {
-        const { data } = await api.get("/api/transport/nearby-vehicles/");
-        return (data.results ?? []) as typeof mockNearbyVehicles;
-      } catch {
-        return mockNearbyVehicles;
-      }
+      const { data } = await api.get("/api/transport/nearby-vehicles/");
+      return data.results ?? [];
     },
   });
 }
 
-// ── Multi-vehicle switcher (req 13) ───────────────────────────────────────────
+// ── Multi-vehicle switcher ────────────────────────────────────────────────────
 
 export function useDriverVehicles() {
   return useQuery({
     queryKey: ["driver-vehicles"],
     queryFn: async () => {
-      try {
-        const { data } = await api.get("/api/transport/driver/vehicles/");
-        return (data.results ?? []) as typeof mockDriverVehicles;
-      } catch {
-        return mockDriverVehicles;
-      }
+      const { data } = await api.get("/api/transport/driver/vehicles/");
+      return data.results ?? [];
     },
   });
 }
@@ -118,15 +96,11 @@ export function useSwitchVehicle() {
   });
 }
 
-// ── Location ping – fires every 60 s during active trip (req 1) ───────────────
+// ── Location ping – fires every 60 s during active trip ──────────────────────
 
-export function usePingLocation(tripId: number | null, isActive: boolean) {
-  const ping = useMutation({
+export function usePingLocation(tripId: number | null) {
+  return useMutation({
     mutationFn: async (coords: { latitude: number; longitude: number; speed?: number; heading?: number }) =>
       api.post(`/api/tracking/trips/${tripId}/ping/`, coords),
   });
-
-  // In a real app, expo-location would provide GPS coords; we use a demo position.
-  // Call ping.mutate() with real coords from the device location API.
-  return { ping };
 }

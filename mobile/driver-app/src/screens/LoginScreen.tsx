@@ -1,13 +1,7 @@
-// ---------------------------------------------------------------------------
-// LoginScreen – driver OTP login.
-// Two entry points at the bottom:
-//   "Have an invite code? Sign up" → DriverSignupScreen (invite flow)
-//   "Register your school"         → DriverSignupScreen (self-signup flow)
-// ---------------------------------------------------------------------------
-
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -27,15 +21,41 @@ import { spacing } from "../theme/spacing";
 
 export function LoginScreen({ navigation }: { navigation?: any }) {
   const login = useDriverSessionStore((s) => s.login);
-  const [loading, setLoading] = useState(false);
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  async function handleLogin() {
+  async function handleRequestOtp() {
+    const contact = phone.trim();
+    if (!contact) {
+      Alert.alert("Missing field", "Please enter your phone number.");
+      return;
+    }
     setLoading(true);
     try {
-      const { data } = await api.post("/api/auth/demo-login/", { role: "driver" });
+      await api.post("/api/auth/otp/request/", { contact, channel: "sms", role: "driver" });
+      setOtpSent(true);
+    } catch {
+      Alert.alert("Error", "Could not send OTP. Please check your number and try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    const contact = phone.trim();
+    const code = otp.trim();
+    if (!code) {
+      Alert.alert("Missing field", "Please enter the OTP.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await api.post("/api/auth/otp/verify/", { contact, code, role: "driver" });
       login(data);
+    } catch {
+      Alert.alert("Invalid OTP", "The code you entered is incorrect or has expired. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -79,7 +99,8 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
             end={{ x: 1, y: 0 }}
             style={styles.formAccent}
           />
-          <Text style={styles.formTitle}>Sign in</Text>
+          <Text style={styles.formTitle}>{otpSent ? "Enter OTP" : "Sign in"}</Text>
+
           <View style={styles.field}>
             <Text style={styles.label}>Phone number</Text>
             <TextInput
@@ -89,22 +110,42 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
               keyboardType="phone-pad"
               value={phone}
               onChangeText={setPhone}
+              editable={!otpSent}
             />
           </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>OTP</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter OTP"
-              placeholderTextColor={palette.inkFaint}
-              keyboardType="number-pad"
-              secureTextEntry
-              value={otp}
-              onChangeText={setOtp}
-            />
-          </View>
-          <PrimaryButton label={loading ? "Connecting…" : "Sign in"} onPress={handleLogin} loading={loading} />
-          <Text style={styles.hint}>Demo — tap Sign in to enter as a driver with sample data.</Text>
+
+          {otpSent && (
+            <View style={styles.field}>
+              <Text style={styles.label}>OTP</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter 6-digit OTP"
+                placeholderTextColor={palette.inkFaint}
+                keyboardType="number-pad"
+                secureTextEntry
+                value={otp}
+                onChangeText={setOtp}
+                autoFocus
+                maxLength={6}
+              />
+            </View>
+          )}
+
+          <PrimaryButton
+            label={
+              loading
+                ? otpSent ? "Verifying…" : "Sending OTP…"
+                : otpSent ? "Verify & sign in" : "Send OTP"
+            }
+            onPress={otpSent ? handleVerifyOtp : handleRequestOtp}
+            loading={loading}
+          />
+
+          {otpSent && (
+            <TouchableOpacity onPress={() => { setOtpSent(false); setOtp(""); }} activeOpacity={0.7}>
+              <Text style={styles.resendText}>← Change number or resend</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Signup links */}
@@ -217,7 +258,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.stroke,
   },
-  hint: { fontSize: 12, color: palette.inkFaint, textAlign: "center" },
+  resendText: { fontSize: 13, color: palette.inkSoft, textAlign: "center" },
   signupSection: { gap: spacing.sm, alignItems: "center", paddingVertical: spacing.sm },
   signupLink: { fontSize: 13, color: palette.inkSoft },
   signupBold: { color: palette.brand, fontWeight: "700" },

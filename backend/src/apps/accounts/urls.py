@@ -4,6 +4,7 @@ from apps.accounts.views import (
     AcceptDriverInviteView,
     AcceptInviteView,
     AccountsRootView,
+    AdminLoginView,
     DemoLoginView,
     DriverSelfSignupView,
     MeView,
@@ -16,6 +17,9 @@ from apps.accounts.views import (
 urlpatterns = [
     # Module health
     path("", AccountsRootView.as_view(), name="accounts-root"),
+
+    # Staff / superuser login (email + password → JWT)
+    path("admin/login/", AdminLoginView.as_view(), name="accounts-admin-login"),
 
     # Demo auth
     path("demo-login/", DemoLoginView.as_view(), name="accounts-demo-login"),

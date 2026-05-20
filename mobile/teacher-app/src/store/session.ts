@@ -1,44 +1,20 @@
-// ---------------------------------------------------------------------------
-// Zustand session store for the teacher app.
-//
-// Manages authentication state, the active class session selected for
-// attendance, and the first-week onboarding flag that drives the class-picker
-// setup flow.
-// ---------------------------------------------------------------------------
-
 import { create } from "zustand";
+import { setAuthToken } from "../lib/api";
 import { SchedulePreferences } from "../types";
 
 type TeacherSessionState = {
-  // ── Auth state ──────────────────────────────────────────────────────────
   isAuthenticated: boolean;
   teacherName: string;
   schoolName: string;
   token: string | null;
-
-  // ── Session & class selection ────────────────────────────────────────────
-  /** ID of the session currently selected for attendance marking. */
   activeSessionId: number | null;
-  /**
-   * When a teacher is verbally assigned to a different class, they pick it
-   * via the class-picker modal.  This override label replaces the scheduled
-   * classroom label shown in the attendance header until cleared.
-   */
   manualClassOverride: string | null;
-
-  // ── First-week onboarding ────────────────────────────────────────────────
-  /**
-   * True when the teacher has never saved schedule preferences.  Drives the
-   * first-week class-selection banner and the onboarding CTA in ScheduleScreen.
-   */
   isFirstWeek: boolean;
-  /** Saved preferences after the first-week setup flow completes. */
   schedulePreferences: SchedulePreferences | null;
-
-  // ── Actions ──────────────────────────────────────────────────────────────
   login: (payload: {
     name: string;
     token: string;
+    school_name?: string;
     school_slug?: string;
     is_first_week?: boolean;
   }) => void;
@@ -50,27 +26,27 @@ type TeacherSessionState = {
 
 export const useTeacherSessionStore = create<TeacherSessionState>((set) => ({
   isAuthenticated: false,
-  teacherName: "Ms. Sen",
-  schoolName: "Greenfield Public School",
+  teacherName: "",
+  schoolName: "",
   token: null,
   activeSessionId: null,
   manualClassOverride: null,
   isFirstWeek: false,
   schedulePreferences: null,
 
-  login: (payload) =>
+  login: (payload) => {
+    setAuthToken(payload.token);
     set({
       isAuthenticated: true,
       teacherName: payload.name,
       token: payload.token,
-      // In demo mode school_slug maps to a display name; real backends would
-      // return school_name directly.
-      schoolName: "Greenfield Public School",
-      // Backend signals first-week status so we drive the onboarding flow.
+      schoolName: payload.school_name ?? payload.school_slug ?? "",
       isFirstWeek: payload.is_first_week ?? false,
-    }),
+    });
+  },
 
-  logout: () =>
+  logout: () => {
+    setAuthToken(null);
     set({
       isAuthenticated: false,
       activeSessionId: null,
@@ -78,14 +54,11 @@ export const useTeacherSessionStore = create<TeacherSessionState>((set) => ({
       manualClassOverride: null,
       isFirstWeek: false,
       schedulePreferences: null,
-    }),
+    });
+  },
 
   selectSession: (sessionId) => set({ activeSessionId: sessionId }),
-
-  /** Set or clear the manual class label shown in the attendance header. */
   setManualClassOverride: (label) => set({ manualClassOverride: label }),
-
-  /** Called once the teacher completes first-week class selection. */
   completeFirstWeekSetup: (prefs) =>
     set({ schedulePreferences: prefs, isFirstWeek: false }),
 }));

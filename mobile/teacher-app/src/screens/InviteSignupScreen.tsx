@@ -10,7 +10,6 @@
 //   Step 3 – Success screen.  The app navigates to the main tabs (ScheduleScreen
 //            will show the first-week setup banner where the teacher picks classes).
 //
-// Demo token: "demo-invite-2026"
 // ---------------------------------------------------------------------------
 
 import { useState } from "react";
@@ -25,6 +24,7 @@ import {
 } from "react-native";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
+import { SkippoLogo } from "../components/SkippoLogo";
 import { api } from "../lib/api";
 import { useTeacherSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
@@ -115,9 +115,7 @@ export function InviteSignupScreen({ navigation }: { navigation?: any }) {
       >
         {/* ── Header ──────────────────────────────────────────────────── */}
         <View style={styles.header}>
-          <View style={styles.logoMark}>
-            <Text style={styles.logoText}>SK</Text>
-          </View>
+          <SkippoLogo size={48} />
           <Text style={styles.kicker}>Skippo · Teacher Signup</Text>
           <Text style={styles.headline}>
             {step === 1 && "Enter your invite code"}
@@ -149,7 +147,7 @@ export function InviteSignupScreen({ navigation }: { navigation?: any }) {
               <Text style={styles.fieldLabel}>Code from your invite email</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. demo-invite-2026"
+                placeholder="Paste your invite code here"
                 placeholderTextColor={palette.inkDim}
                 value={token}
                 onChangeText={setToken}
@@ -165,9 +163,6 @@ export function InviteSignupScreen({ navigation }: { navigation?: any }) {
               disabled={!token.trim()}
             />
 
-            <Text style={styles.hint}>
-              Demo: use code <Text style={styles.hintCode}>demo-invite-2026</Text>
-            </Text>
           </View>
         )}
 
@@ -236,12 +231,6 @@ const styles = StyleSheet.create({
 
   // Header
   header:    { gap: spacing.sm, marginTop: spacing.md },
-  logoMark: {
-    width: 48, height: 48, borderRadius: radius.md,
-    backgroundColor: palette.brand, alignItems: "center", justifyContent: "center",
-    marginBottom: spacing.xs,
-  },
-  logoText: { color: "#fff", fontWeight: "900", fontSize: 18, letterSpacing: -0.5 },
   kicker:   { fontSize: 12, fontWeight: "700", color: palette.brand, textTransform: "uppercase", letterSpacing: 1.2 },
   headline: { fontSize: 30, fontWeight: "900", color: palette.ink, letterSpacing: -0.5, lineHeight: 36 },
   sub:      { fontSize: 14, color: palette.inkSoft, lineHeight: 21 },
@@ -291,9 +280,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.stroke,
   },
-  hint:     { fontSize: 12, color: palette.inkDim, textAlign: "center", lineHeight: 18 },
-  hintCode: { fontWeight: "700", color: palette.brand },
-
   // Success
   successCard: {
     backgroundColor: palette.brandSoft,

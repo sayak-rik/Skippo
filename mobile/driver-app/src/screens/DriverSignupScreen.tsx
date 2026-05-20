@@ -1,19 +1,4 @@
-// ---------------------------------------------------------------------------
-// DriverSignupScreen – two signup flows (req 6):
-//
-//   "invite" flow  – Driver has an admin-generated invite token.
-//                    3 steps: token validation → profile + aadhar → done.
-//                    No approval wait; driver is active immediately.
-//
-//   "self"   flow  – Driver registers without an invite.
-//                    3 steps: school selection → profile + aadhar → pending.
-//                    Driver sees PendingApprovalScreen until admin approves.
-//
-// Demo tokens: "demo-driver-invite-2026"
-// Demo schools: greenfield-public-school
-// ---------------------------------------------------------------------------
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -27,16 +12,13 @@ import {
 
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
+import { SkippoLogo } from "../components/SkippoLogo";
 import { api } from "../lib/api";
 import { useDriverSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
 
-const DEMO_SCHOOLS = [
-  { slug: "greenfield-public-school", name: "Greenfield Public School" },
-  { slug: "sunrise-academy",          name: "Sunrise Academy" },
-  { slug: "st-marys-convent",         name: "St. Mary's Convent" },
-];
+type School = { slug: string; name: string };
 
 export function DriverSignupScreen({
   navigation,
@@ -57,13 +39,26 @@ export function DriverSignupScreen({
   const [inviteInfo, setInviteInfo] = useState<{ school_name: string } | null>(null);
 
   // Self flow — step 1
-  const [selectedSchool, setSelectedSchool] = useState<typeof DEMO_SCHOOLS[0] | null>(null);
+  const [schools, setSchools] = useState<School[]>([]);
+  const [loadingSchools, setLoadingSchools] = useState(false);
+  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
 
   // Step 2 (both flows)
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [aadhar, setAadhar] = useState("");
   const [vehicleReg, setVehicleReg] = useState("");
+
+  useEffect(() => {
+    if (flow === "self") {
+      setLoadingSchools(true);
+      api
+        .get("/api/tenancy/schools/")
+        .then(({ data }) => setSchools(data.results ?? []))
+        .catch(() => Alert.alert("Error", "Could not load schools. Please try again."))
+        .finally(() => setLoadingSchools(false));
+    }
+  }, [flow]);
 
   // ── Step 1 — invite flow ─────────────────────────────────────────────────
 
@@ -83,7 +78,7 @@ export function DriverSignupScreen({
 
   // ── Step 1 — self flow ────────────────────────────────────────────────────
 
-  function handleSchoolSelect(school: typeof DEMO_SCHOOLS[0]) {
+  function handleSchoolSelect(school: School) {
     setSelectedSchool(school);
     setStep(2);
   }
@@ -114,7 +109,6 @@ export function DriverSignupScreen({
           aadhar: aadhar.trim(),
           vehicleReg: vehicleReg.trim(),
         });
-        // is_pending_approval=true → RootNavigator shows PendingApprovalScreen
         login(data);
         setStep(3);
       }
@@ -140,9 +134,7 @@ export function DriverSignupScreen({
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.logoMark}>
-            <Text style={styles.logoText}>SK</Text>
-          </View>
+          <SkippoLogo size={48} />
           <Text style={styles.kicker}>Skippo · Driver Signup</Text>
           <Text style={styles.headline}>{stepLabels[step - 1]}</Text>
         </View>
@@ -164,7 +156,7 @@ export function DriverSignupScreen({
               <Text style={styles.label}>Invite code</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. demo-driver-invite-2026"
+                placeholder="Paste your invite code here"
                 placeholderTextColor={palette.inkSoft}
                 value={token}
                 onChangeText={setToken}
@@ -178,9 +170,6 @@ export function DriverSignupScreen({
               loading={validating}
               disabled={!token.trim()}
             />
-            <Text style={styles.hint}>
-              Demo: use code <Text style={styles.hintCode}>demo-driver-invite-2026</Text>
-            </Text>
           </View>
         )}
 
@@ -190,7 +179,13 @@ export function DriverSignupScreen({
             <Text style={styles.cardSub}>
               Select the school you drive for. An admin will review and approve your request.
             </Text>
-            {DEMO_SCHOOLS.map((school) => (
+            {loadingSchools && (
+              <Text style={styles.emptyText}>Loading schools…</Text>
+            )}
+            {!loadingSchools && schools.length === 0 && (
+              <Text style={styles.emptyText}>No schools available. Contact support.</Text>
+            )}
+            {schools.map((school) => (
               <TouchableOpacity
                 key={school.slug}
                 style={[styles.schoolRow, selectedSchool?.slug === school.slug && styles.schoolRowActive]}
@@ -222,10 +217,10 @@ export function DriverSignupScreen({
               </View>
             )}
             {[
-              { label: "Full name",             value: name,       setter: setName,       placeholder: "e.g. Rohit Kumar",    caps: "words" as const },
-              { label: "Phone number (for OTP)", value: phone,      setter: setPhone,      placeholder: "+91 98XXXXXX21",      caps: "none" as const, keypad: "phone-pad" as const },
-              { label: "Aadhaar number",         value: aadhar,     setter: setAadhar,     placeholder: "XXXX-XXXX-XXXX",     caps: "none" as const },
-              { label: "Vehicle reg (optional)", value: vehicleReg, setter: setVehicleReg, placeholder: "WB-04-AB-1288",      caps: "characters" as const },
+              { label: "Full name",              value: name,       setter: setName,       placeholder: "Your full name",       caps: "words" as const },
+              { label: "Phone number (for OTP)",  value: phone,      setter: setPhone,      placeholder: "+91 98XXXXXX21",       caps: "none" as const, keypad: "phone-pad" as const },
+              { label: "Aadhaar number",          value: aadhar,     setter: setAadhar,     placeholder: "XXXX-XXXX-XXXX",      caps: "none" as const },
+              { label: "Vehicle reg (optional)",  value: vehicleReg, setter: setVehicleReg, placeholder: "e.g. MH-04-AB-1234",  caps: "characters" as const },
             ].map(({ label, value, setter, placeholder, caps, keypad }) => (
               <View key={label} style={styles.field}>
                 <Text style={styles.label}>{label}</Text>
@@ -288,12 +283,6 @@ export function DriverSignupScreen({
 const styles = StyleSheet.create({
   kav: { flex: 1, gap: spacing.lg },
   header: { gap: spacing.sm, marginTop: spacing.md },
-  logoMark: {
-    width: 48, height: 48, borderRadius: 14,
-    backgroundColor: palette.brand, alignItems: "center", justifyContent: "center",
-    marginBottom: spacing.xs,
-  },
-  logoText: { color: "#fff", fontWeight: "900", fontSize: 18, letterSpacing: -0.5 },
   kicker: {
     fontSize: 12, fontWeight: "700", color: palette.brand,
     textTransform: "uppercase", letterSpacing: 1.2,
@@ -319,8 +308,7 @@ const styles = StyleSheet.create({
     color: palette.ink, fontSize: 15,
     borderWidth: 1, borderColor: palette.stroke,
   },
-  hint: { fontSize: 12, color: palette.inkSoft, textAlign: "center" },
-  hintCode: { fontWeight: "700", color: palette.brand },
+  emptyText: { fontSize: 13, color: palette.inkSoft, textAlign: "center", paddingVertical: spacing.sm },
   schoolPill: {
     backgroundColor: palette.brandSoft, borderRadius: 99,
     paddingHorizontal: spacing.md, paddingVertical: 6, alignSelf: "flex-start",

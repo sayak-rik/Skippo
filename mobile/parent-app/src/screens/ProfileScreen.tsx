@@ -21,14 +21,12 @@ import { useSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
 import { RouteOption } from "../types";
-import { mockRoutes } from "../data/mock";
-
 export function ProfileScreen() {
   const { data } = useParentDashboard();
   const logout = useSessionStore((s) => s.logout);
   const setSelectedRoute = useSessionStore((s) => s.setSelectedRoute);
   const { data: driverContact } = useDriverContact();
-  const { data: routes = mockRoutes } = useAvailableRoutes();
+  const { data: routes = [] } = useAvailableRoutes();
   const { changeBus, updateStop } = useParentActions();
 
   // Bus picker modal (req 3)
@@ -64,13 +62,11 @@ export function ProfileScreen() {
       return;
     }
     try {
-      // In demo mode we use a placeholder coordinate.
-      // In production, a map picker would supply the real lat/lng.
       await updateStop.mutateAsync({
         studentId: student.id,
         stopName: newStopName.trim(),
-        latitude: 22.5726,
-        longitude: 88.3639,
+        latitude: 0,
+        longitude: 0,
       });
       setStopModalOpen(false);
       Alert.alert("Stop updated", `Pickup stop changed to "${newStopName.trim()}".`);

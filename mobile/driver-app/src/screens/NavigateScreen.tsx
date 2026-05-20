@@ -16,17 +16,7 @@ import { useDriverDashboard } from "../hooks/useDriverDashboard";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
 
-// Demo route stops for North Route A – Kolkata area coordinates.
-// A real implementation would fetch these from the backend route API.
-const DEMO_STOPS = [
-  { name: "Greenfield School",  lat: 22.5726, lng: 88.3639, isSchool: true  },
-  { name: "Lakeview Stop",      lat: 22.5780, lng: 88.3710, isSchool: false },
-  { name: "Pine Street",        lat: 22.5840, lng: 88.3785, isSchool: false },
-  { name: "Metro Corner",       lat: 22.5905, lng: 88.3845, isSchool: false },
-  { name: "City Center",        lat: 22.5965, lng: 88.3910, isSchool: false },
-];
-
-const ROUTE_COORDS = DEMO_STOPS.map((s) => ({ latitude: s.lat, longitude: s.lng }));
+type Stop = { name: string; lat: number; lng: number; isSchool: boolean };
 
 type Coords = { latitude: number; longitude: number };
 
@@ -65,13 +55,23 @@ export function NavigateScreen() {
     return () => sub?.remove();
   }, []);
 
-  const nextStop = data?.trip?.nextStop ?? "Lakeview Stop";
+  const nextStop = data?.trip?.nextStop ?? "";
   const routeName = data?.vehicle?.routeName ?? "Route";
   const etaMinutes = data?.trip?.etaMinutes ?? "–";
   const shift = data?.trip?.shift ?? "";
 
-  // Center: use live position when available, else first stop
-  const center: Coords = myLocation ?? { latitude: 22.5726, longitude: 88.3639 };
+  const routeStops: Stop[] = (data?.route?.stops ?? []).map((s: any) => ({
+    name: s.name,
+    lat: s.latitude,
+    lng: s.longitude,
+    isSchool: s.is_school ?? false,
+  }));
+  const routeCoords = routeStops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
+
+  // Center on live position; if GPS not yet available fall back to first known stop
+  const firstStop = routeStops[0];
+  const center: Coords = myLocation
+    ?? (firstStop ? { latitude: firstStop.lat, longitude: firstStop.lng } : { latitude: 20.5937, longitude: 78.9629 });
 
   function handleRecenter() {
     mapRef.current?.animateToRegion({
@@ -102,14 +102,14 @@ export function NavigateScreen() {
         >
           {/* Route polyline */}
           <Polyline
-            coordinates={ROUTE_COORDS}
+            coordinates={routeCoords}
             strokeColor="#0d9488"
             strokeWidth={3}
             lineDashPattern={undefined}
           />
 
           {/* Route stop markers */}
-          {DEMO_STOPS.map((stop) => {
+          {routeStops.map((stop) => {
             const isNext = stop.name === nextStop;
             const color = stop.isSchool
               ? "#4f46e5"
@@ -174,7 +174,7 @@ export function NavigateScreen() {
         <View style={styles.metricDivider} />
         <View style={styles.metric}>
           <Text style={styles.metricLabel}>STOPS</Text>
-          <Text style={styles.metricValue}>{DEMO_STOPS.length - 1}</Text>
+          <Text style={styles.metricValue}>{routeStops.length > 0 ? routeStops.length - 1 : "–"}</Text>
         </View>
       </View>
 

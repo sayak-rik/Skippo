@@ -19,6 +19,38 @@ const FLEET_SIZES = [
   { label: "30+ vehicles",     value: "30+"  },
 ];
 
+const COUNTRIES = [
+  { code: "IN", dial: "+91",  name: "India",         flag: "🇮🇳", digits: 10 },
+  { code: "US", dial: "+1",   name: "United States", flag: "🇺🇸", digits: 10 },
+  { code: "GB", dial: "+44",  name: "United Kingdom",flag: "🇬🇧", digits: 10 },
+  { code: "AE", dial: "+971", name: "UAE",           flag: "🇦🇪", digits: 9  },
+  { code: "SG", dial: "+65",  name: "Singapore",     flag: "🇸🇬", digits: 8  },
+  { code: "AU", dial: "+61",  name: "Australia",     flag: "🇦🇺", digits: 9  },
+  { code: "CA", dial: "+1",   name: "Canada",        flag: "🇨🇦", digits: 10 },
+  { code: "NZ", dial: "+64",  name: "New Zealand",   flag: "🇳🇿", digits: 9  },
+  { code: "ZA", dial: "+27",  name: "South Africa",  flag: "🇿🇦", digits: 9  },
+  { code: "NG", dial: "+234", name: "Nigeria",       flag: "🇳🇬", digits: 10 },
+  { code: "BD", dial: "+880", name: "Bangladesh",    flag: "🇧🇩", digits: 10 },
+  { code: "PK", dial: "+92",  name: "Pakistan",      flag: "🇵🇰", digits: 10 },
+  { code: "LK", dial: "+94",  name: "Sri Lanka",     flag: "🇱🇰", digits: 9  },
+  { code: "NP", dial: "+977", name: "Nepal",         flag: "🇳🇵", digits: 10 },
+];
+
+type Country = typeof COUNTRIES[number];
+
+function getPhoneError(dial: string, number: string): string | null {
+  const digits = number.replace(/\D/g, "");
+  if (!digits) return null;
+  const country = COUNTRIES.find(c => c.dial === dial);
+  if (country && digits.length !== country.digits) {
+    return `${country.name} numbers are ${country.digits} digits`;
+  }
+  if (!country && (digits.length < 7 || digits.length > 15)) {
+    return "Enter a valid phone number";
+  }
+  return null;
+}
+
 type FormData = {
   schoolName:   string;
   city:         string;
@@ -26,6 +58,7 @@ type FormData = {
   schoolType:   string;
   adminName:    string;
   email:        string;
+  countryDial:  string;
   phone:        string;
   fleetSize:    string;
   studentCount: string;
@@ -34,7 +67,7 @@ type FormData = {
 
 const empty: FormData = {
   schoolName: "", city: "", state: "", schoolType: "",
-  adminName: "", email: "", phone: "",
+  adminName: "", email: "", countryDial: "+91", phone: "",
   fleetSize: "", studentCount: "", message: "",
 };
 
@@ -62,6 +95,54 @@ function Field({
           placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50
           transition-all"
       />
+    </div>
+  );
+}
+
+// ── Phone field with country dropdown ─────────────────────────────────────────
+
+function PhoneField({
+  dial, phone, onDialChange, onPhoneChange, required,
+}: {
+  dial: string; phone: string;
+  onDialChange: (d: string) => void;
+  onPhoneChange: (p: string) => void;
+  required?: boolean;
+}) {
+  const error = phone ? getPhoneError(dial, phone) : null;
+  const country = COUNTRIES.find(c => c.dial === dial) ?? COUNTRIES[0];
+
+  return (
+    <div>
+      <label className="block text-sm font-semibold text-zinc-300 mb-1.5">
+        Phone number {required ? <span className="text-brand-500">*</span> : <span className="text-zinc-600 text-xs">(optional)</span>}
+      </label>
+      <div className="flex gap-2">
+        <select
+          value={dial}
+          onChange={e => onDialChange(e.target.value)}
+          className="flex-shrink-0 px-3 py-3 rounded-2xl border border-dark-border bg-dark text-white text-sm
+            focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50 transition-all"
+          style={{ minWidth: "5.5rem" }}
+        >
+          {COUNTRIES.map(c => (
+            <option key={c.code} value={c.dial}>
+              {c.flag} {c.dial}
+            </option>
+          ))}
+        </select>
+        <input
+          type="tel"
+          value={phone}
+          onChange={e => onPhoneChange(e.target.value.replace(/[^\d\s\-]/g, ""))}
+          placeholder={`${country.digits}-digit number`}
+          required={required}
+          className="flex-1 px-4 py-3 rounded-2xl border border-dark-border bg-dark text-white text-sm
+            placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50
+            transition-all"
+        />
+      </div>
+      {error && <p className="text-xs text-red-400 mt-1.5">{error}</p>}
     </div>
   );
 }
@@ -165,9 +246,15 @@ function Step2({ data, set }: { data: FormData; set: (k: keyof FormData, v: stri
         <h2 className="text-2xl font-black text-white mb-1">Your contact details</h2>
         <p className="text-sm text-zinc-400">You&apos;ll be the primary admin for your school on Skippo.</p>
       </div>
-      <Field label="Full name"    name="adminName" value={data.adminName} onChange={set} placeholder="Priya Sharma"              required />
-      <Field label="Work email"   name="email"     value={data.email}     onChange={set} type="email" placeholder="principal@school.edu" required />
-      <Field label="Phone number" name="phone"     value={data.phone}     onChange={set} type="tel"   placeholder="+91 98765 43210"     required />
+      <Field label="Full name"  name="adminName" value={data.adminName} onChange={set} placeholder="Priya Sharma"          required />
+      <Field label="Work email" name="email"     value={data.email}     onChange={set} type="email" placeholder="principal@school.edu" required />
+      <PhoneField
+        dial={data.countryDial}
+        phone={data.phone}
+        onDialChange={v => set("countryDial", v)}
+        onPhoneChange={v => set("phone", v)}
+        required
+      />
     </motion.div>
   );
 }
@@ -233,6 +320,7 @@ function Step3({ data, set }: { data: FormData; set: (k: keyof FormData, v: stri
 }
 
 function Step4({ data }: { data: FormData }) {
+  const fullPhone = data.phone ? `${data.countryDial} ${data.phone}` : "the number you provided";
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.96 }}
@@ -251,8 +339,8 @@ function Step4({ data }: { data: FormData }) {
       <h2 className="text-2xl font-black text-white mb-3">Request received!</h2>
       <p className="text-zinc-400 mb-8 max-w-sm mx-auto">
         Thanks, <strong className="text-white">{data.adminName || "there"}</strong>! Our team will review your application
-        and call <strong className="text-white">{data.adminName || "you"}</strong> at{" "}
-        <strong className="text-white">{data.phone || "the number you provided"}</strong> within 24–48 hours to discuss
+        and call you at{" "}
+        <strong className="text-white">{fullPhone}</strong> within 24–48 hours to discuss
         onboarding <strong className="text-white">{data.schoolName || "your school"}</strong>.
       </p>
 
@@ -283,8 +371,10 @@ function Step4({ data }: { data: FormData }) {
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
 export default function SignupPage() {
-  const [step, setStep]   = useState(1);
+  const [step, setStep]    = useState(1);
   const [data, setDataRaw] = useState<FormData>(empty);
   const [loading, setLoading] = useState(false);
 
@@ -292,17 +382,48 @@ export default function SignupPage() {
     setDataRaw((prev) => ({ ...prev, [key]: val }));
   }
 
+  function isPhoneValid() {
+    if (!data.phone) return false;
+    return getPhoneError(data.countryDial, data.phone) === null;
+  }
+
   function canNext() {
     if (step === 1) return !!(data.schoolName && data.city && data.state && data.schoolType);
-    if (step === 2) return !!(data.adminName && data.email && data.phone);
+    if (step === 2) return !!(data.adminName && data.email && isPhoneValid());
     if (step === 3) return !!data.fleetSize;
     return true;
   }
 
-  function handleNext() {
+  async function handleNext() {
     if (step === TOTAL_STEPS - 1) {
       setLoading(true);
-      setTimeout(() => { setLoading(false); setStep(TOTAL_STEPS); }, 1400);
+      try {
+        const details = [
+          `City: ${data.city}, ${data.state}`,
+          `Type: ${data.schoolType}`,
+          `Fleet: ${data.fleetSize}`,
+          data.studentCount ? `Students: ~${data.studentCount}` : "",
+          data.message,
+        ].filter(Boolean).join("\n");
+
+        await fetch(`${API}/api/tenancy/interests/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            enquiry_type: "Register my school",
+            name:    data.adminName,
+            email:   data.email,
+            phone:   `${data.countryDial}${data.phone.replace(/\s/g, "")}`,
+            school:  data.schoolName,
+            message: details,
+          }),
+        });
+      } catch {
+        // Silent fail — show success screen regardless
+      } finally {
+        setLoading(false);
+        setStep(TOTAL_STEPS);
+      }
     } else if (step < TOTAL_STEPS) {
       setStep((s) => s + 1);
     }
@@ -346,7 +467,6 @@ export default function SignupPage() {
             transition={{ duration: 0.6, ease: [0.25, 0.4, 0.25, 1] }}
             className="relative bg-dark-card border border-dark-border rounded-4xl p-8 md:p-10 overflow-hidden"
           >
-            {/* Subtle gradient accent */}
             <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-brand-600 via-violet-500 to-brand-600" />
 
             {step < TOTAL_STEPS && <Progress step={step} />}

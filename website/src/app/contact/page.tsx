@@ -5,6 +5,36 @@ import { Mail, Phone, MapPin, ArrowRight, CheckCircle2, Loader2 } from "lucide-r
 import Link from "next/link";
 import { useState } from "react";
 
+const COUNTRIES = [
+  { code: "IN", dial: "+91",  name: "India",         flag: "🇮🇳", digits: 10 },
+  { code: "US", dial: "+1",   name: "United States", flag: "🇺🇸", digits: 10 },
+  { code: "GB", dial: "+44",  name: "United Kingdom",flag: "🇬🇧", digits: 10 },
+  { code: "AE", dial: "+971", name: "UAE",           flag: "🇦🇪", digits: 9  },
+  { code: "SG", dial: "+65",  name: "Singapore",     flag: "🇸🇬", digits: 8  },
+  { code: "AU", dial: "+61",  name: "Australia",     flag: "🇦🇺", digits: 9  },
+  { code: "CA", dial: "+1",   name: "Canada",        flag: "🇨🇦", digits: 10 },
+  { code: "NZ", dial: "+64",  name: "New Zealand",   flag: "🇳🇿", digits: 9  },
+  { code: "ZA", dial: "+27",  name: "South Africa",  flag: "🇿🇦", digits: 9  },
+  { code: "NG", dial: "+234", name: "Nigeria",       flag: "🇳🇬", digits: 10 },
+  { code: "BD", dial: "+880", name: "Bangladesh",    flag: "🇧🇩", digits: 10 },
+  { code: "PK", dial: "+92",  name: "Pakistan",      flag: "🇵🇰", digits: 10 },
+  { code: "LK", dial: "+94",  name: "Sri Lanka",     flag: "🇱🇰", digits: 9  },
+  { code: "NP", dial: "+977", name: "Nepal",         flag: "🇳🇵", digits: 10 },
+];
+
+function getPhoneError(dial: string, number: string): string | null {
+  const digits = number.replace(/\D/g, "");
+  if (!digits) return null;
+  const country = COUNTRIES.find(c => c.dial === dial);
+  if (country && digits.length !== country.digits) {
+    return `${country.name} numbers are ${country.digits} digits`;
+  }
+  if (!country && (digits.length < 7 || digits.length > 15)) {
+    return "Enter a valid phone number";
+  }
+  return null;
+}
+
 const ENQUIRY_TYPES = [
   { label: "Register my school",   icon: "🏫" },
   { label: "Product walkthrough",   icon: "📱" },
@@ -22,7 +52,7 @@ const CONTACT_ITEMS = [
 
 export default function ContactPage() {
   const [enquiryType, setEnquiryType] = useState("");
-  const [form, setForm]  = useState({ name: "", email: "", phone: "", school: "", message: "" });
+  const [form, setForm]  = useState({ name: "", email: "", countryDial: "+91", phone: "", school: "", message: "" });
   const [sent, setSent]  = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -47,7 +77,7 @@ export default function ContactPage() {
           enquiry_type: enquiryType,
           name:    form.name,
           email:   form.email,
-          phone:   form.phone,
+          phone:   form.phone ? `${form.countryDial}${form.phone.replace(/\s/g, "")}` : "",
           school:  form.school,
           message: form.message,
         }),
@@ -242,25 +272,50 @@ export default function ContactPage() {
 
                     {/* Phone + school */}
                     <div className="grid sm:grid-cols-2 gap-4">
-                      {[
-                        { label: "Phone",       key: "phone",  type: "tel",  placeholder: "+91 98765 43210"         },
-                        { label: "School name", key: "school", type: "text", placeholder: "Greenfield Public School" },
-                      ].map((f) => (
-                        <div key={f.key}>
-                          <label className="block text-sm font-semibold text-zinc-300 mb-1.5">
-                            {f.label} <span className="text-zinc-600 text-xs">(optional)</span>
-                          </label>
+                      <div>
+                        <label className="block text-sm font-semibold text-zinc-300 mb-1.5">
+                          Phone <span className="text-zinc-600 text-xs">(optional)</span>
+                        </label>
+                        <div className="flex gap-2">
+                          <select
+                            value={form.countryDial}
+                            onChange={e => set("countryDial", e.target.value)}
+                            className="flex-shrink-0 px-3 py-3 rounded-2xl border border-dark-border bg-dark text-white text-sm
+                              focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50 transition-all"
+                            style={{ minWidth: "5.5rem" }}
+                          >
+                            {COUNTRIES.map(c => (
+                              <option key={c.code} value={c.dial}>{c.flag} {c.dial}</option>
+                            ))}
+                          </select>
                           <input
-                            type={f.type}
-                            value={form[f.key as keyof typeof form]}
-                            onChange={(e) => set(f.key as keyof typeof form, e.target.value)}
-                            placeholder={f.placeholder}
-                            className="w-full px-4 py-3 rounded-2xl border border-dark-border bg-dark text-white text-sm
+                            type="tel"
+                            value={form.phone}
+                            onChange={e => set("phone", e.target.value.replace(/[^\d\s\-]/g, ""))}
+                            placeholder={`${COUNTRIES.find(c => c.dial === form.countryDial)?.digits ?? 10}-digit number`}
+                            className="flex-1 px-4 py-3 rounded-2xl border border-dark-border bg-dark text-white text-sm
                               placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50
                               transition-all"
                           />
                         </div>
-                      ))}
+                        {form.phone && getPhoneError(form.countryDial, form.phone) && (
+                          <p className="text-xs text-red-400 mt-1.5">{getPhoneError(form.countryDial, form.phone)}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-zinc-300 mb-1.5">
+                          School name <span className="text-zinc-600 text-xs">(optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={form.school}
+                          onChange={(e) => set("school", e.target.value)}
+                          placeholder="Greenfield Public School"
+                          className="w-full px-4 py-3 rounded-2xl border border-dark-border bg-dark text-white text-sm
+                            placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50
+                            transition-all"
+                        />
+                      </div>
                     </div>
 
                     {/* Message */}

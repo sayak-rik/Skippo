@@ -4,14 +4,19 @@ from apps.tenancy.views import (
     RegistrationInterestCreateView,
     RegistrationInterestListView,
     SchoolProvisionView,
+    StaffManagementView,
 )
 
 urlpatterns = [
     # Public — website contact form submits here
-    path("interests/",          RegistrationInterestCreateView.as_view(), name="tenancy-interests-create"),
+    path("interests/",                   RegistrationInterestCreateView.as_view(), name="tenancy-interests-create"),
 
-    # Superuser admin
-    path("admin/interests/",    RegistrationInterestListView.as_view(),   name="tenancy-interests-list"),
-    path("admin/interests/<int:pk>/", RegistrationInterestListView.as_view(), name="tenancy-interests-patch"),
-    path("admin/schools/",      SchoolProvisionView.as_view(),            name="tenancy-school-provision"),
+    # Staff + superuser
+    path("admin/interests/",             RegistrationInterestListView.as_view(),   name="tenancy-interests-list"),
+    path("admin/interests/<int:pk>/",    RegistrationInterestListView.as_view(),   name="tenancy-interests-patch"),
+    path("admin/schools/",               SchoolProvisionView.as_view(),            name="tenancy-school-provision"),
+
+    # Superuser only — staff management
+    path("admin/staff/",                 StaffManagementView.as_view(),            name="tenancy-staff-list"),
+    path("admin/staff/<int:pk>/",        StaffManagementView.as_view(),            name="tenancy-staff-delete"),
 ]

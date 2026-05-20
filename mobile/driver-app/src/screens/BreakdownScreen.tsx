@@ -11,14 +11,13 @@ import { useState } from "react";
 import { Screen } from "../components/Screen";
 import { SectionTitle } from "../components/SectionTitle";
 import { useDriverActions, useNearbyVehicles } from "../hooks/useDriverDashboard";
-import { mockNearbyVehicles } from "../data/mock";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
 import { NearbyVehicle } from "../types";
 
 export function BreakdownScreen({ navigation }: { navigation?: any }) {
   const actions = useDriverActions();
-  const { data: nearbyVehicles = mockNearbyVehicles } = useNearbyVehicles();
+  const { data: nearbyVehicles = [] } = useNearbyVehicles();
   const [alertSent, setAlertSent] = useState(false);
   const [sending, setSending] = useState(false);
 

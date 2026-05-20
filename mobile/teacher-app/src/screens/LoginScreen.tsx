@@ -1,6 +1,13 @@
 import { useState } from "react";
 import {
-  KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Screen } from "../components/Screen";
 import { SkippoLogo } from "../components/SkippoLogo";
@@ -12,15 +19,41 @@ import { radius, spacing } from "../theme/spacing";
 
 export function LoginScreen({ navigation }: { navigation?: any }) {
   const login = useTeacherSessionStore((s) => s.login);
-  const [loading, setLoading] = useState(false);
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  async function handleLogin() {
+  async function handleRequestOtp() {
+    const contact = phone.trim();
+    if (!contact) {
+      Alert.alert("Missing field", "Please enter your phone number or Teacher ID.");
+      return;
+    }
     setLoading(true);
     try {
-      const { data } = await api.post("/api/auth/demo-login/", { role: "teacher" });
+      await api.post("/api/auth/otp/request/", { contact, channel: "sms", role: "teacher" });
+      setOtpSent(true);
+    } catch {
+      Alert.alert("Error", "Could not send OTP. Please check your details and try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    const contact = phone.trim();
+    const code = otp.trim();
+    if (!code) {
+      Alert.alert("Missing field", "Please enter the OTP.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await api.post("/api/auth/otp/verify/", { contact, code, role: "teacher" });
       login(data);
+    } catch {
+      Alert.alert("Invalid OTP", "The code you entered is incorrect or has expired. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -55,44 +88,56 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
 
         {/* Form */}
         <View style={styles.form}>
-          <Text style={styles.formTitle}>Sign in to your account</Text>
+          <Text style={styles.formTitle}>{otpSent ? "Enter OTP" : "Sign in to your account"}</Text>
 
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Phone or Teacher ID</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g. 9800000000 or T-204"
+              placeholder="e.g. 9800000000"
               placeholderTextColor={palette.inkDim}
               keyboardType="phone-pad"
               value={phone}
               onChangeText={setPhone}
+              editable={!otpSent}
             />
           </View>
 
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>OTP or Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your access code"
-              placeholderTextColor={palette.inkDim}
-              secureTextEntry
-              value={otp}
-              onChangeText={setOtp}
-            />
-          </View>
+          {otpSent && (
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>One-time password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter 6-digit OTP"
+                placeholderTextColor={palette.inkDim}
+                keyboardType="number-pad"
+                secureTextEntry
+                value={otp}
+                onChangeText={setOtp}
+                autoFocus
+                maxLength={6}
+              />
+            </View>
+          )}
 
           <PrimaryButton
-            label={loading ? "Connecting…" : "Sign in"}
-            onPress={handleLogin}
+            label={
+              loading
+                ? otpSent ? "Verifying…" : "Sending OTP…"
+                : otpSent ? "Verify & sign in" : "Send OTP"
+            }
+            onPress={otpSent ? handleVerifyOtp : handleRequestOtp}
             loading={loading}
           />
 
-          <Text style={styles.hint}>
-            This is a demo — tap Sign in to enter as a teacher with sample data.
-          </Text>
+          {otpSent && (
+            <TouchableOpacity onPress={() => { setOtpSent(false); setOtp(""); }} activeOpacity={0.7}>
+              <Text style={styles.resendText}>← Change number or resend</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Invite signup link — for new teachers who received an admin invite email */}
+        {/* Invite signup link */}
         <TouchableOpacity
           style={styles.inviteLink}
           onPress={() => navigation?.navigate?.("InviteSignup")}
@@ -188,13 +233,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.stroke,
   },
-  hint: {
-    fontSize: 12,
-    color: palette.inkDim,
-    textAlign: "center",
-    lineHeight: 18,
-  },
-  // Invite signup link below the form
+  resendText: { fontSize: 13, color: palette.inkSoft, textAlign: "center" },
   inviteLink: {
     alignItems: "center",
     paddingVertical: spacing.sm,

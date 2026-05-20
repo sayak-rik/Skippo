@@ -1,12 +1,3 @@
-// ---------------------------------------------------------------------------
-// SignupScreen – new parent onboarding, 3 steps:
-//   Step 1 – Phone number + OTP
-//   Step 2 – Child's name and grade
-//   Step 3 – Pick a bus route (req 3)
-//
-// On success: calls login() and the app navigates to the main tabs.
-// ---------------------------------------------------------------------------
-
 import { useState } from "react";
 import {
   Alert,
@@ -21,8 +12,8 @@ import {
 } from "react-native";
 
 import { Screen } from "../components/Screen";
+import { SkippoLogo } from "../components/SkippoLogo";
 import { api } from "../lib/api";
-import { mockRoutes } from "../data/mock";
 import { useAvailableRoutes } from "../hooks/useParentDashboard";
 import { useSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
@@ -32,31 +23,65 @@ import { RouteOption } from "../types";
 export function SignupScreen({ navigation }: { navigation?: any }) {
   const login = useSessionStore((s) => s.login);
   const setSelectedRoute = useSessionStore((s) => s.setSelectedRoute);
-  const { data: routes = mockRoutes } = useAvailableRoutes();
+  const { data: routes = [] } = useAvailableRoutes();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [loading, setLoading] = useState(false);
 
-  // Step 1
+  // Step 1 — OTP
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [verifiedToken, setVerifiedToken] = useState<string | null>(null);
 
-  // Step 2
+  // Step 2 — child details
   const [childName, setChildName] = useState("");
   const [grade, setGrade] = useState("");
 
-  // Step 3
+  // Step 3 — bus picker
   const [selectedRouteId, setLocalRouteId] = useState<number | null>(null);
 
-  // ── Step handlers ─────────────────────────────────────────────────────────
+  // ── Step 1a: send OTP ─────────────────────────────────────────────────────
 
-  function handleStep1() {
-    if (!phone.trim()) {
+  async function handleSendOtp() {
+    const contact = phone.trim();
+    if (!contact) {
       Alert.alert("Missing field", "Please enter your phone number.");
       return;
     }
-    setStep(2);
+    setLoading(true);
+    try {
+      await api.post("/api/auth/otp/request/", { contact, channel: "sms", role: "parent" });
+      setOtpSent(true);
+    } catch {
+      Alert.alert("Error", "Could not send OTP. Please check your number and try again.");
+    } finally {
+      setLoading(false);
+    }
   }
+
+  // ── Step 1b: verify OTP ───────────────────────────────────────────────────
+
+  async function handleVerifyOtp() {
+    const contact = phone.trim();
+    const code = otp.trim();
+    if (!code) {
+      Alert.alert("Missing field", "Please enter the OTP sent to your phone.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await api.post("/api/auth/otp/verify/", { contact, code, role: "parent" });
+      setVerifiedToken(data.token);
+      setStep(2);
+    } catch {
+      Alert.alert("Invalid OTP", "The code you entered is incorrect or has expired.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Step 2: child details → step 3 ───────────────────────────────────────
 
   function handleStep2() {
     if (!childName.trim() || !grade.trim()) {
@@ -66,6 +91,8 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
     setStep(3);
   }
 
+  // ── Step 3: pick bus + complete signup ────────────────────────────────────
+
   async function handleCompleteSignup() {
     if (!selectedRouteId) {
       Alert.alert("Pick a bus", "Please select the bus your child travels in.");
@@ -73,13 +100,15 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
     }
     setLoading(true);
     try {
-      // In demo mode, demo-login gives us a valid session.
-      // In production, a real OTP flow would authenticate the parent here.
-      const { data } = await api.post("/api/auth/demo-login/", { role: "parent" });
-      // Assign the selected route on the backend
+      await api.post("/api/auth/parent/complete-signup/", {
+        childName: childName.trim(),
+        grade: grade.trim(),
+        routeId: selectedRouteId,
+      });
       await api.post("/api/transport/parent/change-bus/", { routeId: selectedRouteId });
       setSelectedRoute(selectedRouteId);
-      login({ ...data, routeId: selectedRouteId });
+      // verifiedToken is already set; retrieve name from the OTP verify response
+      login({ name: childName.trim(), school_slug: "", token: verifiedToken!, routeId: selectedRouteId });
     } catch {
       Alert.alert("Signup failed", "Something went wrong. Please try again.");
     } finally {
@@ -99,9 +128,7 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.logoMark}>
-            <Text style={styles.logoText}>SK</Text>
-          </View>
+          <SkippoLogo size={48} />
           <Text style={styles.kicker}>Skippo · Parent Signup</Text>
           <Text style={styles.headline}>{stepLabels[step - 1]}</Text>
         </View>
@@ -125,23 +152,45 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
                 keyboardType="phone-pad"
                 value={phone}
                 onChangeText={setPhone}
+                editable={!otpSent}
               />
             </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>OTP</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter OTP"
-                placeholderTextColor={palette.inkSoft}
-                keyboardType="number-pad"
-                secureTextEntry
-                value={otp}
-                onChangeText={setOtp}
-              />
-            </View>
-            <TouchableOpacity style={styles.btn} onPress={handleStep1} activeOpacity={0.8}>
-              <Text style={styles.btnText}>Continue</Text>
+
+            {otpSent && (
+              <View style={styles.field}>
+                <Text style={styles.label}>OTP</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter 6-digit OTP"
+                  placeholderTextColor={palette.inkSoft}
+                  keyboardType="number-pad"
+                  secureTextEntry
+                  value={otp}
+                  onChangeText={setOtp}
+                  autoFocus
+                  maxLength={6}
+                />
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.btn, loading && styles.btnDisabled]}
+              onPress={otpSent ? handleVerifyOtp : handleSendOtp}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.btnText}>
+                {loading
+                  ? otpSent ? "Verifying…" : "Sending OTP…"
+                  : otpSent ? "Verify & continue" : "Send OTP"}
+              </Text>
             </TouchableOpacity>
+
+            {otpSent && (
+              <TouchableOpacity onPress={() => { setOtpSent(false); setOtp(""); }} activeOpacity={0.7}>
+                <Text style={styles.resendText}>← Change number or resend</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -152,7 +201,7 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
               <Text style={styles.label}>Child's full name</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Aarav Roy"
+                placeholder="e.g. Aryan Sharma"
                 placeholderTextColor={palette.inkSoft}
                 autoCapitalize="words"
                 value={childName}
@@ -176,11 +225,14 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
           </View>
         )}
 
-        {/* ── Step 3: Bus route picker (req 3) ────────────────────────── */}
+        {/* ── Step 3: Bus route picker ─────────────────────────────────── */}
         {step === 3 && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Select your child's bus</Text>
             <Text style={styles.cardSub}>You can change this later from your profile.</Text>
+            {routes.length === 0 && (
+              <Text style={styles.emptyText}>Loading available routes…</Text>
+            )}
             <FlatList
               data={routes}
               keyExtractor={(r) => String(r.id)}
@@ -246,16 +298,6 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
 const styles = StyleSheet.create({
   kav: { flex: 1, gap: spacing.lg },
   header: { gap: spacing.sm, marginTop: spacing.md },
-  logoMark: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: palette.brand,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.xs,
-  },
-  logoText: { color: "#fff", fontWeight: "900", fontSize: 18, letterSpacing: -0.5 },
   kicker: {
     fontSize: 12,
     fontWeight: "700",
@@ -313,6 +355,8 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.4 },
   btnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  resendText: { fontSize: 13, color: palette.inkSoft, textAlign: "center" },
+  emptyText: { fontSize: 13, color: palette.inkSoft, textAlign: "center", paddingVertical: spacing.sm },
   routeRow: {
     flexDirection: "row",
     alignItems: "center",
