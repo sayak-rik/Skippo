@@ -120,6 +120,7 @@ class OTPRequest(TimestampedModel):
     class Purpose(models.TextChoices):
         LOGIN = "login", "Login"
         CONFIRM_ACTION = "confirm_action", "Confirm Action"
+        PASSWORD_RESET = "password_reset", "Password Reset"
 
     school = models.ForeignKey("tenancy.School", null=True, blank=True, on_delete=models.SET_NULL)
     contact = models.CharField(max_length=255)  # phone number or email address

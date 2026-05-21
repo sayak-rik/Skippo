@@ -1,6 +1,7 @@
 from django.urls import path
 
 from apps.tenancy.views import (
+    AdminOverviewView,
     RegistrationInterestCreateView,
     RegistrationInterestListView,
     SchoolProvisionView,
@@ -19,4 +20,7 @@ urlpatterns = [
     # Superuser only — staff management
     path("admin/staff/",                 StaffManagementView.as_view(),            name="tenancy-staff-list"),
     path("admin/staff/<int:pk>/",        StaffManagementView.as_view(),            name="tenancy-staff-delete"),
+
+    # School admin dashboard overview
+    path("school/overview/",             AdminOverviewView.as_view(),              name="tenancy-school-overview"),
 ]

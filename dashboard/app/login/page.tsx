@@ -159,9 +159,13 @@ export default function LoginPage() {
               </form>
 
               <p className={styles.footer}>
+                <a href="/forgot-password" className={styles.link}>
+                  Forgot password?
+                </a>
+                {" · "}
                 Don&apos;t have access?{" "}
                 <a href="https://skippo.co.in/signup" className={styles.link}>
-                  Request school onboarding
+                  Request onboarding
                 </a>
               </p>
             </motion.div>

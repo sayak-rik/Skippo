@@ -6,11 +6,15 @@ import threading
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 from rest_framework import permissions, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from apps.accounts.models import DriverProfile, TeacherProfile
+from apps.academics.models import Student
 from apps.tenancy.models import RegistrationInterest, School, TenantConfig
+from apps.transport.models import Vehicle
 from integrations.email_service import notify_new_enquiry, notify_school_onboarded, send_school_welcome
 
 
@@ -265,3 +269,28 @@ class SchoolProvisionView(APIView):
                 "temp_password": temp_password,
             },
         }, status=201)
+
+
+class AdminOverviewView(APIView):
+    """School-scoped summary counts for the admin dashboard home page.
+
+    GET /api/tenancy/school/overview/
+    Headers: Authorization: Bearer <token>, X-School-Slug: <slug>
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            "school_name":    school.name,
+            "students":       Student.objects.filter(school=school).count(),
+            "teachers":       TeacherProfile.objects.filter(school=school).count(),
+            "drivers":        DriverProfile.objects.filter(school=school).count(),
+            "vehicles":       Vehicle.objects.filter(school=school).count(),
+        })

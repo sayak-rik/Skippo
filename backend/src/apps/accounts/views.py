@@ -424,6 +424,118 @@ class OTPVerifyView(APIView):
         return Response({**tokens, "role": role, "user": {"id": user.id, "name": user.get_full_name()}})
 
 
+class PasswordResetRequestView(APIView):
+    """Send a 6-digit OTP to the admin's email for password reset.
+
+    POST /api/auth/password/reset-request/
+    Body:
+        email       (str) – the admin's email address
+        school_slug (str) – school identifier
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        import logging
+        log = logging.getLogger(__name__)
+
+        email = request.data.get("email", "").strip().lower()
+        school_slug = request.data.get("school_slug", "").strip()
+
+        if not email or not school_slug:
+            return Response({"detail": "email and school_slug are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            school = School.objects.get(slug=school_slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        user = User.objects.filter(email__iexact=email, default_school=school).first()
+        if user is None:
+            # Don't reveal whether the email exists
+            return Response({"detail": "If that email is registered, a reset code has been sent."}, status=status.HTTP_200_OK)
+
+        code = _generate_otp()
+        OTPRequest.objects.create(
+            school=school,
+            contact=email,
+            channel=OTPRequest.Channel.EMAIL,
+            role=OTPRequest.Role.ADMIN,
+            purpose=OTPRequest.Purpose.PASSWORD_RESET,
+            code_hash=_hash_code(code),
+            expires_at=timezone.now() + timedelta(minutes=_OTP_TTL_MINUTES),
+        )
+        send_otp_email(to=email, code=code, ttl_minutes=_OTP_TTL_MINUTES, school_name=school.name)
+        log.info("Password reset OTP sent to %s", email)
+        return Response({"detail": "If that email is registered, a reset code has been sent."}, status=status.HTTP_200_OK)
+
+
+class PasswordResetConfirmView(APIView):
+    """Verify the OTP and set a new password.
+
+    POST /api/auth/password/reset-confirm/
+    Body:
+        email        (str) – the admin's email address
+        school_slug  (str) – school identifier
+        code         (str) – the 6-digit OTP
+        new_password (str) – the new password (min 8 chars)
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email", "").strip().lower()
+        school_slug = request.data.get("school_slug", "").strip()
+        code = request.data.get("code", "").strip()
+        new_password = request.data.get("new_password", "")
+
+        if not email or not school_slug or not code or not new_password:
+            return Response({"detail": "email, school_slug, code, and new_password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(new_password) < 8:
+            return Response({"detail": "Password must be at least 8 characters."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            school = School.objects.get(slug=school_slug)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        otp = (
+            OTPRequest.objects.filter(
+                school=school,
+                contact=email,
+                role=OTPRequest.Role.ADMIN,
+                purpose=OTPRequest.Purpose.PASSWORD_RESET,
+                is_used=False,
+                expires_at__gt=timezone.now(),
+                attempts__lt=_OTP_MAX_ATTEMPTS,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if otp is None:
+            return Response({"detail": "No valid reset code found. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if otp.code_hash != _hash_code(code):
+            otp.attempts += 1
+            otp.save(update_fields=["attempts"])
+            remaining = _OTP_MAX_ATTEMPTS - otp.attempts
+            return Response({"detail": f"Incorrect code. {remaining} attempt(s) remaining."}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp.is_used = True
+        otp.save(update_fields=["is_used"])
+
+        user = User.objects.filter(email__iexact=email, default_school=school).first()
+        if user is None:
+            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
+
+        return Response({"detail": "Password updated successfully."}, status=status.HTTP_200_OK)
+
+
 class DriverSelfSignupView(APIView):
     """Self-signup for a driver without an admin invite (req 6).
 

@@ -10,6 +10,8 @@ from apps.accounts.views import (
     MeView,
     OTPRequestView,
     OTPVerifyView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
     ValidateDriverInviteView,
     ValidateInviteView,
 )
@@ -39,4 +41,8 @@ urlpatterns = [
     # OTP login (parent & driver)
     path("otp/request/", OTPRequestView.as_view(), name="accounts-otp-request"),
     path("otp/verify/",  OTPVerifyView.as_view(),  name="accounts-otp-verify"),
+
+    # Password reset (admin dashboard)
+    path("password/reset-request/", PasswordResetRequestView.as_view(), name="accounts-password-reset-request"),
+    path("password/reset-confirm/", PasswordResetConfirmView.as_view(), name="accounts-password-reset-confirm"),
 ]
