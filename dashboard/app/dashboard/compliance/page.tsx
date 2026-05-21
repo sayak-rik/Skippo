@@ -1,13 +1,12 @@
-import { ModulePage } from "../../../components/ModulePage";
+import { ComingSoonPage } from "../../../components/ComingSoonPage";
 
 export default function CompliancePage() {
   return (
-    <ModulePage
+    <ComingSoonPage
+      icon="🛡️"
       title="Compliance"
-      description="Monitor document expiry, renewal urgency, and vehicle-level compliance status before they become operational blockers."
-      links={[
-        { href: "http://localhost:8000/api/compliance/driver/renewals/", label: "Open renewals API" },
-      ]}
+      description="Track NOC, insurance, permits, pollution certificates, fitness renewals, and expiry deadlines across your entire fleet. Never miss a compliance deadline again."
+      badge="Risk"
     />
   );
 }

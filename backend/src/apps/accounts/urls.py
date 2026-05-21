@@ -1,10 +1,13 @@
 from django.urls import path
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.views import (
     AcceptDriverInviteView,
     AcceptInviteView,
     AccountsRootView,
     AdminLoginView,
+    AdminTeacherListView,
+    CreateTeacherInviteView,
     DemoLoginView,
     DriverSelfSignupView,
     MeView,
@@ -42,7 +45,14 @@ urlpatterns = [
     path("otp/request/", OTPRequestView.as_view(), name="accounts-otp-request"),
     path("otp/verify/",  OTPVerifyView.as_view(),  name="accounts-otp-verify"),
 
+    # JWT token refresh
+    path("token/refresh/", TokenRefreshView.as_view(), name="accounts-token-refresh"),
+
     # Password reset (admin dashboard)
     path("password/reset-request/", PasswordResetRequestView.as_view(), name="accounts-password-reset-request"),
     path("password/reset-confirm/", PasswordResetConfirmView.as_view(), name="accounts-password-reset-confirm"),
+
+    # Admin teacher management
+    path("admin/teachers/",         AdminTeacherListView.as_view(),    name="accounts-admin-teachers"),
+    path("admin/teachers/invite/",  CreateTeacherInviteView.as_view(), name="accounts-admin-teacher-invite"),
 ]

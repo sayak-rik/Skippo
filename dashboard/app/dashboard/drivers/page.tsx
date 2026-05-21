@@ -1,14 +1,12 @@
-import { ModulePage } from "../../../components/ModulePage";
+import { ComingSoonPage } from "../../../components/ComingSoonPage";
 
 export default function DriversPage() {
   return (
-    <ModulePage
+    <ComingSoonPage
+      icon="🚗"
       title="Drivers"
-      description="Inspect active trip state, assigned vehicles, boarding progress, device sessions, and emergency escalation history."
-      links={[
-        { href: "http://localhost:8000/api/transport/driver/dashboard/", label: "Open driver dashboard API" },
-        { href: "http://localhost:8000/api/notifications/driver/devices/", label: "Open driver devices API" },
-      ]}
+      description="Manage driver profiles, OTP sessions, assigned vehicles, trip activity, and emergency escalation history. Full driver management is on its way."
+      badge="Operations"
     />
   );
 }

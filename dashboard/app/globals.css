@@ -5,6 +5,7 @@
   --surface:         #FFFFFF;
   --surface-raised:  #F1F5F9;
   --surface-hover:   #F8FAFC;
+  --surface-muted:   #F1F5F9;
 
   --ink:             #0F172A;
   --ink-soft:        #475569;
@@ -36,6 +37,7 @@
   /* Legacy aliases — keeps sub-pages using old var() names from breaking */
   --canvas:         #F8FAFC;
   --surface-raised: #F1F5F9;
+  --surface-muted:  #F1F5F9;
   --ink-dim:        #94A3B8;
   --stroke-bright:  #CBD5E1;
   --brand:          #2563EB;
@@ -44,6 +46,7 @@
   --success-dim:    #F0FDF4;
   --danger-dim:     #FEF2F2;
   --warning-dim:    #FFFBEB;
+  --primary-dark:   #1D4ED8;
 
   --radius-sm: 8px;
   --radius-md: 12px;

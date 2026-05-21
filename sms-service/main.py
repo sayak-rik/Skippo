@@ -58,7 +58,9 @@ async def send_sms(payload: SMSRequest):
         raise HTTPException(status_code=400, detail="to and message are required.")
 
     if SMS_DRY_RUN or not MSG91_AUTH_KEY:
-        logger.info("[DRY RUN] SMS to %s: %s", to, message)
+        reason = "DRY_RUN" if SMS_DRY_RUN else "NO_API_KEY"
+        print(f"[SMS {reason}] to={to!r}  message={message!r}", flush=True)
+        logger.info("[SMS %s] to=%s: %s", reason, to, message)
         return SMSResponse(ok=True, detail="dry_run")
 
     # MSG91 Flow API — works with DLT-registered templates

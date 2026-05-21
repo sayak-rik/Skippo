@@ -1,14 +1,12 @@
-import { ModulePage } from "../../../components/ModulePage";
+import { ComingSoonPage } from "../../../components/ComingSoonPage";
 
 export default function LiveFleetPage() {
   return (
-    <ModulePage
+    <ComingSoonPage
+      icon="🗺️"
       title="Live Fleet"
-      description="School administrators can open any active trip, inspect current map coordinates, and move from fleet view into trip-specific live tracking."
-      links={[
-        { href: "http://localhost:8000/api/tracking/fleet/live/", label: "Open fleet live API" },
-        { href: "http://localhost:8000/api/tracking/trips/201/live/", label: "Open trip 201 tracking API" },
-      ]}
+      description="Open any active trip, track every bus in real-time, and review route status. Full GPS tracking and live map view are being built and will be available soon."
+      badge="Transport"
     />
   );
 }

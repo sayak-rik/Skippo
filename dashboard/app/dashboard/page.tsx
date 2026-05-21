@@ -3,6 +3,12 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import {
+  UserPlus,
+  CreditCard,
+  BellRing,
+  Bus,
+} from "lucide-react";
 import { DashboardShell } from "../../components/DashboardShell";
 import { ModuleCard } from "../../components/ModuleCard";
 import { dashboardModules } from "../../lib/modules";
@@ -41,10 +47,30 @@ const stagger = (delay = 0.06) => ({
 });
 
 const QUICK_ACTIONS = [
-  { icon: "👤", iconColor: "blue",   label: "Add Student",        href: "/dashboard/students"       },
-  { icon: "💳", iconColor: "amber",  label: "Fee Collections",    href: "/dashboard/payments"       },
-  { icon: "📢", iconColor: "purple", label: "Send Notification",  href: "/dashboard/communications" },
-  { icon: "🚌", iconColor: "green",  label: "Live Fleet",         href: "/dashboard/live-fleet"     },
+  {
+    icon: UserPlus,
+    iconColor: "blue",
+    label: "Add Student",
+    href: "/dashboard/students",
+  },
+  {
+    icon: CreditCard,
+    iconColor: "amber",
+    label: "Fee Collections",
+    href: "/dashboard/payments",
+  },
+  {
+    icon: BellRing,
+    iconColor: "purple",
+    label: "Send Notification",
+    href: "/dashboard/communications",
+  },
+  {
+    icon: Bus,
+    iconColor: "green",
+    label: "Live Fleet",
+    href: "/dashboard/live-fleet",
+  },
 ];
 
 function fmt(n: number) {
@@ -59,6 +85,8 @@ export default function DashboardPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [fees, setFees]         = useState<FeeSummary | null>(null);
   const [loading, setLoading]   = useState(true);
+  const [timeOfDay, setTimeOfDay] = useState("");
+  const [today, setToday] = useState("");
 
   useEffect(() => {
     Promise.allSettled([
@@ -71,37 +99,40 @@ export default function DashboardPage() {
     });
   }, []);
 
-  const today = new Date().toLocaleDateString("en-IN", {
-    day: "numeric", month: "long", year: "numeric", weekday: "long",
-  });
+  useEffect(() => {
+    setTimeOfDay(getTimeOfDay());
+    setToday(new Date().toLocaleDateString("en-IN", {
+      day: "numeric", month: "long", year: "numeric", weekday: "long",
+    }));
+  }, []);
 
   const kpis = [
     {
-      icon: "🎓", iconColor: "purple",
+      icon: "🎓", iconColor: "purple", accent: "accentPurple",
       value: loading ? "—" : String(overview?.students ?? 0),
       label: "Total Students",
       sub: `${overview?.teachers ?? 0} teachers`,
     },
     {
-      icon: "🚌", iconColor: "blue",
+      icon: "🚌", iconColor: "blue", accent: "accentBlue",
       value: loading ? "—" : String(overview?.vehicles ?? 0),
       label: "Vehicles",
       sub: `${overview?.drivers ?? 0} drivers`,
     },
     {
-      icon: "✅", iconColor: "green",
+      icon: "✅", iconColor: "green", accent: "accentGreen",
       value: loading ? "—" : fmt(fees?.total_collected ?? 0),
       label: "Fees Collected",
       sub: `${fees?.paid_count ?? 0} invoices paid`,
     },
     {
-      icon: "💳", iconColor: "amber",
+      icon: "💳", iconColor: "amber", accent: "accentAmber",
       value: loading ? "—" : fmt((fees?.pending_amount ?? 0) + (fees?.overdue_amount ?? 0)),
       label: "Pending Fees",
       sub: `${(fees?.pending_count ?? 0) + (fees?.overdue_count ?? 0)} invoices`,
     },
     {
-      icon: "⚠️", iconColor: "red",
+      icon: "⚠️", iconColor: "red", accent: "accentRed",
       value: loading ? "—" : String(fees?.overdue_count ?? 0),
       label: "Overdue Invoices",
       sub: fees?.overdue_count ? `${fmt(fees.overdue_amount)} overdue` : "All clear",
@@ -112,20 +143,20 @@ export default function DashboardPage() {
     <DashboardShell>
       <div className={styles.inner}>
 
-        {/* ── Greeting Header ─────────────────────────────────────────── */}
+        {/* ── Welcome Banner ──────────────────────────────────────────── */}
         <motion.div
-          className={styles.pageHeader}
+          className={styles.welcomeBanner}
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
         >
           <div>
             <h2 className={styles.greeting}>
-              Good {getTimeOfDay()}, {overview?.school_name ?? "Admin"} 👋
+              Good {timeOfDay}, {overview?.school_name ?? "Admin"} 👋
             </h2>
             <p className={styles.greetingSub}>Here&apos;s what&apos;s happening in your school today.</p>
           </div>
-          <div className={styles.dateChip}>📅 {today}</div>
+          <div className={styles.welcomeDateChip}>📅 {today}</div>
         </motion.div>
 
         {/* ── KPI Strip ───────────────────────────────────────────────── */}
@@ -136,7 +167,7 @@ export default function DashboardPage() {
           animate="show"
         >
           {kpis.map((kpi) => (
-            <motion.div key={kpi.label} variants={fadeUp} className={styles.kpiCard}>
+            <motion.div key={kpi.label} variants={fadeUp} className={`${styles.kpiCard} ${styles[kpi.accent as keyof typeof styles]}`}>
               <div className={styles.kpiTop}>
                 <div className={`${styles.kpiIcon} ${styles[kpi.iconColor as keyof typeof styles]}`}>
                   {kpi.icon}
@@ -158,17 +189,22 @@ export default function DashboardPage() {
         >
           <p className={styles.sectionTitle}>Quick Actions</p>
           <div className={styles.quickActionsGrid}>
-            {QUICK_ACTIONS.map((a) => (
-              <Link key={a.label} href={a.href}>
-                <div className={styles.actionBtn}>
-                  <div className={`${styles.actionIcon} ${styles[a.iconColor as keyof typeof styles]}`}>
-                    {a.icon}
+            {QUICK_ACTIONS.map((a) => {
+              const Icon = a.icon;
+
+              return (
+                <Link key={a.label} href={a.href}>
+                  <div className={styles.actionBtn}>
+                    <div className={`${styles.actionIcon} ${styles[a.iconColor as keyof typeof styles]}`}>
+                      <Icon size={20} strokeWidth={2.2} />
+                    </div>
+
+                    <span className={styles.actionLabel}>{a.label}</span>
+                    <span className={styles.actionArrow}>›</span>
                   </div>
-                  <span className={styles.actionLabel}>{a.label}</span>
-                  <span className={styles.actionArrow}>›</span>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </motion.div>
 

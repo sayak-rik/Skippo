@@ -1,1 +1,6 @@
-{}
+{
+  "/dashboard/students/page": "app/dashboard/students/page.js",
+  "/dashboard/compliance/page": "app/dashboard/compliance/page.js",
+  "/dashboard/reports/page": "app/dashboard/reports/page.js",
+  "/dashboard/teachers/page": "app/dashboard/teachers/page.js"
+}

@@ -1,14 +1,12 @@
-import { ModulePage } from "../../../components/ModulePage";
+import { ComingSoonPage } from "../../../components/ComingSoonPage";
 
 export default function RoutesPage() {
   return (
-    <ModulePage
+    <ComingSoonPage
+      icon="🛣️"
       title="Routes"
-      description="Use this module for route planning, stop sequencing, and linking active trips to map-based transport operations."
-      links={[
-        { href: "http://localhost:8000/api/tracking/fleet/live/", label: "Open route-linked fleet API" },
-        { href: "http://localhost:8000/api/tracking/trips/201/live/", label: "Open active route trip API" },
-      ]}
+      description="Manage route definitions, stops, vehicle allocation, and timing logic. Build and assign bus routes to your fleet with an intuitive route editor."
+      badge="Transport"
     />
   );
 }

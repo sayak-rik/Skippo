@@ -4,6 +4,8 @@ from apps.tenancy.views import (
     AdminOverviewView,
     RegistrationInterestCreateView,
     RegistrationInterestListView,
+    SchoolLogoUploadView,
+    SchoolProfileView,
     SchoolProvisionView,
     StaffManagementView,
 )
@@ -23,4 +25,8 @@ urlpatterns = [
 
     # School admin dashboard overview
     path("school/overview/",             AdminOverviewView.as_view(),              name="tenancy-school-overview"),
+
+    # School branding profile + logo upload
+    path("school/profile/",              SchoolProfileView.as_view(),              name="tenancy-school-profile"),
+    path("school/logo/",                 SchoolLogoUploadView.as_view(),           name="tenancy-school-logo"),
 ]

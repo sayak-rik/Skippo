@@ -1,9 +1,12 @@
 import asyncio
 
 from rest_framework import permissions, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.academics.models import Classroom, Student, StudentParentLink
+from apps.tenancy.models import School
 from common.demo_state import (
     add_comment,
     list_assist_requests,
@@ -16,6 +19,10 @@ from common.demo_state import (
     send_broadcast,
     teacher_dashboard,
 )
+
+
+def _school(request) -> School:
+    return School.objects.get(slug=request.tenant_slug)
 
 
 # ── Module health ─────────────────────────────────────────────────────────────
@@ -360,3 +367,93 @@ class AIVoiceObservationView(APIView):
             return Response({"detail": f"AI error: {exc}"}, status=status.HTTP_502_BAD_GATEWAY)
 
         return Response(result, status=status.HTTP_201_CREATED)
+
+
+# ── Admin: classroom + student management ─────────────────────────────────────
+
+class AdminClassroomListView(APIView):
+    """Admin: list all classrooms with student counts.
+
+    GET /api/academics/admin/classrooms/
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            school = _school(request)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        classrooms = (
+            Classroom.objects
+            .filter(school=school)
+            .select_related("teacher__user")
+            .order_by("name", "section")
+        )
+
+        results = []
+        for cls in classrooms:
+            teacher_name = ""
+            if cls.teacher and cls.teacher.user:
+                teacher_name = cls.teacher.user.get_full_name() or cls.teacher.user.email
+            student_count = Student.objects.filter(school=school, classroom=cls).count()
+            results.append({
+                "id":            cls.id,
+                "name":          cls.name,
+                "section":       cls.section,
+                "teacher":       teacher_name,
+                "student_count": student_count,
+            })
+
+        return Response({"results": results})
+
+
+class AdminStudentListView(APIView):
+    """Admin: list students, optionally filtered by classroom.
+
+    GET /api/academics/admin/students/?classroom_id=<id>
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            school = _school(request)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        classroom_id = request.query_params.get("classroom_id")
+        qs = Student.objects.filter(school=school).select_related("classroom")
+        if classroom_id:
+            qs = qs.filter(classroom_id=classroom_id)
+        qs = qs.order_by("classroom__name", "roll_number", "full_name")
+
+        results = []
+        for s in qs:
+            link = (
+                StudentParentLink.objects
+                .filter(student=s, is_primary=True)
+                .select_related("parent__user")
+                .first()
+            )
+            parent_name  = ""
+            parent_phone = ""
+            has_parent   = StudentParentLink.objects.filter(student=s).exists()
+            if link:
+                parent_name  = link.parent.user.get_full_name() or link.parent.user.email
+                parent_phone = link.parent.phone
+
+            results.append({
+                "id":               s.id,
+                "name":             s.full_name,
+                "roll_number":      s.roll_number,
+                "classroom_id":     s.classroom_id,
+                "classroom_name":   s.classroom.name    if s.classroom else "",
+                "classroom_section":s.classroom.section if s.classroom else "",
+                "parent_name":      parent_name,
+                "parent_phone":     parent_phone,
+                "has_parent":       has_parent,
+            })
+
+        return Response({"results": results})

@@ -1,3 +1,34 @@
 {
-  "pages": {}
+  "pages": {
+    "/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/layout.css",
+      "static/chunks/app/layout.js"
+    ],
+    "/dashboard/students/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/students/page.css",
+      "static/chunks/app/dashboard/students/page.js"
+    ],
+    "/dashboard/teachers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/teachers/page.css",
+      "static/chunks/app/dashboard/teachers/page.js"
+    ],
+    "/dashboard/compliance/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/compliance/page.css",
+      "static/chunks/app/dashboard/compliance/page.js"
+    ],
+    "/dashboard/reports/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/reports/page.css",
+      "static/chunks/app/dashboard/reports/page.js"
+    ]
+  }
 }

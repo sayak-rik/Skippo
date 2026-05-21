@@ -3,6 +3,8 @@ from django.urls import path
 from apps.academics.views import (
     AcademicsRootView,
     AddStudentCommentView,
+    AdminClassroomListView,
+    AdminStudentListView,
     AIClassSummaryView,
     AILessonPlanView,
     AITokenStatusView,
@@ -79,6 +81,10 @@ urlpatterns = [
         ParentStudentReportView.as_view(),
         name="academics-parent-student-report",
     ),
+
+    # Admin — classroom + student management
+    path("admin/classrooms/", AdminClassroomListView.as_view(), name="academics-admin-classrooms"),
+    path("admin/students/",   AdminStudentListView.as_view(),   name="academics-admin-students"),
 
     # AI Teaching Assistant
     path("teacher/ai/tokens/",              AITokenStatusView.as_view(),       name="ai-token-status"),

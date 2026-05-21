@@ -294,3 +294,101 @@ class AdminOverviewView(APIView):
             "drivers":        DriverProfile.objects.filter(school=school).count(),
             "vehicles":       Vehicle.objects.filter(school=school).count(),
         })
+
+
+class SchoolProfileView(APIView):
+    """GET/PATCH the current school's branding profile.
+
+    GET  /api/tenancy/school/profile/
+    PATCH /api/tenancy/school/profile/  body: {logo_url?, brand_name?}
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _get_school_and_config(self, request):
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+        except School.DoesNotExist:
+            return None, None
+        config, _ = TenantConfig.objects.get_or_create(school=school)
+        return school, config
+
+    def _serialize(self, school, config):
+        return {
+            "name":                school.name,
+            "slug":                school.slug,
+            "logo_url":            config.logo_url,
+            "brand_name":          config.brand_name,
+            "onboarding_complete": config.onboarding_complete,
+        }
+
+    def get(self, request):
+        school, config = self._get_school_and_config(request)
+        if school is None:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(self._serialize(school, config))
+
+    def patch(self, request):
+        school, config = self._get_school_and_config(request)
+        if school is None:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        update_fields = []
+        if "logo_url" in request.data:
+            config.logo_url = request.data["logo_url"] or ""
+            update_fields.append("logo_url")
+        if "brand_name" in request.data:
+            config.brand_name = request.data["brand_name"] or ""
+            update_fields.append("brand_name")
+        if update_fields:
+            config.save(update_fields=update_fields)
+
+        return Response(self._serialize(school, config))
+
+
+class SchoolLogoUploadView(APIView):
+    """POST multipart/form-data with field 'logo' to upload the school logo.
+
+    Returns {logo_url} on success.  Saved under MEDIA_ROOT/school_logos/<slug>/.
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    _ALLOWED_TYPES = {"image/png", "image/jpeg", "image/webp", "image/svg+xml"}
+    _MAX_BYTES = 1024 * 1024  # 1 MB
+
+    def post(self, request):
+        from django.conf import settings as django_settings
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+            config, _ = TenantConfig.objects.get_or_create(school=school)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        file = request.FILES.get("logo")
+        if not file:
+            return Response({"detail": "No file provided."}, status=400)
+        if file.content_type not in self._ALLOWED_TYPES:
+            return Response({"detail": "Invalid file type. Use PNG, JPG, WebP, or SVG."}, status=400)
+        if file.size > self._MAX_BYTES:
+            return Response({"detail": "File too large. Maximum size is 1 MB."}, status=400)
+
+        ext = file.name.rsplit(".", 1)[-1].lower() if "." in file.name else "png"
+        save_path = f"school_logos/{slug}/logo.{ext}"
+
+        if default_storage.exists(save_path):
+            default_storage.delete(save_path)
+        saved = default_storage.save(save_path, ContentFile(file.read()))
+
+        logo_url = django_settings.MEDIA_URL + saved
+        config.logo_url = logo_url
+        config.save(update_fields=["logo_url"])
+
+        return Response({"logo_url": logo_url}, status=201)

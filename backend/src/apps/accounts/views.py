@@ -9,9 +9,16 @@ from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.accounts.models import DriverProfile, OTPRequest, ParentProfile
+from apps.accounts.models import (
+    DriverProfile,
+    OTPRequest,
+    ParentProfile,
+    TeacherInvitation,
+    TeacherProfile,
+)
 from apps.tenancy.models import School
 from common.demo_state import (
     accept_driver_invite,
@@ -575,3 +582,84 @@ class DriverSelfSignupView(APIView):
             vehicle_reg=vehicle_reg,
         )
         return Response(payload, status=status.HTTP_201_CREATED)
+
+
+class AdminTeacherListView(APIView):
+    """List teachers (active + pending invitations) for the current school.
+
+    GET /api/auth/admin/teachers/
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=404)
+
+        results = []
+
+        for profile in TeacherProfile.objects.filter(school=school).select_related("user"):
+            u = profile.user
+            results.append({
+                "id":         profile.id,
+                "name":       u.get_full_name() or u.email,
+                "email":      u.email,
+                "phone":      u.phone,
+                "code":       profile.employee_code,
+                "status":     "active",
+                "join_date":  profile.created_at.date().isoformat(),
+            })
+
+        for inv in TeacherInvitation.objects.filter(school=school, is_used=False).order_by("-id"):
+            results.append({
+                "id":         f"inv_{inv.id}",
+                "name":       inv.email.split("@")[0].replace(".", " ").title(),
+                "email":      inv.email,
+                "phone":      "",
+                "code":       "",
+                "status":     "invited",
+                "join_date":  "",
+            })
+
+        return Response({"results": results, "count": len(results)})
+
+
+class CreateTeacherInviteView(APIView):
+    """Create a teacher invitation for the current school.
+
+    POST /api/auth/admin/teachers/invite/
+    body: {email (required), phone, name}
+    Returns: {id, signup_url, email}
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=404)
+
+        email = (request.data.get("email") or "").strip().lower()
+        if not email:
+            return Response({"detail": "email is required."}, status=400)
+
+        token = secrets.token_urlsafe(32)
+        expires_at = timezone.now() + timedelta(days=7)
+
+        invitation = TeacherInvitation.objects.create(
+            school=school,
+            email=email,
+            token=token,
+            invited_by=request.user,
+            expires_at=expires_at,
+        )
+
+        signup_url = f"https://app.skippo.co.in/teacher/signup?token={token}"
+        return Response({"id": invitation.id, "signup_url": signup_url, "email": email}, status=201)

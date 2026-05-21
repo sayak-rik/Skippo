@@ -1,14 +1,12 @@
-import { ModulePage } from "../../../components/ModulePage";
+import { ComingSoonPage } from "../../../components/ComingSoonPage";
 
 export default function CommunicationsPage() {
   return (
-    <ModulePage
+    <ComingSoonPage
+      icon="📢"
       title="Communications"
-      description="Manage school notices, parent update streams, partner campaigns, and operational messages from one communications center."
-      links={[
-        { href: "http://localhost:8000/api/communications/parent/feed/", label: "Open parent message feed API" },
-        { href: "http://localhost:8000/api/notifications/parent/feed/", label: "Open parent alert feed API" },
-      ]}
+      description="Send school notices, parent updates, partner campaigns, and operational broadcasts from one unified communication center. Rich notifications across SMS and in-app."
+      badge="Parent Feed"
     />
   );
 }

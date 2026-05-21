@@ -77,6 +77,7 @@ export default function LoginPage() {
       const data = await res.json();
       // Store JWT in a cookie so middleware can read it
       document.cookie = `skippo_token=${data.access}; path=/; SameSite=Lax`;
+      document.cookie = `skippo_refresh=${data.refresh}; path=/; SameSite=Lax`;
       document.cookie = `skippo_school=${schoolSlug.trim().toLowerCase()}; path=/; SameSite=Lax`;
       window.location.replace("/dashboard");
     } catch (err: any) {
@@ -157,12 +158,12 @@ export default function LoginPage() {
                   {loading ? "Sending OTP…" : "Send OTP →"}
                 </button>
               </form>
-
               <p className={styles.footer}>
                 <a href="/forgot-password" className={styles.link}>
                   Forgot password?
                 </a>
-                {" · "}
+                <br />
+                <br />
                 Don&apos;t have access?{" "}
                 <a href="https://skippo.co.in/signup" className={styles.link}>
                   Request onboarding

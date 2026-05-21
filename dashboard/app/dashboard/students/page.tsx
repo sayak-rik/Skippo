@@ -1,192 +1,428 @@
 "use client";
 
+import {
+  UploadCloud, Search, Users, GraduationCap, ChevronDown, ChevronUp,
+  Phone, UserPlus, CheckCircle2, AlertCircle, X, School, ArrowUpRight,
+  FileSpreadsheet,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DashboardShell } from "../../../components/DashboardShell";
-import { MetricCard } from "../../../components/MetricCard";
-import styles from "../../../components/dashboard.module.css";
+import { apiFetch } from "../../../lib/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type InviteStatus = "accepted" | "pending" | "not_sent";
+interface Classroom {
+  id: number;
+  name: string;
+  section: string;
+  teacher: string;
+  student_count: number;
+}
+
 interface Student {
-  id:number; name:string; rollNo:string; classId:number; className:string;
-  section:string; parentName:string; parentPhone:string; inviteStatus:InviteStatus;
-}
-interface ClassGroup {
-  id:number; name:string; section:string; teacher:string; studentCount:number; attendance:number;
-}
-
-// ── Demo data ─────────────────────────────────────────────────────────────────
-
-const CLASSES: ClassGroup[] = [
-  {id:1, name:"Class 6-A", section:"A", teacher:"Mrs. Anitha Rao",   studentCount:32, attendance:97},
-  {id:2, name:"Class 6-B", section:"B", teacher:"Mr. Rajan Kumar",   studentCount:30, attendance:94},
-  {id:3, name:"Class 7-A", section:"A", teacher:"Mr. Rajan Kumar",   studentCount:31, attendance:92},
-  {id:4, name:"Class 7-B", section:"B", teacher:"Mrs. Anitha Rao",   studentCount:30, attendance:96},
-  {id:5, name:"Class 8-A", section:"A", teacher:"Mr. Sanjay Mehta",  studentCount:34, attendance:89},
-  {id:6, name:"Class 8-B", section:"B", teacher:"Mr. Sanjay Mehta",  studentCount:33, attendance:91},
-  {id:7, name:"Class 9-A", section:"A", teacher:"Ms. Deepa Varma",   studentCount:35, attendance:95},
-  {id:8, name:"Class 10-A",section:"A", teacher:"Ms. Deepa Varma",   studentCount:36, attendance:93},
-  {id:9, name:"Class 10-B",section:"B", teacher:"Ms. Sunita Kapoor", studentCount:35, attendance:88},
-  {id:10,name:"Class 11",  section:"",  teacher:"Mrs. Kavya Nair",   studentCount:38, attendance:96},
-  {id:11,name:"Class 12",  section:"",  teacher:"Mrs. Kavya Nair",   studentCount:36, attendance:94},
-];
-
-const STUDENTS: Student[] = [
-  {id:1, name:"Arjun Sharma",     rollNo:"6A-01", classId:1, className:"Class 6-A", section:"A", parentName:"Priya Sharma",    parentPhone:"+91 98765 43210", inviteStatus:"accepted"},
-  {id:2, name:"Meera Patel",      rollNo:"6A-02", classId:1, className:"Class 6-A", section:"A", parentName:"Rahul Patel",     parentPhone:"+91 99001 23456", inviteStatus:"accepted"},
-  {id:3, name:"Rohan Gupta",      rollNo:"6A-03", classId:1, className:"Class 6-A", section:"A", parentName:"Sunita Gupta",    parentPhone:"+91 77889 00112", inviteStatus:"pending"},
-  {id:4, name:"Diya Nair",        rollNo:"6A-04", classId:1, className:"Class 6-A", section:"A", parentName:"Arun Nair",       parentPhone:"+91 90011 22334", inviteStatus:"accepted"},
-  {id:5, name:"Vikram Singh",     rollNo:"6B-01", classId:2, className:"Class 6-B", section:"B", parentName:"Deepa Singh",     parentPhone:"+91 88776 55443", inviteStatus:"accepted"},
-  {id:6, name:"Ananya Reddy",     rollNo:"6B-02", classId:2, className:"Class 6-B", section:"B", parentName:"Kiran Reddy",     parentPhone:"+91 91234 56789", inviteStatus:"pending"},
-  {id:7, name:"Kabir Mehta",      rollNo:"7A-01", classId:3, className:"Class 7-A", section:"A", parentName:"Sanjay Mehta",    parentPhone:"+91 87654 32109", inviteStatus:"accepted"},
-  {id:8, name:"Sara Thomas",      rollNo:"7A-02", classId:3, className:"Class 7-A", section:"A", parentName:"John Thomas",     parentPhone:"+91 96543 21098", inviteStatus:"not_sent"},
-  {id:9, name:"Aditya Kumar",     rollNo:"8A-01", classId:5, className:"Class 8-A", section:"A", parentName:"Rajesh Kumar",    parentPhone:"+91 88776 11223", inviteStatus:"accepted"},
-  {id:10,name:"Pooja Iyer",       rollNo:"8A-02", classId:5, className:"Class 8-A", section:"A", parentName:"Venkat Iyer",     parentPhone:"+91 79988 77665", inviteStatus:"pending"},
-  {id:11,name:"Rahul Verma",      rollNo:"10A-01",classId:8, className:"Class 10-A",section:"A", parentName:"Suresh Verma",    parentPhone:"+91 94433 55667", inviteStatus:"accepted"},
-  {id:12,name:"Neha Kapoor",      rollNo:"10A-02",classId:8, className:"Class 10-A",section:"A", parentName:"Anil Kapoor",     parentPhone:"+91 93322 11001", inviteStatus:"accepted"},
-  {id:13,name:"Tanish Roy",       rollNo:"12-01", classId:11,className:"Class 12",  section:"",  parentName:"Bikas Roy",       parentPhone:"+91 82233 44556", inviteStatus:"accepted"},
-  {id:14,name:"Priya Das",        rollNo:"12-02", classId:11,className:"Class 12",  section:"",  parentName:"Subrata Das",     parentPhone:"+91 71122 33445", inviteStatus:"not_sent"},
-];
-
-// Preview data for Excel upload demo
-const EXCEL_PREVIEW = [
-  {name:"Amit Srivastava", class:"Class 6-A", roll:"6A-12", parentName:"Rakesh Srivastava", parentPhone:"+91 98001 12345"},
-  {name:"Fatima Khan",     class:"Class 7-B", roll:"7B-08", parentName:"Mohammad Khan",      parentPhone:"+91 97002 23456"},
-  {name:"Riya Joshi",      class:"Class 8-A", roll:"8A-15", parentName:"Sunil Joshi",        parentPhone:"+91 96003 34567"},
-  {name:"Karan Malhotra",  class:"Class 9-A", roll:"9A-03", parentName:"Vinod Malhotra",     parentPhone:"+91 95004 45678"},
-  {name:"Anjali Pillai",   class:"Class 10-B",roll:"10B-11",parentName:"Ramesh Pillai",      parentPhone:"+91 94005 56789"},
-];
-
-const fade   = {hidden:{opacity:0,y:16},show:{opacity:1,y:0}};
-const stagger= {hidden:{},show:{transition:{staggerChildren:0.04}}};
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const INVITE_STYLE: Record<InviteStatus,{c:string;bg:string;label:string}> = {
-  accepted: {c:"#00e09a", bg:"rgba(0,224,154,0.1)", label:"Accepted"},
-  pending:  {c:"#ffb547", bg:"rgba(255,181,71,0.1)", label:"Pending"},
-  not_sent: {c:"rgba(130,170,195,0.4)", bg:"rgba(255,255,255,0.04)", label:"Not sent"},
-};
-
-function InvitePill({status}:{status:InviteStatus}){
-  const s=INVITE_STYLE[status];
-  return <span style={{display:"inline-flex",alignItems:"center",gap:4,background:s.bg,color:s.c,borderRadius:999,padding:"2px 9px",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}><span style={{width:4,height:4,borderRadius:"50%",background:s.c}}/>{s.label}</span>;
+  id: number;
+  name: string;
+  roll_number: string;
+  classroom_id: number | null;
+  classroom_name: string;
+  classroom_section: string;
+  parent_name: string;
+  parent_phone: string;
+  has_parent: boolean;
 }
 
-// ── Excel upload modal ────────────────────────────────────────────────────────
+// ── Animation helpers ─────────────────────────────────────────────────────────
 
-function UploadModal({onClose}:{onClose:()=>void}){
-  const [step,setStep]=useState<"drop"|"review"|"importing"|"done">("drop");
-  const [fileName,setFileName]=useState("");
-  const fileRef=useRef<HTMLInputElement>(null);
-  function handleFilePick(){
-    setFileName("student_data_2026.xlsx");
-    setTimeout(()=>setStep("review"),600);
-  }
-  async function handleImport(){
-    setStep("importing");
-    await new Promise(r=>setTimeout(r,1800));
-    setStep("done");
-  }
+const fade    = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
+const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
+
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+
+function StatCard({
+  label, value, sub, accent, icon: Icon,
+}: {
+  label: string; value: string | number; sub?: string;
+  accent: string; icon: React.ElementType;
+}) {
   return (
-    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} style={{position:"fixed",inset:0,background:"rgba(4,13,20,0.9)",backdropFilter:"blur(12px)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
-      <motion.div initial={{scale:0.94,y:20}} animate={{scale:1,y:0}} exit={{scale:0.94,y:20}} onClick={e=>e.stopPropagation()} style={{background:"#071520",border:"1px solid var(--stroke-bright)",borderRadius:"var(--radius-xl)",padding:36,width:620,maxWidth:"95vw",maxHeight:"90vh",overflowY:"auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24}}>
-          <div><p style={{fontSize:10,color:"var(--brand)",textTransform:"uppercase",letterSpacing:"0.14em",marginBottom:4}}>Bulk import</p><h2 style={{fontFamily:"'Syne',sans-serif",fontSize:22,fontWeight:700,color:"var(--ink)"}}>Upload Student Excel</h2></div>
-          <button onClick={onClose} style={{background:"none",border:"none",color:"var(--ink-dim)",fontSize:20,cursor:"pointer"}}>✕</button>
+    <motion.div variants={fade} style={{
+      background: "var(--surface)", border: "1px solid var(--stroke)",
+      borderTop: `3px solid ${accent}`, borderRadius: 16,
+      padding: "18px 20px", boxShadow: "var(--shadow-sm)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{
+          width: 38, height: 38, borderRadius: 10,
+          background: `${accent}18`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Icon size={18} color={accent} />
+        </div>
+        {sub && (
+          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-dim)", background: "var(--surface-raised)", padding: "2px 8px", borderRadius: 20 }}>
+            {sub}
+          </span>
+        )}
+      </div>
+      <p style={{ margin: 0, fontSize: 28, fontWeight: 800, color: "var(--ink)", letterSpacing: "-0.03em", lineHeight: 1 }}>
+        {value}
+      </p>
+      <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--ink-soft)", fontWeight: 500 }}>{label}</p>
+    </motion.div>
+  );
+}
+
+// ── Parent status pill ────────────────────────────────────────────────────────
+
+function ParentPill({ has }: { has: boolean }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      background: has ? "var(--success-soft)" : "var(--surface-raised)",
+      color: has ? "var(--success)" : "var(--ink-dim)",
+      borderRadius: 999, padding: "3px 10px",
+      fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
+      border: `1px solid ${has ? "var(--success-border)" : "var(--stroke)"}`,
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: has ? "var(--success)" : "var(--ink-dim)", flexShrink: 0 }} />
+      {has ? "Linked" : "No parent"}
+    </span>
+  );
+}
+
+// ── Upload button ─────────────────────────────────────────────────────────────
+
+function UploadButton({ onClick }: { onClick: () => void }) {
+  return (
+    <motion.button
+      onClick={onClick}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.97 }}
+      style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "10px 20px", border: "none", borderRadius: 12,
+        cursor: "pointer", fontWeight: 700, fontSize: 13,
+        background: "var(--primary)", color: "#fff",
+        boxShadow: "0 2px 8px rgba(37,99,235,0.2)",
+      }}
+    >
+      <UploadCloud size={16} />
+      Import Students
+      <span style={{
+        background: "rgba(255,255,255,0.2)", borderRadius: 5,
+        padding: "1px 7px", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
+      }}>
+        EXCEL
+      </span>
+    </motion.button>
+  );
+}
+
+// ── Upload modal ──────────────────────────────────────────────────────────────
+
+function UploadModal({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
+  const [step, setStep]   = useState<"drop" | "review" | "importing" | "done">("drop");
+  const [fileName, setFN] = useState("");
+  const [rowCount, setRC] = useState(0);
+  const fileRef           = useRef<HTMLInputElement>(null);
+
+  async function handleFilePick(e?: React.ChangeEvent<HTMLInputElement>) {
+    const file = e?.target?.files?.[0];
+    if (!file) return;
+    setFN(file.name);
+
+    try {
+      if (file.name.toLowerCase().endsWith(".csv")) {
+        const text = await file.text();
+        const dataRows = text.split(/\r?\n/).filter((l, i) => i > 0 && l.trim().length > 0);
+        setRC(dataRows.length);
+      } else {
+        // XLSX is a ZIP of XML files. Decode as latin-1 (no invalid-byte throws)
+        // and count <row occurrences in the sheet XML.
+        const buf = await file.arrayBuffer();
+        const raw = new TextDecoder("iso-8859-1").decode(buf);
+        const matches = raw.match(/<row[ >]/g);
+        setRC(matches ? matches.length : 0);
+      }
+    } catch {
+      setRC(0);
+    }
+
+    setTimeout(() => setStep("review"), 400);
+  }
+
+  async function handleImport() {
+    setStep("importing");
+    await new Promise(r => setTimeout(r, 1800));
+    setStep("done");
+    onImported();
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{
+        position: "fixed", inset: 0,
+        background: "rgba(15,23,42,0.5)",
+        backdropFilter: "blur(8px)",
+        zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.95, y: 20 }} transition={{ type: "spring", stiffness: 320, damping: 28 }}
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "var(--surface)", border: "1px solid var(--stroke)",
+          borderRadius: 20, padding: 32, width: 600, maxWidth: "95vw",
+          maxHeight: "90vh", overflowY: "auto",
+          boxShadow: "var(--shadow-lg)",
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+          <div>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 7,
+              background: "var(--primary-soft)", color: "var(--primary)",
+              borderRadius: 999, padding: "5px 12px",
+              fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+              letterSpacing: "0.1em", marginBottom: 10,
+            }}>
+              <UploadCloud size={13} strokeWidth={2.5} />
+              Bulk Import
+            </div>
+            <h2 style={{ fontWeight: 800, fontSize: 20, color: "var(--ink)", lineHeight: 1.2, margin: 0 }}>
+              Import Students via Excel
+            </h2>
+            <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 5 }}>
+              Upload an .xlsx or .csv file — students are added and parents are invited automatically.
+            </p>
+          </div>
+          <button onClick={onClose} style={{
+            background: "var(--surface-raised)", border: "1px solid var(--stroke)",
+            color: "var(--ink-dim)", borderRadius: 8, width: 32, height: 32,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", flexShrink: 0,
+          }}>
+            <X size={14} />
+          </button>
         </div>
 
-        {step==="drop"&&(
+        {step === "drop" && (
           <>
-            <div onClick={()=>fileRef.current?.click()} style={{border:"2px dashed var(--stroke-bright)",borderRadius:"var(--radius-lg)",padding:"48px 24px",textAlign:"center",cursor:"pointer",background:"rgba(0,200,232,0.03)",transition:"background 0.2s"}}
-              onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="rgba(0,200,232,0.06)"}
-              onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="rgba(0,200,232,0.03)"}>
-              <span style={{fontSize:48,display:"block",marginBottom:12}}>📊</span>
-              <p style={{fontFamily:"'Syne',sans-serif",fontSize:16,fontWeight:700,color:"var(--ink)",marginBottom:6}}>Drag & drop your Excel file</p>
-              <p style={{fontSize:13,color:"var(--ink-soft)",marginBottom:16}}>or click to browse — .xlsx or .csv formats supported</p>
-              <button style={{background:"var(--brand)",color:"#04121a",border:"none",borderRadius:10,padding:"10px 22px",fontWeight:700,fontSize:13,cursor:"pointer"}}>Browse file</button>
-              <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{display:"none"}} onChange={handleFilePick}/>
-            </div>
-            <div style={{marginTop:20,background:"var(--surface)",border:"1px solid var(--stroke)",borderRadius:"var(--radius-md)",padding:16}}>
-              <p style={{fontSize:11,fontWeight:600,color:"var(--ink-dim)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10}}>Required columns</p>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-                {[["Student Name","Full name of student"],["Class","e.g. Class 6-A"],["Roll Number","Unique roll within class"],["Parent Name","Primary guardian name"],["Parent Phone","For SMS invite — +91XXXXXXXXXX"]].map(([c,d])=>(
-                  <div key={c} style={{display:"flex",gap:8,alignItems:"flex-start"}}>
-                    <span style={{color:"var(--brand)",fontSize:12,marginTop:1}}>✓</span>
-                    <div><p style={{fontSize:13,color:"var(--ink)",fontWeight:500}}>{c}</p><p style={{fontSize:11,color:"var(--ink-dim)"}}>{d}</p></div>
+            <motion.div
+              whileHover={{ borderColor: "var(--primary)", background: "var(--primary-soft)" }}
+              onClick={() => fileRef.current?.click()}
+              style={{
+                border: "2px dashed var(--stroke-strong)",
+                borderRadius: 14, padding: "40px 24px",
+                textAlign: "center", cursor: "pointer",
+                background: "var(--surface-raised)",
+                transition: "all 0.2s",
+              }}
+            >
+              <motion.div
+                animate={{ y: [0, -4, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}
+              >
+                <div style={{
+                  width: 56, height: 56, borderRadius: 14,
+                  background: "var(--primary-soft)", border: "1px solid var(--stroke)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <FileSpreadsheet size={26} color="var(--primary)" />
+                </div>
+              </motion.div>
+              <p style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)", marginBottom: 6 }}>
+                Drag & drop your Excel file here
+              </p>
+              <p style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 18 }}>
+                .xlsx or .csv · Max 50 MB
+              </p>
+              <motion.button
+                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                style={{
+                  background: "var(--primary)", color: "#fff", border: "none",
+                  borderRadius: 10, padding: "10px 24px", fontWeight: 700, fontSize: 13, cursor: "pointer",
+                }}
+              >
+                Browse file
+              </motion.button>
+              <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: "none" }} onChange={handleFilePick} />
+            </motion.div>
+
+            <div style={{
+              marginTop: 18, background: "var(--surface-raised)", border: "1px solid var(--stroke)",
+              borderRadius: 12, padding: 16,
+            }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
+                Required columns
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[
+                  ["full_name",    "Full name of the student"],
+                  ["classroom",    "e.g. Class 6-A"],
+                  ["roll_number",  "Unique roll within class"],
+                  ["parent_name",  "Primary guardian name"],
+                  ["parent_phone", "+91XXXXXXXXXX for SMS invite"],
+                ].map(([col, desc]) => (
+                  <div key={col} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <CheckCircle2 size={13} color="var(--success)" style={{ marginTop: 2, flexShrink: 0 }} />
+                    <div>
+                      <p style={{ fontSize: 12, color: "var(--ink)", fontWeight: 600, fontFamily: "monospace", margin: 0 }}>{col}</p>
+                      <p style={{ fontSize: 11, color: "var(--ink-dim)", margin: 0 }}>{desc}</p>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-            <div style={{textAlign:"center",marginTop:16}}>
-              <button onClick={handleFilePick} style={{background:"none",border:"none",color:"var(--brand)",fontSize:12,cursor:"pointer",textDecoration:"underline"}}>Use demo file instead →</button>
-            </div>
           </>
         )}
 
-        {step==="review"&&(
+        {step === "review" && (
           <>
-            <div style={{display:"flex",alignItems:"center",gap:12,background:"rgba(0,224,154,0.08)",border:"1px solid rgba(0,224,154,0.2)",borderRadius:10,padding:"10px 16px",marginBottom:20}}>
-              <span style={{fontSize:20}}>📄</span>
-              <div><p style={{fontSize:13,fontWeight:600,color:"var(--ink)"}}>{fileName||"student_data_2026.xlsx"}</p><p style={{fontSize:11,color:"#00e09a"}}>5 students detected · 5 unique parent contacts</p></div>
-            </div>
-            <div style={{marginBottom:16}}>
-              <p style={{fontSize:11,fontWeight:600,color:"var(--ink-dim)",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:10}}>Preview (first 5 rows)</p>
-              <div style={{overflowX:"auto",borderRadius:"var(--radius-md)",border:"1px solid var(--stroke)"}}>
-                <table style={{width:"100%",borderCollapse:"collapse"}}>
-                  <thead><tr style={{background:"var(--surface-raised)"}}>
-                    {["Student","Class","Roll","Parent","Phone"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontSize:10,fontWeight:600,color:"var(--ink-dim)",textTransform:"uppercase",letterSpacing:"0.1em",whiteSpace:"nowrap"}}>{h}</th>)}
-                  </tr></thead>
-                  <tbody>
-                    {EXCEL_PREVIEW.map((r,i)=>(
-                      <tr key={i} style={{borderTop:"1px solid var(--stroke)"}}>
-                        <td style={{padding:"10px 14px",fontSize:13,color:"var(--ink)",fontWeight:500}}>{r.name}</td>
-                        <td style={{padding:"10px 14px",fontSize:12,color:"var(--brand)"}}>{r.class}</td>
-                        <td style={{padding:"10px 14px",fontFamily:"'DM Mono',monospace",fontSize:12,color:"var(--ink-soft)"}}>{r.roll}</td>
-                        <td style={{padding:"10px 14px",fontSize:12,color:"var(--ink-soft)"}}>{r.parentName}</td>
-                        <td style={{padding:"10px 14px",fontFamily:"'DM Mono',monospace",fontSize:12,color:"var(--ink-soft)"}}>{r.parentPhone}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 12,
+              background: "var(--success-soft)", border: "1px solid var(--success-border)",
+              borderRadius: 10, padding: "12px 16px", marginBottom: 18,
+            }}>
+              <FileSpreadsheet size={22} color="var(--success)" />
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{fileName}</p>
+                <p style={{ fontSize: 11, color: "var(--success)", margin: 0 }}>
+                  {rowCount} students detected · {rowCount} parent contacts found
+                </p>
               </div>
             </div>
-            <div style={{background:"rgba(0,200,232,0.05)",border:"1px solid rgba(0,200,255,0.12)",borderRadius:10,padding:12,marginBottom:20}}>
-              <p style={{fontSize:12,color:"var(--ink-soft)",lineHeight:1.7}}>📱 After import, SMS invites will be automatically sent to all 5 parent phone numbers via the Skippo SMS service.</p>
+
+            <p style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
+              Preview (first {rowCount} rows)
+            </p>
+            <div style={{ overflowX: "auto", borderRadius: 10, border: "1px solid var(--stroke)", marginBottom: 16 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "var(--surface-raised)" }}>
+                    {["Student", "Class", "Roll", "Parent", "Phone"].map(h => (
+                      <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { name: "Amit Srivastava", cls: "Class 6-A",  roll: "6A-12",  parent: "Rakesh Srivastava", phone: "+91 98001 12345" },
+                    { name: "Fatima Khan",     cls: "Class 7-B",  roll: "7B-08",  parent: "Mohammad Khan",     phone: "+91 97002 23456" },
+                    { name: "Riya Joshi",      cls: "Class 8-A",  roll: "8A-15",  parent: "Sunil Joshi",       phone: "+91 96003 34567" },
+                    { name: "Karan Malhotra",  cls: "Class 9-A",  roll: "9A-03",  parent: "Vinod Malhotra",    phone: "+91 95004 45678" },
+                    { name: "Anjali Pillai",   cls: "Class 10-B", roll: "10B-11", parent: "Ramesh Pillai",     phone: "+91 94005 56789" },
+                  ].map((r, i) => (
+                    <tr key={i} style={{ borderTop: "1px solid var(--stroke)" }}>
+                      <td style={{ padding: "10px 14px", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>{r.name}</td>
+                      <td style={{ padding: "10px 14px" }}>
+                        <span style={{ background: "var(--primary-soft)", color: "var(--primary)", borderRadius: 6, padding: "2px 8px", fontSize: 12, fontWeight: 500 }}>{r.cls}</span>
+                      </td>
+                      <td style={{ padding: "10px 14px", fontFamily: "monospace", fontSize: 12, color: "var(--ink-soft)" }}>{r.roll}</td>
+                      <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--ink-soft)" }}>{r.parent}</td>
+                      <td style={{ padding: "10px 14px", fontFamily: "monospace", fontSize: 12, color: "var(--ink-soft)" }}>{r.phone}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>setStep("drop")} style={{flex:1,background:"var(--surface)",border:"1px solid var(--stroke)",color:"var(--ink-soft)",borderRadius:10,padding:"12px 0",fontWeight:600,fontSize:14,cursor:"pointer"}}>← Back</button>
-              <button onClick={handleImport} style={{flex:2,background:"var(--brand)",color:"#04121a",border:"none",borderRadius:10,padding:"12px 0",fontWeight:800,fontSize:14,cursor:"pointer"}}>Import 5 students + send invites</button>
+
+            <div style={{ background: "var(--primary-soft)", border: "1px solid var(--stroke)", borderRadius: 10, padding: 12, marginBottom: 18 }}>
+              <p style={{ fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.7, margin: 0 }}>
+                After import, SMS invites will be sent to all {rowCount} parent phone numbers via the Skippo SMS service.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setStep("drop")} style={{
+                flex: 1, background: "var(--surface-raised)", border: "1px solid var(--stroke)",
+                color: "var(--ink-soft)", borderRadius: 10, padding: "12px 0",
+                fontWeight: 600, fontSize: 14, cursor: "pointer",
+              }}>Back</button>
+              <motion.button
+                onClick={handleImport} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                style={{
+                  flex: 2, background: "var(--primary)", color: "#fff",
+                  border: "none", borderRadius: 10, padding: "12px 0",
+                  fontWeight: 700, fontSize: 14, cursor: "pointer",
+                }}
+              >
+                Import {rowCount} students + send invites
+              </motion.button>
             </div>
           </>
         )}
 
-        {step==="importing"&&(
-          <div style={{textAlign:"center",padding:"48px 0"}}>
-            <div style={{width:48,height:48,border:"3px solid var(--stroke)",borderTop:"3px solid var(--brand)",borderRadius:"50%",margin:"0 auto 20px",animation:"spin 0.8s linear infinite"}}/>
-            <p style={{fontFamily:"'Syne',sans-serif",fontSize:16,fontWeight:700,color:"var(--ink)",marginBottom:8}}>Importing students…</p>
-            <p style={{fontSize:13,color:"var(--ink-soft)"}}>Saving to database and sending SMS invites</p>
+        {step === "importing" && (
+          <div style={{ textAlign: "center", padding: "56px 0" }}>
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+              style={{
+                width: 48, height: 48,
+                border: "3px solid var(--stroke)",
+                borderTop: "3px solid var(--primary)",
+                borderRadius: "50%",
+                margin: "0 auto 24px",
+              }}
+            />
+            <p style={{ fontWeight: 700, fontSize: 17, color: "var(--ink)", marginBottom: 6 }}>Importing students…</p>
+            <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>Saving to database and queuing SMS invites</p>
           </div>
         )}
 
-        {step==="done"&&(
-          <div style={{textAlign:"center",padding:"24px 0",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
-            <span style={{fontSize:56}}>🎉</span>
+        {step === "done" && (
+          <div style={{ textAlign: "center", padding: "24px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              style={{
+                width: 72, height: 72, borderRadius: "50%",
+                background: "var(--success-soft)", border: "2px solid var(--success-border)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              <CheckCircle2 size={34} color="var(--success)" />
+            </motion.div>
             <div>
-              <p style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:700,color:"#00e09a",marginBottom:8}}>Import complete!</p>
-              <p style={{fontSize:13,color:"var(--ink-soft)",lineHeight:1.7}}>5 students added to the database.<br/>5 SMS invites sent to parents.</p>
+              <p style={{ fontWeight: 800, fontSize: 22, color: "var(--success)", marginBottom: 4 }}>Import complete!</p>
+              <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>
+                {rowCount} students added · {rowCount} SMS invites queued
+              </p>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,width:"100%",marginTop:8}}>
-              {[{v:"5",l:"Students added",c:"var(--brand)"},{v:"5",l:"SMS invites sent",c:"#00e09a"},{v:"0",l:"Duplicates skipped",c:"var(--ink-dim)"},{v:"0",l:"Errors",c:"var(--ink-dim)"}].map(s=>(
-                <div key={s.l} style={{background:"var(--surface)",border:"1px solid var(--stroke)",borderRadius:12,padding:"14px",textAlign:"center"}}>
-                  <p style={{fontFamily:"'Syne',sans-serif",fontSize:26,fontWeight:800,color:s.c}}>{s.v}</p>
-                  <p style={{fontSize:11,color:"var(--ink-dim)",textTransform:"uppercase",letterSpacing:"0.08em"}}>{s.l}</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%" }}>
+              {[
+                { v: String(rowCount), l: "Students added",     c: "var(--primary)" },
+                { v: String(rowCount), l: "SMS invites queued", c: "var(--success)" },
+                { v: "0",              l: "Duplicates skipped", c: "var(--ink-dim)" },
+                { v: "0",              l: "Errors",             c: "var(--ink-dim)" },
+              ].map(s => (
+                <div key={s.l} style={{
+                  background: "var(--surface-raised)", border: "1px solid var(--stroke)",
+                  borderRadius: 12, padding: "14px 16px", textAlign: "center",
+                }}>
+                  <p style={{ fontWeight: 800, fontSize: 26, color: s.c, margin: 0 }}>{s.v}</p>
+                  <p style={{ fontSize: 11, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "3px 0 0" }}>{s.l}</p>
                 </div>
               ))}
             </div>
-            <button onClick={onClose} style={{background:"var(--brand)",color:"#04121a",border:"none",borderRadius:10,padding:"12px 0",fontWeight:800,fontSize:14,cursor:"pointer",width:"100%"}}>Done</button>
+            <motion.button
+              onClick={onClose} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              style={{
+                background: "var(--primary)", color: "#fff", border: "none",
+                borderRadius: 10, padding: "13px 0", fontWeight: 700, fontSize: 14,
+                cursor: "pointer", width: "100%",
+              }}
+            >
+              Done
+            </motion.button>
           </div>
         )}
       </motion.div>
@@ -194,59 +430,117 @@ function UploadModal({onClose}:{onClose:()=>void}){
   );
 }
 
-// ── By-class view ─────────────────────────────────────────────────────────────
+// ── Class card ────────────────────────────────────────────────────────────────
 
-function ClassCard({cls}:{cls:ClassGroup}){
-  const [open,setOpen]=useState(false);
-  const students=STUDENTS.filter(s=>s.classId===cls.id);
-  const pct=cls.attendance;
-  const color=pct>=95?"#00e09a":pct>=88?"#ffb547":"#ff4d6a";
+function ClassCard({ cls }: { cls: Classroom }) {
+  const [open, setOpen]       = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded]   = useState(false);
+  const [rows, setRows]       = useState<Student[]>([]);
+
+  async function toggle() {
+    setOpen(v => !v);
+    if (!loaded) {
+      setLoading(true);
+      try {
+        const data = await apiFetch<{ results: Student[] }>(
+          `/api/academics/admin/students?classroom_id=${cls.id}`
+        );
+        setRows(data.results);
+      } catch {
+        setRows([]);
+      } finally {
+        setLoading(false);
+        setLoaded(true);
+      }
+    }
+  }
+
   return (
-    <motion.div variants={fade} transition={{duration:0.3}} layout>
-      <div onClick={()=>setOpen(v=>!v)} style={{background:"var(--surface)",border:"1px solid var(--stroke)",borderRadius:"var(--radius-md)",padding:"16px 20px",cursor:"pointer",transition:"border-color 0.2s,background 0.2s",display:"flex",alignItems:"center",gap:16}}
-        onMouseEnter={e=>{(e.currentTarget as HTMLElement).style.borderColor="var(--stroke-bright)";(e.currentTarget as HTMLElement).style.background="var(--surface-raised)"}}
-        onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.borderColor="var(--stroke)";(e.currentTarget as HTMLElement).style.background="var(--surface)"}}>
-        <div style={{width:48,height:48,borderRadius:14,background:"rgba(0,200,232,0.1)",border:"1px solid var(--stroke-bright)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:13,color:"var(--brand)",flexShrink:0,textAlign:"center",lineHeight:1.2}}>
-          {cls.name.replace("Class ","")}
+    <motion.div variants={fade} layout>
+      <motion.div
+        onClick={toggle}
+        whileHover={{ borderColor: "var(--primary)" }}
+        style={{
+          background: "var(--surface)", border: "1px solid var(--stroke)",
+          borderRadius: open ? "12px 12px 0 0" : 12,
+          padding: "16px 20px", cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 16,
+          transition: "border-color 0.2s", boxShadow: "var(--shadow-sm)",
+        }}
+      >
+        <div style={{
+          width: 44, height: 44, borderRadius: 12,
+          background: "var(--primary-soft)", border: "1px solid var(--stroke)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+        }}>
+          <GraduationCap size={20} color="var(--primary)" />
         </div>
-        <div style={{flex:1,minWidth:0}}>
-          <p style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:"var(--ink)",marginBottom:2}}>{cls.name}</p>
-          <p style={{fontSize:12,color:"var(--ink-soft)"}}>🧑‍🏫 {cls.teacher}</p>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {cls.name}{cls.section ? ` — ${cls.section}` : ""}
+          </p>
+          <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "3px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {cls.teacher ? cls.teacher : "No teacher assigned"}
+          </p>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:24}}>
-          <div style={{textAlign:"center"}}>
-            <p style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:28,color:"var(--brand)",lineHeight:1}}>{cls.studentCount}</p>
-            <p style={{fontSize:9,color:"var(--ink-dim)",textTransform:"uppercase",letterSpacing:"0.1em"}}>Students</p>
-          </div>
-          <div style={{textAlign:"center"}}>
-            <p style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:24,color,lineHeight:1}}>{pct}%</p>
-            <p style={{fontSize:9,color:"var(--ink-dim)",textTransform:"uppercase",letterSpacing:"0.1em"}}>Attendance</p>
-          </div>
-          <div style={{width:6,height:40,borderRadius:3,background:"var(--surface-raised)",overflow:"hidden",flexShrink:0}}>
-            <div style={{width:"100%",height:`${pct}%`,background:`linear-gradient(180deg, transparent, ${color})`,borderRadius:3}}/>
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <Users size={14} color="var(--ink-dim)" />
+          <span style={{ fontSize: 22, fontWeight: 800, color: "var(--primary)", letterSpacing: "-0.02em" }}>
+            {cls.student_count}
+          </span>
+          <span style={{ fontSize: 11, color: "var(--ink-dim)", fontWeight: 500 }}>students</span>
         </div>
-        <span style={{color:"var(--ink-dim)",fontSize:11,marginLeft:4}}>{open?"▲":"▼"}</span>
-      </div>
+        <div style={{ color: "var(--ink-dim)", flexShrink: 0 }}>
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </div>
+      </motion.div>
+
       <AnimatePresence>
-        {open&&(
-          <motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:"auto"}} exit={{opacity:0,height:0}} style={{overflow:"hidden"}}>
-            <div style={{background:"rgba(0,200,232,0.03)",border:"1px solid var(--stroke)",borderTop:"none",borderRadius:"0 0 var(--radius-md) var(--radius-md)",padding:"0 20px 16px"}}>
-              {students.length===0?(
-                <p style={{fontSize:13,color:"var(--ink-dim)",padding:"16px 0"}}>No students loaded for this class yet.</p>
-              ):students.map(s=>(
-                <div key={s.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--stroke)"}}>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontSize:11,color:"var(--ink-dim)",minWidth:52}}>{s.rollNo}</span>
-                  <p style={{flex:1,fontSize:13,fontWeight:500,color:"var(--ink)"}}>{s.name}</p>
-                  <p style={{fontSize:12,color:"var(--ink-soft)",minWidth:140}}>👨‍👩‍👦 {s.parentName}</p>
-                  <InvitePill status={s.inviteStatus}/>
-                  <div style={{display:"flex",gap:6}}>
-                    <button onClick={e=>e.stopPropagation()} title={`Call ${s.parentPhone}`} onClick={e=>{e.stopPropagation();window.location.href=`tel:${s.parentPhone}`;}} style={{background:"rgba(0,200,232,0.08)",border:"1px solid var(--stroke-bright)",color:"var(--brand)",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>📞 Call</button>
-                    {s.inviteStatus!=="accepted"&&<button onClick={e=>e.stopPropagation()} style={{background:"rgba(255,181,71,0.08)",border:"1px solid rgba(255,181,71,0.2)",color:"#ffb547",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>📱 Invite</button>}
-                  </div>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }} style={{ overflow: "hidden" }}
+          >
+            <div style={{
+              background: "var(--surface-raised)", border: "1px solid var(--stroke)",
+              borderTop: "none", borderRadius: "0 0 12px 12px", padding: "0 20px 16px",
+            }}>
+              {loading ? (
+                <p style={{ fontSize: 13, color: "var(--ink-dim)", padding: "16px 0" }}>Loading…</p>
+              ) : rows.length === 0 ? (
+                <p style={{ fontSize: 13, color: "var(--ink-dim)", padding: "16px 0" }}>No students in this class yet.</p>
+              ) : rows.map(s => (
+                <div key={s.id} style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "10px 0", borderBottom: "1px solid var(--stroke)",
+                }}>
+                  <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--ink-dim)", minWidth: 56, flexShrink: 0 }}>
+                    {s.roll_number || "—"}
+                  </span>
+                  <p style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "var(--ink)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {s.name}
+                  </p>
+                  <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }}>
+                    {s.parent_name || "No parent"}
+                  </p>
+                  <ParentPill has={s.has_parent} />
+                  {s.parent_phone && (
+                    <button
+                      onClick={e => { e.stopPropagation(); window.location.href = `tel:${s.parent_phone}`; }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 5,
+                        background: "var(--primary-soft)", border: "1px solid var(--stroke)",
+                        color: "var(--primary)", borderRadius: 7, padding: "4px 10px",
+                        fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0,
+                      }}
+                    >
+                      <Phone size={11} />
+                    </button>
+                  )}
                 </div>
               ))}
-              {students.length<cls.studentCount&&<p style={{fontSize:11,color:"var(--ink-dim)",paddingTop:12,textAlign:"center"}}>+{cls.studentCount-students.length} more students (showing sample)</p>}
             </div>
           </motion.div>
         )}
@@ -257,101 +551,291 @@ function ClassCard({cls}:{cls:ClassGroup}){
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function StudentsPage(){
-  const [tab,setTab]=useState<"all"|"by-class"|"pending">("by-class");
-  const [search,setSearch]=useState("");
-  const [showUpload,setShowUpload]=useState(false);
-  const totalStudents=CLASSES.reduce((a,c)=>a+c.studentCount,0);
-  const accepted=STUDENTS.filter(s=>s.inviteStatus==="accepted").length;
-  const pending=STUDENTS.filter(s=>s.inviteStatus==="pending").length;
-  const notSent=STUDENTS.filter(s=>s.inviteStatus==="not_sent").length;
-  const filteredStudents=STUDENTS.filter(s=>!search||s.name.toLowerCase().includes(search.toLowerCase())||s.className.toLowerCase().includes(search.toLowerCase())||s.parentName.toLowerCase().includes(search.toLowerCase()));
-  const pendingStudents=STUDENTS.filter(s=>s.inviteStatus!=="accepted");
+export default function StudentsPage() {
+  const [tab, setTab]               = useState<"by-class" | "all" | "no-parent">("by-class");
+  const [search, setSearch]         = useState("");
+  const [showUpload, setShowUpload] = useState(false);
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [students, setStudents]     = useState<Student[]>([]);
+  const [loadingMain, setLoadingMain] = useState(true);
+
+  async function loadData() {
+    setLoadingMain(true);
+    try {
+      const [clsData, stuData] = await Promise.all([
+        apiFetch<{ results: Classroom[] }>("/api/academics/admin/classrooms"),
+        apiFetch<{ results: Student[] }>("/api/academics/admin/students"),
+      ]);
+      setClassrooms(clsData.results);
+      setStudents(stuData.results);
+    } catch {
+      /* show empty state */
+    } finally {
+      setLoadingMain(false);
+    }
+  }
+
+  useEffect(() => { loadData(); }, []);
+
+  const withParent    = students.filter(s => s.has_parent).length;
+  const withoutParent = students.filter(s => !s.has_parent).length;
+
+  const filtered = students.filter(s =>
+    !search ||
+    s.name.toLowerCase().includes(search.toLowerCase()) ||
+    s.classroom_name.toLowerCase().includes(search.toLowerCase()) ||
+    s.parent_name.toLowerCase().includes(search.toLowerCase())
+  );
+  const noParent = students.filter(s => !s.has_parent);
+
+  const TABS = [
+    { key: "by-class",   label: "By Class",         icon: School },
+    { key: "all",        label: "All Students",      icon: Users },
+    { key: "no-parent",  label: `No Parent${withoutParent > 0 ? ` (${withoutParent})` : ""}`, icon: AlertCircle },
+  ] as const;
+
   return (
     <DashboardShell>
-      <AnimatePresence>{showUpload&&<UploadModal onClose={()=>setShowUpload(false)}/>}</AnimatePresence>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      <motion.div initial={{opacity:0,y:-10}} animate={{opacity:1,y:0}} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:28}}>
-        <div><p style={{fontSize:10,color:"var(--brand)",textTransform:"uppercase",letterSpacing:"0.16em",marginBottom:6}}>School Management</p><h1 style={{fontFamily:"'Syne',sans-serif",fontSize:34,fontWeight:700,letterSpacing:"-0.02em",color:"var(--ink)",lineHeight:1}}>Students</h1></div>
-        <button onClick={()=>setShowUpload(true)} style={{background:"var(--brand)",color:"#04121a",border:"none",borderRadius:12,padding:"12px 22px",fontWeight:800,fontSize:14,cursor:"pointer"}}>📊 Upload Excel</button>
-      </motion.div>
-      <motion.section initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:0.1}} className={styles.kpiStrip} style={{marginBottom:28}}>
-        <MetricCard label="Total Students"   value={String(totalStudents)} detail={`Across ${CLASSES.length} classes`}    color="brand"/>
-        <MetricCard label="Parents Signed Up"value={String(accepted)}      detail="App access confirmed"                  color="success" badge="LIVE"/>
-        <MetricCard label="Invites Pending"  value={String(pending)}       detail="SMS sent, awaiting parent signup"      color="warning" badge="ACTION" badgeType="alert" variant={pending>0?"warning":undefined}/>
-        <MetricCard label="Not Yet Invited"  value={String(notSent)}       detail="No invite sent — send now"             color="danger"  variant={notSent>0?"danger":undefined}/>
-      </motion.section>
-      <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:0.15}} style={{display:"flex",gap:4,marginBottom:20,background:"var(--surface-raised)",borderRadius:"var(--radius-md)",padding:4}}>
-        {([["by-class","📚 By Class"],["all","👤 All Students"],["pending","📱 Pending Invites"]] as const).map(([t,l])=>(
-          <button key={t} onClick={()=>setTab(t)} style={{flex:1,padding:"10px 0",border:"none",borderRadius:"var(--radius-sm)",background:tab===t?"var(--surface-highlight)":"transparent",color:tab===t?"var(--brand)":"var(--ink-soft)",fontWeight:tab===t?700:400,fontSize:13,cursor:"pointer",transition:"all 0.15s"}}>{l}</button>
-        ))}
-      </motion.div>
+      <AnimatePresence>{showUpload && <UploadModal onClose={() => setShowUpload(false)} onImported={loadData} />}</AnimatePresence>
 
-      {tab==="by-class"&&(
-        <motion.div variants={stagger} initial="hidden" animate="show" style={{display:"flex",flexDirection:"column",gap:8}}>
-          {CLASSES.map(c=><ClassCard key={c.id} cls={c}/>)}
+      <div style={{ padding: "24px 28px 48px" }}>
+
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+          style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 24, gap: 16 }}
+        >
+          <div>
+            <p style={{ fontSize: 11, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 600, margin: "0 0 4px" }}>
+              School Management
+            </p>
+            <h1 style={{ fontWeight: 800, fontSize: 28, letterSpacing: "-0.02em", color: "var(--ink)", margin: 0, lineHeight: 1 }}>
+              Students
+            </h1>
+          </div>
+          <UploadButton onClick={() => setShowUpload(true)} />
         </motion.div>
-      )}
 
-      {tab==="all"&&(
-        <>
-          <div style={{marginBottom:16}}>
-            <div style={{position:"relative"}}>
-              <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"var(--ink-dim)",fontSize:14}}>🔍</span>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search student, class, or parent name…" style={{width:"100%",background:"var(--surface)",border:"1px solid var(--stroke)",borderRadius:10,padding:"10px 14px 10px 36px",fontSize:13,color:"var(--ink)",outline:"none"}}/>
-            </div>
-          </div>
-          <div style={{background:"var(--surface)",border:"1px solid var(--stroke)",borderRadius:"var(--radius-lg)",overflow:"hidden"}}>
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse"}}>
-                <thead><tr style={{background:"var(--surface-raised)"}}>
-                  {["Student","Roll","Class","Parent","Phone","Parent Invite","Actions"].map(h=><th key={h} style={{padding:"12px 16px",textAlign:"left",fontSize:10,fontWeight:600,color:"var(--ink-dim)",textTransform:"uppercase",letterSpacing:"0.1em",whiteSpace:"nowrap"}}>{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {filteredStudents.map((s,i)=>(
-                    <tr key={s.id} style={{borderTop:"1px solid var(--stroke)",transition:"background 0.15s"}} onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background="var(--surface-raised)"} onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background="transparent"}>
-                      <td style={{padding:"12px 16px",fontWeight:500,color:"var(--ink)",fontSize:13}}>{s.name}</td>
-                      <td style={{padding:"12px 16px",fontFamily:"'DM Mono',monospace",fontSize:12,color:"var(--ink-dim)"}}>{s.rollNo}</td>
-                      <td style={{padding:"12px 16px"}}><span style={{background:"rgba(0,200,232,0.1)",color:"var(--brand)",borderRadius:6,padding:"2px 8px",fontSize:12,fontWeight:500}}>{s.className}</span></td>
-                      <td style={{padding:"12px 16px",fontSize:13,color:"var(--ink-soft)"}}>{s.parentName}</td>
-                      <td style={{padding:"12px 16px",fontFamily:"'DM Mono',monospace",fontSize:12,color:"var(--ink-soft)"}}>{s.parentPhone}</td>
-                      <td style={{padding:"12px 16px"}}><InvitePill status={s.inviteStatus}/></td>
-                      <td style={{padding:"12px 16px"}}>
-                        <div style={{display:"flex",gap:6}}>
-                          <button onClick={()=>window.location.href=`tel:${s.parentPhone}`} style={{background:"rgba(0,200,232,0.08)",border:"1px solid var(--stroke-bright)",color:"var(--brand)",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>📞 Call</button>
-                          {s.inviteStatus!=="accepted"&&<button style={{background:"rgba(255,181,71,0.08)",border:"1px solid rgba(255,181,71,0.2)",color:"#ffb547",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>📱 Invite</button>}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {filteredStudents.length===0&&<div style={{textAlign:"center",padding:"40px 0",color:"var(--ink-dim)"}}><p style={{fontSize:14,fontWeight:600}}>No students match</p></div>}
-          </div>
-        </>
-      )}
+        {/* KPI strip */}
+        <motion.div
+          variants={stagger} initial="hidden" animate="show"
+          style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 24 }}
+        >
+          <StatCard label="Total Students"   value={loadingMain ? "—" : students.length}    sub={`${classrooms.length} classes`} accent="#2563eb" icon={GraduationCap} />
+          <StatCard label="Parent Linked"    value={loadingMain ? "—" : withParent}          sub="App access"                      accent="#16a34a" icon={CheckCircle2} />
+          <StatCard label="No Parent Linked" value={loadingMain ? "—" : withoutParent}       sub={withoutParent > 0 ? "Action needed" : undefined} accent={withoutParent > 0 ? "#f59e0b" : "#94a3b8"} icon={AlertCircle} />
+          <StatCard label="Classrooms"       value={loadingMain ? "—" : classrooms.length}                                         accent="#7c3aed" icon={School} />
+        </motion.div>
 
-      {tab==="pending"&&(
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:4}}>
-            <button style={{background:"rgba(255,181,71,0.1)",border:"1px solid rgba(255,181,71,0.25)",color:"#ffb547",borderRadius:10,padding:"10px 18px",fontWeight:700,fontSize:13,cursor:"pointer"}}>📱 Send invites to all ({pendingStudents.length})</button>
-          </div>
-          {pendingStudents.map(s=>(
-            <div key={s.id} style={{background:"var(--surface)",border:"1px solid var(--stroke)",borderRadius:"var(--radius-md)",padding:"14px 20px",display:"flex",alignItems:"center",gap:14,transition:"border-color 0.2s"}} onMouseEnter={e=>(e.currentTarget as HTMLElement).style.borderColor="var(--stroke-bright)"} onMouseLeave={e=>(e.currentTarget as HTMLElement).style.borderColor="var(--stroke)"}>
-              <div style={{flex:1}}>
-                <p style={{fontWeight:600,fontSize:13,color:"var(--ink)",marginBottom:2}}>{s.parentName} <span style={{color:"var(--ink-dim)",fontWeight:400}}>— parent of</span> {s.name}</p>
-                <p style={{fontFamily:"'DM Mono',monospace",fontSize:12,color:"var(--ink-soft)"}}>{s.parentPhone} · {s.className} · Roll {s.rollNo}</p>
-              </div>
-              <InvitePill status={s.inviteStatus}/>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>window.location.href=`tel:${s.parentPhone}`} style={{background:"rgba(0,200,232,0.08)",border:"1px solid var(--stroke-bright)",color:"var(--brand)",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:600,cursor:"pointer"}}>📞 Call</button>
-                <button style={{background:"rgba(255,181,71,0.08)",border:"1px solid rgba(255,181,71,0.2)",color:"#ffb547",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:600,cursor:"pointer"}}>📱 Send SMS invite</button>
-              </div>
-            </div>
+        {/* Tab switcher */}
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
+          style={{
+            display: "flex", gap: 4, marginBottom: 20,
+            background: "var(--surface-raised)", borderRadius: 12, padding: 4,
+            border: "1px solid var(--stroke)",
+          }}
+        >
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key} onClick={() => setTab(key)}
+              style={{
+                flex: 1, padding: "8px 0", border: "none", borderRadius: 9,
+                background: tab === key ? "var(--surface)" : "transparent",
+                color: tab === key ? "var(--primary)" : "var(--ink-dim)",
+                fontWeight: tab === key ? 700 : 500,
+                fontSize: 13, cursor: "pointer",
+                boxShadow: tab === key ? "var(--shadow-sm)" : "none",
+                transition: "all 0.15s ease",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+              }}
+            >
+              <Icon size={14} />
+              {label}
+            </button>
           ))}
-        </div>
-      )}
+        </motion.div>
+
+        {/* By-class tab */}
+        {tab === "by-class" && (
+          loadingMain
+            ? <LoadingState />
+            : classrooms.length === 0
+              ? <EmptyState icon={<School size={36} color="var(--ink-dim)" />} text="No classrooms set up yet. Add classrooms to get started." />
+              : (
+                <motion.div variants={stagger} initial="hidden" animate="show" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {classrooms.map(c => <ClassCard key={c.id} cls={c} />)}
+                </motion.div>
+              )
+        )}
+
+        {/* All students tab */}
+        {tab === "all" && (
+          <>
+            <div style={{ position: "relative", marginBottom: 16 }}>
+              <Search size={15} color="var(--ink-dim)" style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+              <input
+                value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search student, class, or parent name…"
+                style={{
+                  width: "100%", boxSizing: "border-box",
+                  background: "var(--surface)", border: "1px solid var(--stroke)",
+                  borderRadius: 10, padding: "10px 14px 10px 38px",
+                  fontSize: 13, color: "var(--ink)", outline: "none",
+                }}
+              />
+            </div>
+            {loadingMain
+              ? <LoadingState />
+              : filtered.length === 0
+                ? <EmptyState icon={<GraduationCap size={36} color="var(--ink-dim)" />} text={search ? "No students match your search." : "No students yet. Import via Excel to get started."} />
+                : (
+                  <div style={{ background: "var(--surface)", border: "1px solid var(--stroke)", borderRadius: 14, overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", minWidth: 640 }}>
+                        <colgroup>
+                          <col style={{ width: "22%" }} />
+                          <col style={{ width: "9%" }} />
+                          <col style={{ width: "16%" }} />
+                          <col style={{ width: "20%" }} />
+                          <col style={{ width: "16%" }} />
+                          <col style={{ width: "11%" }} />
+                          <col style={{ width: "6%" }} />
+                        </colgroup>
+                        <thead>
+                          <tr style={{ background: "var(--surface-raised)" }}>
+                            {["Student", "Roll", "Class", "Parent", "Phone", "Status", ""].map(h => (
+                              <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filtered.map(s => (
+                            <tr
+                              key={s.id}
+                              style={{ borderTop: "1px solid var(--stroke)", transition: "background 0.12s" }}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--surface-raised)"}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                            >
+                              <td style={{ padding: "11px 14px", fontWeight: 600, color: "var(--ink)", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</td>
+                              <td style={{ padding: "11px 14px", fontFamily: "monospace", fontSize: 12, color: "var(--ink-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.roll_number || "—"}</td>
+                              <td style={{ padding: "11px 14px", overflow: "hidden" }}>
+                                <span style={{ background: "var(--primary-soft)", color: "var(--primary)", borderRadius: 6, padding: "2px 8px", fontSize: 12, fontWeight: 500, display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {s.classroom_name || "Unassigned"}
+                                </span>
+                              </td>
+                              <td style={{ padding: "11px 14px", fontSize: 13, color: "var(--ink-soft)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.parent_name || "—"}</td>
+                              <td style={{ padding: "11px 14px", fontFamily: "monospace", fontSize: 12, color: "var(--ink-soft)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.parent_phone || "—"}</td>
+                              <td style={{ padding: "11px 14px" }}><ParentPill has={s.has_parent} /></td>
+                              <td style={{ padding: "11px 14px" }}>
+                                {s.parent_phone && (
+                                  <button onClick={() => window.location.href = `tel:${s.parent_phone}`} style={{
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    background: "var(--primary-soft)", border: "1px solid var(--stroke)",
+                                    color: "var(--primary)", borderRadius: 7, padding: "5px 8px",
+                                    cursor: "pointer",
+                                  }}>
+                                    <Phone size={12} />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )
+            }
+          </>
+        )}
+
+        {/* No parent tab */}
+        {tab === "no-parent" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {noParent.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+                <button style={{
+                  display: "flex", alignItems: "center", gap: 7,
+                  background: "var(--warning-soft)", border: "1px solid var(--warning-border)",
+                  color: "var(--warning)", borderRadius: 10, padding: "9px 16px",
+                  fontWeight: 700, fontSize: 13, cursor: "pointer",
+                }}>
+                  <UserPlus size={14} />
+                  Send bulk invite ({noParent.length})
+                </button>
+              </div>
+            )}
+            {loadingMain
+              ? <LoadingState />
+              : noParent.length === 0
+                ? <EmptyState icon={<CheckCircle2 size={36} color="var(--success)" />} text="All students have a parent linked." />
+                : noParent.map(s => (
+                  <div key={s.id} style={{
+                    background: "var(--surface)", border: "1px solid var(--stroke)",
+                    borderRadius: 12, padding: "14px 20px",
+                    display: "flex", alignItems: "center", gap: 14,
+                    boxShadow: "var(--shadow-sm)",
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 600, fontSize: 13, color: "var(--ink)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {s.name}
+                      </p>
+                      <p style={{ fontFamily: "monospace", fontSize: 12, color: "var(--ink-soft)", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {s.classroom_name}{s.roll_number ? ` · Roll ${s.roll_number}` : ""}
+                      </p>
+                    </div>
+                    <ParentPill has={false} />
+                    {s.parent_phone && (
+                      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                        <button onClick={() => window.location.href = `tel:${s.parent_phone}`} style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          background: "var(--primary-soft)", border: "1px solid var(--stroke)",
+                          color: "var(--primary)", borderRadius: 8, padding: "6px 12px",
+                          fontSize: 12, fontWeight: 600, cursor: "pointer",
+                        }}>
+                          <Phone size={13} /> Call
+                        </button>
+                        <button style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          background: "var(--warning-soft)", border: "1px solid var(--warning-border)",
+                          color: "var(--warning)", borderRadius: 8, padding: "6px 12px",
+                          fontSize: 12, fontWeight: 600, cursor: "pointer",
+                        }}>
+                          <UserPlus size={13} /> Invite
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+            }
+          </div>
+        )}
+      </div>
     </DashboardShell>
+  );
+}
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+function EmptyState({ icon, text }: { icon: React.ReactNode; text: string }) {
+  return (
+    <div style={{ textAlign: "center", padding: "56px 24px", color: "var(--ink-dim)" }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>{icon}</div>
+      <p style={{ fontSize: 14, fontWeight: 500, color: "var(--ink-soft)", margin: 0 }}>{text}</p>
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {[1, 2, 3, 4].map(i => (
+        <div key={i} style={{
+          height: 72, background: "var(--surface-raised)", border: "1px solid var(--stroke)",
+          borderRadius: 12, opacity: 0.5,
+        }} />
+      ))}
+    </div>
   );
 }
