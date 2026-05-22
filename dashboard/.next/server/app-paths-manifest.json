@@ -1,6 +1,9 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/drivers/page": "app/dashboard/drivers/page.js",
+  "/dashboard/calls/page": "app/dashboard/calls/page.js",
+  "/dashboard/communications/page": "app/dashboard/communications/page.js",
   "/dashboard/students/page": "app/dashboard/students/page.js",
-  "/dashboard/compliance/page": "app/dashboard/compliance/page.js",
-  "/dashboard/reports/page": "app/dashboard/reports/page.js",
-  "/dashboard/teachers/page": "app/dashboard/teachers/page.js"
+  "/dashboard/payments/page": "app/dashboard/payments/page.js"
 }

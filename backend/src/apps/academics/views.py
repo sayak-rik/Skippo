@@ -1,12 +1,18 @@
 import asyncio
+import logging
+import os
 
+import httpx
 from rest_framework import permissions, status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.academics.models import Classroom, Student, StudentParentLink
 from apps.tenancy.models import School
+
+log = logging.getLogger(__name__)
 from common.demo_state import (
     add_comment,
     list_assist_requests,
@@ -445,15 +451,128 @@ class AdminStudentListView(APIView):
                 parent_phone = link.parent.phone
 
             results.append({
-                "id":               s.id,
-                "name":             s.full_name,
-                "roll_number":      s.roll_number,
-                "classroom_id":     s.classroom_id,
-                "classroom_name":   s.classroom.name    if s.classroom else "",
-                "classroom_section":s.classroom.section if s.classroom else "",
-                "parent_name":      parent_name,
-                "parent_phone":     parent_phone,
-                "has_parent":       has_parent,
+                "id":                    s.id,
+                "name":                  s.full_name,
+                "roll_number":           s.roll_number,
+                "classroom_id":          s.classroom_id,
+                "classroom_name":        s.classroom.name    if s.classroom else "",
+                "classroom_section":     s.classroom.section if s.classroom else "",
+                "parent_name":           parent_name,
+                "parent_phone":          parent_phone,
+                "has_parent":            has_parent,
+                "pending_parent_phone":  s.pending_parent_phone,
+                "pending_parent_name":   s.pending_parent_name,
             })
 
         return Response({"results": results})
+
+
+class AdminStudentImportView(APIView):
+    """Admin: bulk-import students via CSV / XLSX / PDF.
+
+    POST /api/academics/admin/students/import/
+    Content-Type: multipart/form-data
+    Body: file=<upload>
+
+    The file is forwarded to the LLM Service for intelligent extraction.
+    Students and classrooms are created; duplicates are skipped.
+    """
+
+    parser_classes     = [MultiPartParser, FormParser]
+    permission_classes = [IsAuthenticated]
+
+    _MAX_SIZE = 50 * 1024 * 1024
+    _ALLOWED  = {".csv", ".xlsx", ".xls", ".pdf"}
+    _LLM_URL  = os.getenv("LLM_SERVICE_URL", "http://llm-service:8093")
+
+    def post(self, request):
+        try:
+            school = _school(request)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        file_obj = request.FILES.get("file")
+        if not file_obj:
+            return Response({"detail": "No file uploaded."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if file_obj.size > self._MAX_SIZE:
+            return Response(
+                {"detail": "File too large. Maximum allowed size is 50 MB."},
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            )
+
+        name = file_obj.name or ""
+        ext  = ("." + name.rsplit(".", 1)[-1].lower()) if "." in name else ""
+        if ext not in self._ALLOWED:
+            return Response(
+                {"detail": f"Unsupported file type '{ext}'. Allowed: CSV, XLSX, PDF."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        file_bytes = file_obj.read()
+        try:
+            with httpx.Client(timeout=120.0) as client:
+                resp = client.post(
+                    f"{self._LLM_URL}/extract/students",
+                    files={"file": (file_obj.name, file_bytes, "application/octet-stream")},
+                )
+            resp.raise_for_status()
+            payload = resp.json()
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.json().get("detail", str(exc)) if exc.response.content else str(exc)
+            return Response({"detail": f"LLM Service error: {detail}"}, status=status.HTTP_502_BAD_GATEWAY)
+        except httpx.RequestError as exc:
+            log.error("LLM Service unreachable: %s", exc)
+            return Response({"detail": "LLM Service is unavailable."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        students_data = payload.get("students", [])
+        created_count = 0
+        skipped_count = 0
+
+        for s in students_data:
+            full_name = (s.get("full_name") or "").strip()
+            if not full_name:
+                continue
+
+            classroom     = None
+            classroom_str = (s.get("classroom") or "").strip()
+            if classroom_str:
+                parts = classroom_str.rsplit("-", 1)
+                if len(parts) == 2 and len(parts[1]) <= 2 and parts[1].isalpha():
+                    cls_name    = parts[0].strip()
+                    cls_section = parts[1].strip().upper()
+                else:
+                    cls_name    = classroom_str
+                    cls_section = ""
+                classroom, _ = Classroom.objects.get_or_create(
+                    school=school, name=cls_name, section=cls_section
+                )
+
+            pending_phone = (s.get("parent_phone") or "").strip()
+            pending_name  = (s.get("parent_name")  or "").strip()
+
+            _, created = Student.objects.get_or_create(
+                school=school,
+                full_name=full_name,
+                defaults={
+                    "classroom":            classroom,
+                    "roll_number":          (s.get("roll_number") or "").strip(),
+                    "pending_parent_phone": pending_phone,
+                    "pending_parent_name":  pending_name,
+                },
+            )
+            if not created:
+                skipped_count += 1
+                continue
+            created_count += 1
+
+        return Response(
+            {
+                "success":           True,
+                "students_found":    payload.get("students_found", len(students_data)),
+                "students_imported": created_count,
+                "skipped":           skipped_count,
+                "truncated":         payload.get("truncated", False),
+            },
+            status=status.HTTP_200_OK,
+        )

@@ -20,6 +20,12 @@ class Student(SchoolScopedModel):
         blank=True,
     )
 
+    # Temporary fields populated during bulk import.
+    # Once the parent registers with this phone number, these are cleared
+    # and a real StudentParentLink is created instead.
+    pending_parent_phone = models.CharField(max_length=20, blank=True, default="")
+    pending_parent_name  = models.CharField(max_length=255, blank=True, default="")
+
 
 class StudentParentLink(TimestampedModel):
     """Maps one or more parents to a student.

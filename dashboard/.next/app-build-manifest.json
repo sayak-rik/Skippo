@@ -1,10 +1,22 @@
 {
   "pages": {
+    "/dashboard/compliance/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/compliance/page.css",
+      "static/chunks/app/dashboard/compliance/page.js"
+    ],
     "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
+    ],
+    "/dashboard/reports/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/reports/page.css",
+      "static/chunks/app/dashboard/reports/page.js"
     ],
     "/dashboard/students/page": [
       "static/chunks/webpack.js",
@@ -12,23 +24,40 @@
       "static/css/app/dashboard/students/page.css",
       "static/chunks/app/dashboard/students/page.js"
     ],
-    "/dashboard/teachers/page": [
+    "/dashboard/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/dashboard/teachers/page.css",
-      "static/chunks/app/dashboard/teachers/page.js"
+      "static/css/app/dashboard/page.css",
+      "static/chunks/app/dashboard/page.js"
     ],
-    "/dashboard/compliance/page": [
+    "/dashboard/calls/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/dashboard/compliance/page.css",
-      "static/chunks/app/dashboard/compliance/page.js"
+      "static/css/app/dashboard/calls/page.css",
+      "static/chunks/app/dashboard/calls/page.js"
     ],
-    "/dashboard/reports/page": [
+    "/dashboard/communications/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/dashboard/reports/page.css",
-      "static/chunks/app/dashboard/reports/page.js"
+      "static/css/app/dashboard/communications/page.css",
+      "static/chunks/app/dashboard/communications/page.js"
+    ],
+    "/dashboard/payments/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/payments/page.css",
+      "static/chunks/app/dashboard/payments/page.js"
+    ],
+    "/dashboard/drivers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/drivers/page.css",
+      "static/chunks/app/dashboard/drivers/page.js"
+    ],
+    "/_not-found/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/_not-found/page.js"
     ]
   }
 }

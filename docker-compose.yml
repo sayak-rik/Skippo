@@ -147,6 +147,30 @@ services:
       - skippo-network
     logging: *default-logging
 
+  llm-service:
+    build:
+      context: ./llm-service
+      dockerfile: Dockerfile
+    container_name: skippo-llm-service
+    restart: unless-stopped
+    profiles: [backend]
+    environment:
+      LLM_PROVIDER: "${LLM_PROVIDER:-gemini}"
+      LLM_MODEL: "${LLM_MODEL:-gemini-2.5-flash}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-AIzaSyCrNQYb1k-ZZjLiwqsjDgFnavCwF9V9bds}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      REDIS_URL: "redis://redis:6379/4"
+      MEMORY_TTL_DAYS: "${MEMORY_TTL_DAYS:-30}"
+    ports:
+      - "8093:8093"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - skippo-network
+    logging: *default-logging
+
   backend:
     build: *backend-build
     container_name: skippo-backend
@@ -163,6 +187,7 @@ services:
       SMS_SERVICE_URL: "http://sms-service:8090"
       EMAIL_SERVICE_URL: "http://email-service:8092"
       EMAIL_SERVICE_API_KEY: "${EMAIL_SERVICE_API_KEY:-868ba203-064e-4f45-9dd9-e6b6a1280aa7}"
+      LLM_SERVICE_URL: "http://llm-service:8093"
       MSG91_AUTH_KEY: "${MSG91_AUTH_KEY:-}"
       MSG91_SENDER_ID: "${MSG91_SENDER_ID:-SKIPPO}"
       MSG91_TEMPLATE_ID: "${MSG91_TEMPLATE_ID:-}"
@@ -173,6 +198,8 @@ services:
       sms-service:
         condition: service_started
       email-service:
+        condition: service_started
+      llm-service:
         condition: service_started
     networks:
       - skippo-network

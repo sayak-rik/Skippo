@@ -30,6 +30,8 @@ interface Student {
   parent_name: string;
   parent_phone: string;
   has_parent: boolean;
+  pending_parent_phone: string;
+  pending_parent_name: string;
 }
 
 // ── Animation helpers ─────────────────────────────────────────────────────────
@@ -121,42 +123,68 @@ function UploadButton({ onClick }: { onClick: () => void }) {
 
 // ── Upload modal ──────────────────────────────────────────────────────────────
 
-function UploadModal({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
-  const [step, setStep]   = useState<"drop" | "review" | "importing" | "done">("drop");
-  const [fileName, setFN] = useState("");
-  const [rowCount, setRC] = useState(0);
-  const fileRef           = useRef<HTMLInputElement>(null);
+const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
 
-  async function handleFilePick(e?: React.ChangeEvent<HTMLInputElement>) {
+function UploadModal({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
+  const [step, setStep]         = useState<"drop" | "review" | "importing" | "done">("drop");
+  const [fileName, setFN]       = useState("");
+  const [fileObj, setFileObj]   = useState<File | null>(null);
+  const [result, setResult]     = useState<{ students_found: number; students_imported: number; skipped: number; truncated: boolean } | null>(null);
+  const [error, setError]       = useState("");
+  const fileRef                 = useRef<HTMLInputElement>(null);
+
+  function handleFilePick(e?: React.ChangeEvent<HTMLInputElement>) {
     const file = e?.target?.files?.[0];
     if (!file) return;
-    setFN(file.name);
 
-    try {
-      if (file.name.toLowerCase().endsWith(".csv")) {
-        const text = await file.text();
-        const dataRows = text.split(/\r?\n/).filter((l, i) => i > 0 && l.trim().length > 0);
-        setRC(dataRows.length);
-      } else {
-        // XLSX is a ZIP of XML files. Decode as latin-1 (no invalid-byte throws)
-        // and count <row occurrences in the sheet XML.
-        const buf = await file.arrayBuffer();
-        const raw = new TextDecoder("iso-8859-1").decode(buf);
-        const matches = raw.match(/<row[ >]/g);
-        setRC(matches ? matches.length : 0);
-      }
-    } catch {
-      setRC(0);
+    if (file.size > MAX_FILE_BYTES) {
+      setError("File is too large. Maximum allowed size is 50 MB.");
+      return;
     }
 
-    setTimeout(() => setStep("review"), 400);
+    setError("");
+    setFN(file.name);
+    setFileObj(file);
+    setTimeout(() => setStep("review"), 300);
   }
 
   async function handleImport() {
+    if (!fileObj) return;
     setStep("importing");
-    await new Promise(r => setTimeout(r, 1800));
-    setStep("done");
-    onImported();
+    setError("");
+
+    try {
+      const form = new FormData();
+      form.append("file", fileObj);
+
+      const res = await fetch("/api/academics/admin/students/import/", {
+        method:  "POST",
+        headers: (() => {
+          const h: Record<string, string> = {};
+          if (typeof document !== "undefined") {
+            const token  = document.cookie.match(/skippo_token=([^;]+)/)?.[1];
+            const school = document.cookie.match(/skippo_school=([^;]+)/)?.[1];
+            if (token)  h["Authorization"]  = `Bearer ${token}`;
+            if (school) h["X-School-Slug"]  = school;
+          }
+          return h;
+        })(),
+        body: form,
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as any)?.detail ?? `Server error ${res.status}`);
+      }
+
+      const data = await res.json();
+      setResult(data);
+      setStep("done");
+      onImported();
+    } catch (err: any) {
+      setError(err.message ?? "Import failed. Please try again.");
+      setStep("review");
+    }
   }
 
   return (
@@ -293,54 +321,50 @@ function UploadModal({ onClose, onImported }: { onClose: () => void; onImported:
               <FileSpreadsheet size={22} color="var(--success)" />
               <div>
                 <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{fileName}</p>
-                <p style={{ fontSize: 11, color: "var(--success)", margin: 0 }}>
-                  {rowCount} students detected · {rowCount} parent contacts found
+                <p style={{ fontSize: 11, color: "var(--success)", margin: "2px 0 0" }}>
+                  Ready to import · AI will extract and validate all student records
                 </p>
               </div>
             </div>
 
-            <p style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
-              Preview (first {rowCount} rows)
-            </p>
-            <div style={{ overflowX: "auto", borderRadius: 10, border: "1px solid var(--stroke)", marginBottom: 16 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: "var(--surface-raised)" }}>
-                    {["Student", "Class", "Roll", "Parent", "Phone"].map(h => (
-                      <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { name: "Amit Srivastava", cls: "Class 6-A",  roll: "6A-12",  parent: "Rakesh Srivastava", phone: "+91 98001 12345" },
-                    { name: "Fatima Khan",     cls: "Class 7-B",  roll: "7B-08",  parent: "Mohammad Khan",     phone: "+91 97002 23456" },
-                    { name: "Riya Joshi",      cls: "Class 8-A",  roll: "8A-15",  parent: "Sunil Joshi",       phone: "+91 96003 34567" },
-                    { name: "Karan Malhotra",  cls: "Class 9-A",  roll: "9A-03",  parent: "Vinod Malhotra",    phone: "+91 95004 45678" },
-                    { name: "Anjali Pillai",   cls: "Class 10-B", roll: "10B-11", parent: "Ramesh Pillai",     phone: "+91 94005 56789" },
-                  ].map((r, i) => (
-                    <tr key={i} style={{ borderTop: "1px solid var(--stroke)" }}>
-                      <td style={{ padding: "10px 14px", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>{r.name}</td>
-                      <td style={{ padding: "10px 14px" }}>
-                        <span style={{ background: "var(--primary-soft)", color: "var(--primary)", borderRadius: 6, padding: "2px 8px", fontSize: 12, fontWeight: 500 }}>{r.cls}</span>
-                      </td>
-                      <td style={{ padding: "10px 14px", fontFamily: "monospace", fontSize: 12, color: "var(--ink-soft)" }}>{r.roll}</td>
-                      <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--ink-soft)" }}>{r.parent}</td>
-                      <td style={{ padding: "10px 14px", fontFamily: "monospace", fontSize: 12, color: "var(--ink-soft)" }}>{r.phone}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {error && (
+              <div style={{
+                background: "var(--danger-soft)", border: "1px solid var(--danger-border)",
+                borderRadius: 10, padding: "10px 14px", marginBottom: 16,
+                fontSize: 13, color: "var(--danger)",
+              }}>
+                {error}
+              </div>
+            )}
 
-            <div style={{ background: "var(--primary-soft)", border: "1px solid var(--stroke)", borderRadius: 10, padding: 12, marginBottom: 18 }}>
-              <p style={{ fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.7, margin: 0 }}>
-                After import, SMS invites will be sent to all {rowCount} parent phone numbers via the Skippo SMS service.
+            <div style={{ background: "var(--primary-soft)", border: "1px solid var(--stroke)", borderRadius: 10, padding: 14, marginBottom: 18 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: "0.1em", margin: "0 0 10px" }}>
+                Required columns
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[
+                  ["full_name",    "Full name of the student"],
+                  ["classroom",    "e.g. Class 6-A"],
+                  ["roll_number",  "Unique roll within class"],
+                  ["parent_name",  "Primary guardian name"],
+                  ["parent_phone", "+91XXXXXXXXXX for SMS invite"],
+                ].map(([col, desc]) => (
+                  <div key={col} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <CheckCircle2 size={13} color="var(--success)" style={{ marginTop: 2, flexShrink: 0 }} />
+                    <div>
+                      <p style={{ fontSize: 12, color: "var(--ink)", fontWeight: 600, fontFamily: "monospace", margin: 0 }}>{col}</p>
+                      <p style={{ fontSize: 11, color: "var(--ink-dim)", margin: 0 }}>{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--ink-dim)", margin: "12px 0 0", lineHeight: 1.6 }}>
+                Column names don&apos;t have to match exactly — the AI will intelligently detect and map them.
               </p>
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setStep("drop")} style={{
+              <button onClick={() => { setStep("drop"); setError(""); }} style={{
                 flex: 1, background: "var(--surface-raised)", border: "1px solid var(--stroke)",
                 color: "var(--ink-soft)", borderRadius: 10, padding: "12px 0",
                 fontWeight: 600, fontSize: 14, cursor: "pointer",
@@ -353,7 +377,7 @@ function UploadModal({ onClose, onImported }: { onClose: () => void; onImported:
                   fontWeight: 700, fontSize: 14, cursor: "pointer",
                 }}
               >
-                Import {rowCount} students + send invites
+                Import students
               </motion.button>
             </div>
           </>
@@ -377,7 +401,7 @@ function UploadModal({ onClose, onImported }: { onClose: () => void; onImported:
           </div>
         )}
 
-        {step === "done" && (
+        {step === "done" && result && (
           <div style={{ textAlign: "center", padding: "24px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
             <motion.div
               initial={{ scale: 0.5, opacity: 0 }}
@@ -394,15 +418,20 @@ function UploadModal({ onClose, onImported }: { onClose: () => void; onImported:
             <div>
               <p style={{ fontWeight: 800, fontSize: 22, color: "var(--success)", marginBottom: 4 }}>Import complete!</p>
               <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>
-                {rowCount} students added · {rowCount} SMS invites queued
+                {result.students_imported} students added · {result.skipped} duplicates skipped
               </p>
+              {result.truncated && (
+                <p style={{ fontSize: 11, color: "var(--warning)", marginTop: 4 }}>
+                  Large file — first 200 rows were processed. Upload again for the remainder.
+                </p>
+              )}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%" }}>
               {[
-                { v: String(rowCount), l: "Students added",     c: "var(--primary)" },
-                { v: String(rowCount), l: "SMS invites queued", c: "var(--success)" },
-                { v: "0",              l: "Duplicates skipped", c: "var(--ink-dim)" },
-                { v: "0",              l: "Errors",             c: "var(--ink-dim)" },
+                { v: String(result.students_found),    l: "Students detected",   c: "var(--primary)" },
+                { v: String(result.students_imported), l: "Students imported",   c: "var(--success)" },
+                { v: String(result.skipped),           l: "Duplicates skipped",  c: "var(--ink-dim)" },
+                { v: result.truncated ? "Yes" : "No",  l: "File truncated",      c: result.truncated ? "var(--warning)" : "var(--ink-dim)" },
               ].map(s => (
                 <div key={s.l} style={{
                   background: "var(--surface-raised)", border: "1px solid var(--stroke)",
@@ -724,8 +753,13 @@ export default function StudentsPage() {
                                   {s.classroom_name || "Unassigned"}
                                 </span>
                               </td>
-                              <td style={{ padding: "11px 14px", fontSize: 13, color: "var(--ink-soft)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.parent_name || "—"}</td>
-                              <td style={{ padding: "11px 14px", fontFamily: "monospace", fontSize: 12, color: "var(--ink-soft)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.parent_phone || "—"}</td>
+                              <td style={{ padding: "11px 14px", fontSize: 13, color: "var(--ink-soft)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {s.parent_name || s.pending_parent_name || "—"}
+                                {!s.has_parent && s.pending_parent_name && (
+                                  <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 600, color: "var(--warning)", background: "var(--warning-soft)", padding: "1px 6px", borderRadius: 4 }}>pending</span>
+                                )}
+                              </td>
+                              <td style={{ padding: "11px 14px", fontFamily: "monospace", fontSize: 12, color: "var(--ink-soft)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.parent_phone || s.pending_parent_phone || "—"}</td>
                               <td style={{ padding: "11px 14px" }}><ParentPill has={s.has_parent} /></td>
                               <td style={{ padding: "11px 14px" }}>
                                 {s.parent_phone && (
@@ -786,26 +820,37 @@ export default function StudentsPage() {
                       </p>
                     </div>
                     <ParentPill has={false} />
-                    {s.parent_phone && (
-                      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                        <button onClick={() => window.location.href = `tel:${s.parent_phone}`} style={{
-                          display: "flex", alignItems: "center", gap: 6,
-                          background: "var(--primary-soft)", border: "1px solid var(--stroke)",
-                          color: "var(--primary)", borderRadius: 8, padding: "6px 12px",
-                          fontSize: 12, fontWeight: 600, cursor: "pointer",
-                        }}>
-                          <Phone size={13} /> Call
-                        </button>
-                        <button style={{
-                          display: "flex", alignItems: "center", gap: 6,
-                          background: "var(--warning-soft)", border: "1px solid var(--warning-border)",
-                          color: "var(--warning)", borderRadius: 8, padding: "6px 12px",
-                          fontSize: 12, fontWeight: 600, cursor: "pointer",
-                        }}>
-                          <UserPlus size={13} /> Invite
-                        </button>
-                      </div>
-                    )}
+                    {(() => {
+                      const phone = s.parent_phone || s.pending_parent_phone;
+                      const name  = s.parent_name  || s.pending_parent_name;
+                      return phone ? (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, flexShrink: 0 }}>
+                          {name && (
+                            <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>{name}</span>
+                          )}
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={() => window.location.href = `tel:${phone}`} style={{
+                              display: "flex", alignItems: "center", gap: 6,
+                              background: "var(--primary-soft)", border: "1px solid var(--stroke)",
+                              color: "var(--primary)", borderRadius: 8, padding: "6px 12px",
+                              fontSize: 12, fontWeight: 600, cursor: "pointer",
+                            }}>
+                              <Phone size={13} /> {phone}
+                            </button>
+                            {!s.has_parent && s.pending_parent_phone && (
+                              <button style={{
+                                display: "flex", alignItems: "center", gap: 6,
+                                background: "var(--warning-soft)", border: "1px solid var(--warning-border)",
+                                color: "var(--warning)", borderRadius: 8, padding: "6px 12px",
+                                fontSize: 12, fontWeight: 600, cursor: "pointer",
+                              }}>
+                                <UserPlus size={13} /> Send Invite
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 ))
             }

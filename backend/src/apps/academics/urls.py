@@ -4,6 +4,7 @@ from apps.academics.views import (
     AcademicsRootView,
     AddStudentCommentView,
     AdminClassroomListView,
+    AdminStudentImportView,
     AdminStudentListView,
     AIClassSummaryView,
     AILessonPlanView,
@@ -83,8 +84,9 @@ urlpatterns = [
     ),
 
     # Admin — classroom + student management
-    path("admin/classrooms/", AdminClassroomListView.as_view(), name="academics-admin-classrooms"),
-    path("admin/students/",   AdminStudentListView.as_view(),   name="academics-admin-students"),
+    path("admin/classrooms/",        AdminClassroomListView.as_view(),  name="academics-admin-classrooms"),
+    path("admin/students/",          AdminStudentListView.as_view(),    name="academics-admin-students"),
+    path("admin/students/import/",   AdminStudentImportView.as_view(),  name="academics-admin-students-import"),
 
     # AI Teaching Assistant
     path("teacher/ai/tokens/",              AITokenStatusView.as_view(),       name="ai-token-status"),
