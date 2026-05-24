@@ -1,0 +1,457 @@
+SKIPPO — COMPLETE FEATURE LIST
+================================
+Last updated: 2026-05-23
+Source: features.txt, README.md, Skippo_Development_Document.docx
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PLATFORM OVERVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Five surfaces under one platform:
+  - Parent App       (React Native — iOS + Android)
+  - Driver/Conductor App  (React Native — Android)
+  - Teacher App      (Expo — React Native Web)
+  - Admin Dashboard  (Next.js Web)
+  - Backend API      (Django + DRF + Daphne ASGI)
+
+Multi-tenant architecture:
+  - Shared database with school-scoped data (school_id / slug on every record)
+  - Each school has a unique slug used in URLs and token scoping
+  - Superuser sees all; school admin sees only their school
+
+Authentication:
+  - OTP-based login for parents and drivers (phone number)
+  - JWT access + refresh tokens for all user types
+  - Email/password for admin dashboard users
+  - Invite-token signup flow for teachers and drivers
+  - FCM token update endpoint for push notification registration
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PARENT APP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Authentication
+  - Phone + OTP login (6-digit code)
+  - New parent signup (3-step): OTP → child name/grade → bus route selection
+  - Supports multiple children per account
+
+Home Screen
+  - Live ETA badge showing how many stops away the bus is
+  - Trip status pill (Scheduled / Active / Completed)
+  - Bus label / route name
+
+Live Tracking (Track Tab)
+  - Animated bus marker on Google Maps updating every 60 seconds via WebSocket
+  - LIVE badge shown when trip is active
+  - Student stops displayed on map
+  - Call driver button on driver contact card
+  - Auto-reconnect on network drop (WebSocket with exponential backoff)
+
+Driver / Conductor Contact
+  - View conductor profile: name, photo, verification badge
+  - Call driver at any time, even when no trip is active
+
+Route & Stop Management
+  - Change bus route from Profile tab (pick from available routes)
+  - Edit pickup/drop stop — custom stop name saved, shown to conductor with badge
+
+Notifications Tab
+  - Live alerts feed: boarding confirmations, drop confirmations
+  - Breakdown warnings
+  - Missed-drop alerts
+  - SOS / panic events (critical priority)
+  - SMS fallback for parents without internet (MSG91)
+
+Attendance History
+  - Full history of all trips and boarding/dropping records per child
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DRIVER / CONDUCTOR APP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Authentication & Onboarding
+  - Phone + OTP login for existing drivers
+  - Invite-code signup: enter token → school auto-fills → complete profile → immediate access
+  - Self-signup (pending approval): select school → fill details → wait for admin approval
+  - "Check approval status" to simulate/trigger approval
+
+Face Verification
+  - Selfie match against stored photo before trip start
+  - Rejects wrong faces; accepts conductor in varied lighting conditions
+
+Dashboard Tab
+  - Start trip button → status changes to ACTIVE, GPS ping indicator turns green
+  - Floating SOS button appears on all tabs when trip is active
+  - End trip → saves trip record
+  - Switch vehicle if multiple vehicles are assigned
+
+Roster Tab
+  - Full student list for the active route
+  - Tap Board / Drop to update student status (ABSENT → BOARDED → DROPPED)
+  - One-thumb interaction design: large tap targets
+  - Students with parent-set custom stops show a "Parent set a custom stop" badge
+  - Offline-first: queues board/drop actions, syncs on reconnect
+
+SOS / Emergency
+  - SOS tab with large panic button
+  - Trigger SOS → full-screen red overlay with step-by-step instructions
+  - All parents on the route receive a critical alert instantly
+  - School admin receives SOS notification
+  - SMS bulk alert sent to all parent phones as fallback
+  - SOS notification reaches school admin within ~10 seconds target latency
+
+Breakdown Screen
+  - "Alert all parents now" → parents receive warning-level alert
+  - Confirmation card shown after alert is sent
+  - Nearby school vehicles shown with Call buttons
+
+Floating SOS Button
+  - Persists across all tabs when a trip is active
+  - One-tap emergency trigger without navigating away
+
+Devices Tab
+  - Lists all devices linked to the conductor's Aadhaar
+  - Multiple devices supported (configurable OTP limit)
+
+Renewals Tab
+  - Upcoming document renewals: fitness certificate, insurance, etc.
+  - Urgency level indicators (urgent / soon / ok)
+
+Background GPS (Critical Feature)
+  - Uses expo-location foreground service to prevent Android from killing location
+  - Sends GPS coordinates every 10 seconds or every 20 meters (whichever comes first)
+  - WebSocket-based real-time location broadcast to all parents on the route
+  - Foreground notification keeps service alive: "Skippo Trip Active"
+  - GPS usage target: under 15% battery per 1-hour trip
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEACHER APP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Authentication & Onboarding
+  - Phone + OTP login for existing teachers
+  - Invite-code signup: enter token → school/email auto-fills → complete profile
+  - First-week class-picker setup: select classrooms and configure Mon–Fri availability
+  - Setup stored as schedule preferences; auto-generates ClassSession records
+
+Schedule Tab
+  - Today's sessions listed and highlighted
+  - Current session highlighted
+  - Tap a session to open the attendance roster for that class
+
+Attendance Roster
+  - Mark students present or absent
+  - Add a per-student comment/note
+  - Save attendance for the session
+
+Broadcast Tab
+  - New broadcast: compose message, select target classrooms, send
+  - Broadcast history with delivery timestamps
+  - Parents receive push notifications for broadcasts
+
+Assist Requests Tab
+  - Lists pending parent questions per student
+  - Reply modal: type response → mark as resolved
+  - Resolved requests shown with green checkmark
+
+AI Teaching Assistant
+  - Token status tracker (daily Gemini token limit per teacher)
+  - Lesson plan generator
+  - Class summary generator
+  - Voice observation: speak a note about a student → transcribed and stored
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADMIN DASHBOARD — TRANSPORT & FLEET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Fleet Overview (Live Map)
+  - All active buses shown on one Google Map with live markers
+  - Bus status cards alongside map: route name, conductor, students boarded/total, status
+  - WebSocket real-time updates (socket.io-client connection)
+
+Driver Management
+  - List and manage all drivers/conductors
+  - View KYC status, verification badge, documents
+  - Approve or reject self-signup requests
+  - Invite new drivers via token
+
+Live Fleet Tracking
+  - Live GPS positions for all active trips
+  - Per-trip status: scheduled / active / completed
+
+Car Pickup / Dismissal
+  - Manage dismissal queue
+  - WebSocket-based real-time dismissal state
+
+Route Management
+  - Create, edit, delete routes
+  - Map-based route and stop creation
+  - Assign buses and conductors to routes
+  - Stop ordering (sequence management)
+  - Stop GPS coordinates stored
+
+Call Management
+  - Call log and management
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADMIN DASHBOARD — ACADEMICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MODULE A — SCHOOL SETUP
+
+Academic Years & Sessions
+  - Create, edit, delete academic years with start/end dates
+  - Mark one year as "current"
+  - Add multiple sessions within a year (Term 1, Term 2, etc.)
+
+Subjects
+  - Create, edit, delete subjects with optional subject code
+  - Activate / deactivate subjects
+  - Color-coded subject cards in the dashboard
+
+Houses / Groups
+  - Create school houses with custom colors (8 presets + color picker)
+  - Edit and delete houses
+  - Assign students to houses during admission
+
+Academic Calendar
+  - Holidays: national, regional, and school holidays with year filter
+  - Academic Events: exam, sports, cultural, parent meeting, other — with date range and description
+
+Role-Based Access Control (RBAC)
+  - Define custom roles with granular permission checkboxes
+  - 15 permission codes across 6 groups (Students, Staff, Finance, Attendance, Exams, Settings)
+  - Assign/revoke roles per user
+  - Superuser wildcard ["*"] sees everything
+  - Permission-aware sidebar: nav items hidden based on user's role
+
+──────────────────────────────────────────────────────────
+MODULE B — STUDENT MANAGEMENT
+
+Student Admission
+  - Full admission form: personal info, academic placement, contact/address, parent/guardian
+  - Auto-generated admission number: {SLUG}/{YEAR}/{SEQ:0004d}
+  - Assign classroom, roll number, house at admission
+
+Student Profile
+  - View/edit profile with tabs: Personal, Academic, Contact, Documents, Transfer Certificate
+  - Photo key field for profile photo storage
+  - Blood group, religion, nationality, category (General/OBC/SC/ST/EWS)
+
+Document Management
+  - Upload documents per student (birth certificate, marksheet, etc.)
+  - Delete documents
+  - File name and key stored for cloud retrieval
+
+Student Roster
+  - Paginated student list with search
+  - Click row to open student profile
+  - Filter by classroom
+
+Bulk Class Promotion
+  - 3-step wizard: select from/to classroom + academic year → select students → confirm
+  - Shows success count after promotion
+
+Transfer Certificates
+  - Issue TC with auto-generated number: TC/{SLUG}/{YEAR}/{SEQ:0004d}
+  - Record reason and remarks
+  - List all TCs per school
+
+Parent Management
+  - Link parents to students
+  - Pending parent invite (phone + name) for app onboarding
+  - Multiple children support via StudentParentLink
+
+──────────────────────────────────────────────────────────
+MODULE C — ACADEMIC OPERATIONS
+
+Timetable Management
+  - Create timetable per classroom per academic year
+  - Week grid builder: Monday–Friday columns, period rows
+  - Slot types: lesson, break, free
+  - Assign subject and teacher per slot
+  - Bulk slot save (atomic replace)
+
+Homework
+  - Assign homework with title, description, subject, classroom, due date
+  - Filter by classroom and subject
+  - Overdue indicator (color-coded by due date)
+  - Edit and delete assignments
+
+Exam Management
+  - Create exams with type (unit test / midterm / final / other), date range
+  - Publish/unpublish exams
+  - Add per-subject per-classroom exam schedules (date, time, max marks, passing marks)
+  - 3-panel drill-down: exam list → schedules → marks entry
+
+Marks Entry
+  - Bulk marks entry per exam schedule
+  - Per-student marks input with absent checkbox
+  - Auto-computed grade (A+/A/B/C/D/F) saved on the server
+  - Upsert — re-entry corrects existing marks
+
+Report Cards
+  - Generate report cards for a classroom + exam combination
+  - Auto-computed: total marks, obtained marks, percentage, grade, rank
+  - Dense ranking algorithm (ties share rank)
+  - Publish report cards to parents
+  - Summary stats: class average, top score, pass rate
+  - Grade color badges (A+=green, A=teal, B=blue, C=yellow, D/F=red)
+
+──────────────────────────────────────────────────────────
+TEACHERS
+
+Teacher Roster
+  - List all teachers with Active / On Leave status badges
+  - Class teacher assignment shown per teacher
+  - Click row to view full profile
+
+Teacher Profile
+  - Assigned classroom (class teacher role)
+  - Weekly schedule grid (Mon–Fri, periods by subject and time)
+  - Leave history with approve / reject actions
+  - Substitution history tab
+
+Leave Management
+  - Apply leave: type (sick / casual / other), date range, reason
+  - Admin can approve or reject pending leaves
+  - Leave status: pending → approved / rejected
+
+Substitute Teacher Assignment
+  - Action items banner: shows all uncovered timetable slots for teachers on approved leave
+  - Per-slot substitute selection dropdown (choose from other teachers)
+  - Assign substitute — recorded against the specific leave + date + slot
+  - Action items clear once all slots for a leave are covered
+
+──────────────────────────────────────────────────────────
+UDISE+ (Government Data Submission)
+
+Annual UDISE Report
+  - One report per school per academic year
+  - UDISE+ school code field (12-digit)
+  - Draft / Submitted status with submission timestamp
+
+Section 1 — Students (Auto-filled)
+  - Enrollment table by class: total, boys, girls
+  - Category breakdown: SC, ST, OBC, EWS, General
+  - Grand totals row
+
+Section 2 — Teachers (Auto-filled)
+  - Full teacher list: name, email, employee code, class teacher assignment
+  - Total teacher count summary card
+
+Section 3 — Infrastructure (Manual Entry, ~25 fields)
+  - School Identity: type, management, year established, class range
+  - Physical Infrastructure: classroom counts by condition, other rooms, boundary wall, playground
+  - Toilets & Sanitation: boys/girls/staff/CWSN toilets, ramp, handwashing
+  - Utilities & Connectivity: electricity, solar, internet, drinking water source, rainwater harvesting
+  - Resources & Facilities: computers, library, books, mid-day meal, kitchen garden, medical checkup
+
+Section 4 — Academics (Auto-filled)
+  - Exam-wise summary from published report cards
+  - Columns: exam name, type, year, students, passed, pass %, average %
+  - Pass rate color-coded (green ≥75%, amber ≥50%, red <50%)
+  - Section nav with completion indicators (✓ complete / ⚠ needs input)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADMIN DASHBOARD — NAVIGATION & SHELL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Sidebar Navigation (Permission-Aware)
+  - Overview: Dashboard
+  - Academics: Students, Teachers, Exams, Report Cards
+  - Administration: School Setup, Staff, Finance, Reports, Roles & Perms, UDISE+
+  - Transport: Drivers, Live Fleet, Car Pickup, Routes
+  - Operations: Call Mgmt, Communications, Compliance
+  - Settings: Settings
+  - Groups with no accessible items hidden entirely
+
+Top Bar
+  - Global search input
+  - Notifications panel
+  - Settings icon
+
+School Identity Block
+  - School name and logo in sidebar
+  - Current academic year display
+  - Logged-in user info with role and logout button
+
+Dashboard Reports
+  - Attendance reports: daily/weekly, CSV download
+  - Fleet reports: trips, routes
+  - Alert log: panic events, broadcasts
+
+Communications
+  - School-wide broadcast messages
+  - Per-classroom broadcast from teacher app
+
+Compliance
+  - Compliance tracking module
+
+Payments / Billing
+  - School subscription billing via Razorpay
+  - Subscription plan management
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+INTEGRATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  - Firebase FCM         — Push notifications to parents and conductors (boarded, dropped, SOS)
+  - MSG91                — SMS fallback for parents without internet
+  - Google Maps          — Live tracking map + route builder (parent app + dashboard)
+  - Razorpay             — School subscription payments and billing
+  - Cloudflare R2 / AWS S3 — Student photos, KYC documents, file storage
+  - Google Gemini (AI)   — AI Teaching Assistant (lesson plans, class summaries, voice observations)
+  - DigiLocker API       — Conductor license and ID verification (Phase 2)
+  - VAHAN REST API       — Vehicle registration verification (Phase 2)
+  - Django Channels + Redis — WebSocket real-time GPS and fleet updates
+  - Celery + Redis       — Async notifications, background tasks
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+INFRASTRUCTURE & DEPLOYMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  - Backend: Django 5 + DRF + Daphne (ASGI) on port 8000
+  - Marketing Website: Next.js 14 + Tailwind on port 3001
+  - Admin Dashboard: Next.js 14 on port 3000
+  - Parent App: Expo (React Native Web) on port 8081
+  - Driver App: Expo (React Native Web) on port 8082
+  - Teacher App: Expo (React Native Web) on port 8083
+  - PostgreSQL 16 on port 5432
+  - Redis 7 on port 6379
+  - Celery worker for async tasks
+  - Docker Compose with named profiles: backend, frontend, mobile
+  - Health check endpoint: GET /health/ → {"status":"ok"}
+  - OpenAPI schema at /api/schema/ (drf-spectacular)
+  - Django Admin at /admin/
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MODULES PLANNED (Not Yet Built)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Module D — Staff Management
+  - Full staff profiles (non-teaching staff)
+  - Teacher / staff attendance tracking
+  - Leave requests and approvals (for non-teaching staff)
+  - Basic payroll
+
+Module E — Finance (Enhanced)
+  - Receipt generation for fee payments
+  - Due date reminders
+  - Fine management
+
+Module F — Reports (Enhanced)
+  - Detailed attendance reports
+  - Student progress reports
+  - Fee collection reports
+  - Staff activity reports
+
+Phase 2 Integrations
+  - DigiLocker: Government-backed conductor license and ID verification
+  - VAHAN: Vehicle registration verification
+
+Mobile App Enhancements
+  - Play Store deployment (Parent App + Conductor App)
+  - In-app conductor-to-parent messaging (Chat screen)
+  - Face verification accuracy improvements
+  - Battery optimization tuning for background GPS
