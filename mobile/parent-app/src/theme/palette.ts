@@ -1,32 +1,34 @@
 export const palette = {
-  // Brand — vivid indigo/violet matching the Skippo identity
-  brand:      "#4f46e5",   // indigo-600
-  brandDeep:  "#4338ca",   // indigo-700
-  brandSoft:  "#eef2ff",   // indigo-50
-  brandMid:   "#e0e7ff",   // indigo-100
+  // Brand — clean blue matching the app design
+  brand:      "#2563EB",   // blue-600
+  brandDeep:  "#1D4ED8",   // blue-700
+  brandSoft:  "#EFF6FF",   // blue-50
+  brandMid:   "#DBEAFE",   // blue-100
 
   // Accents
-  accent:     "#f59e0b",   // amber-400
-  violet:     "#8b5cf6",   // violet-500
+  accent:     "#F9A825",   // yellow (heading marker)
+  green:      "#10B981",   // emerald-500
+  violet:     "#8B5CF6",   // violet-500
 
-  // Canvas
-  canvas:     "#f8f8fc",   // near-white with slight violet tint
-  surface:    "#ffffff",
-  surfaceMuted: "#f1f1f8",
+  // Canvas & surfaces
+  canvas:      "#EBF5FE",   // light blue background
+  surface:     "#FFFFFF",
+  surfaceMuted: "#F0F7FF",  // lighter blue card bg
 
   // Typography
-  ink:        "#0f0f1a",   // near-black
-  inkSoft:    "#52525b",   // zinc-600
-  inkFaint:   "#a1a1aa",   // zinc-400
+  ink:        "#1A1A2E",   // near-black
+  inkSoft:    "#6B7280",   // gray-500
+  inkFaint:   "#9CA3AF",   // gray-400
 
   // Borders
-  stroke:     "#e2e2ee",
+  stroke:      "#E2E8F0",  // slate-200
+  strokeLight: "#F1F5F9",  // slate-100
 
   // Semantic
-  success:    "#16a34a",   // green-600
-  warning:    "#d97706",   // amber-600
-  danger:     "#dc2626",   // red-600
+  success:    "#10B981",   // emerald-500
+  warning:    "#F59E0B",   // amber-400
+  danger:     "#EF4444",   // red-500
 
   // Map tint
-  map:        "#dde0ff",
+  map:        "#DBEAFE",
 };

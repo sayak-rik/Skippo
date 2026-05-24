@@ -4,7 +4,6 @@
 // Shows the most recent weekly digest for the parent's child:
 //   • Attendance summary (present / absent days + percentage)
 //   • AI-written strengths, weaknesses, and teacher highlights
-//   • Uplifting overall summary
 //   • Past week cards to scroll through
 // ---------------------------------------------------------------------------
 
@@ -18,10 +17,14 @@ import {
   View,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { InfoCard } from "../components/InfoCard";
+import {
+  BarChart2,
+  TrendingUp,
+  TrendingDown,
+  Star,
+  Zap,
+} from "lucide-react-native";
 import { Screen } from "../components/Screen";
-import { SectionTitle } from "../components/SectionTitle";
 import { useParentDashboard } from "../hooks/useParentDashboard";
 import { api } from "../lib/api";
 import { palette } from "../theme/palette";
@@ -31,17 +34,16 @@ import { spacing } from "../theme/spacing";
 
 interface WeeklyDigest {
   id: number;
-  week_start: string;
-  days_present: number;
-  days_absent: number;
-  attendance_pct: number;
-  strengths_summary: string;
-  weaknesses_summary: string;
-  teacher_highlights: string;
-  overall_summary: string;
+  weekOf: string;
+  attendancePercent: number;
+  insights: {
+    strengths: string;
+    weaknesses: string;
+    teacherHighlights: string;
+  };
 }
 
-// ── Attendance Donut (simple SVG-style view) ──────────────────────────────────
+// ── Attendance Ring ───────────────────────────────────────────────────────────
 
 function AttendanceRing({ pct }: { pct: number }) {
   const color =
@@ -59,45 +61,45 @@ function AttendanceRing({ pct }: { pct: number }) {
   );
 }
 
-// ── Insight Row ───────────────────────────────────────────────────────────────
+// ── Insight Card ──────────────────────────────────────────────────────────────
 
-function InsightRow({
-  icon,
+function InsightCard({
+  Icon,
   title,
   body,
-  color,
-  bg,
+  accentColor,
+  bgColor,
 }: {
-  icon: string;
+  Icon: React.ComponentType<{ size: number; color: string; strokeWidth: number }>;
   title: string;
   body: string;
-  color: string;
-  bg: string;
+  accentColor: string;
+  bgColor: string;
 }) {
   if (!body) return null;
   return (
-    <View style={[styles.insightCard, { borderLeftColor: color, backgroundColor: bg }]}>
+    <View style={[styles.insightCard, { borderLeftColor: accentColor, backgroundColor: bgColor }]}>
       <View style={styles.insightHeader}>
-        <Text style={styles.insightIcon}>{icon}</Text>
-        <Text style={[styles.insightTitle, { color }]}>{title}</Text>
+        <Icon size={16} color={accentColor} strokeWidth={2} />
+        <Text style={[styles.insightTitle, { color: accentColor }]}>{title}</Text>
       </View>
       <Text style={styles.insightBody}>{body}</Text>
     </View>
   );
 }
 
-// ── Week Selector ─────────────────────────────────────────────────────────────
+// ── Week Chip ─────────────────────────────────────────────────────────────────
 
 function WeekChip({
-  weekStart,
+  weekOf,
   active,
   onPress,
 }: {
-  weekStart: string;
+  weekOf: string;
   active: boolean;
   onPress: () => void;
 }) {
-  const d = new Date(weekStart);
+  const d = new Date(weekOf);
   const label = d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
   return (
     <TouchableOpacity
@@ -112,24 +114,6 @@ function WeekChip({
   );
 }
 
-// ── Mock fallback ─────────────────────────────────────────────────────────────
-
-const MOCK_DIGEST: WeeklyDigest = {
-  id: 1,
-  week_start: "2026-04-14",
-  days_present: 4,
-  days_absent: 1,
-  attendance_pct: 80,
-  strengths_summary:
-    "Showed strong understanding in Mathematics and actively participated in group discussions.",
-  weaknesses_summary:
-    "Could improve consistency in completing homework assignments on time.",
-  teacher_highlights:
-    "Teacher noted excellent progress in reading comprehension this week.",
-  overall_summary:
-    "It was a great week overall! Keep up the enthusiasm and focus on those daily habits.",
-};
-
 // ── WeeklyDigestScreen ────────────────────────────────────────────────────────
 
 export function WeeklyDigestScreen() {
@@ -140,58 +124,72 @@ export function WeeklyDigestScreen() {
   const { data: digests, isLoading } = useQuery<WeeklyDigest[]>({
     queryKey: ["weekly-digests", studentId],
     queryFn: async () => {
-      try {
-        const { data } = await api.get(
-          `/api/reports/parent/students/${studentId}/weekly-digests/?limit=6`
-        );
-        return data.results ?? [];
-      } catch {
-        return [MOCK_DIGEST];
-      }
+      const { data } = await api.get(
+        `/api/reports/parent/students/${studentId}/weekly-digests/?limit=6`
+      );
+      return data.results ?? [];
     },
     staleTime: 60_000,
   });
 
-  const list = digests ?? [MOCK_DIGEST];
-  const activeWeek = selectedWeek ?? list[0]?.week_start ?? null;
-  const digest = list.find((d) => d.week_start === activeWeek) ?? list[0];
+  const list = digests ?? [];
+  const activeWeek = selectedWeek ?? list[0]?.weekOf ?? null;
+  const digest = list.find((d) => d.weekOf === activeWeek) ?? list[0];
 
+  // Loading state
   if (isLoading) {
     return (
       <Screen>
-        <SectionTitle title="Weekly Report" subtitle="AI-generated digest" />
-        <ActivityIndicator color={palette.brand} style={{ marginTop: 40 }} />
+        <View style={styles.headerWrap}>
+          <Text style={styles.headerTitle}>Weekly Report</Text>
+          <Text style={styles.headerSub}>AI-generated digest</Text>
+        </View>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={palette.brand} />
+          <Text style={styles.loadingText}>Loading your report…</Text>
+        </View>
       </Screen>
     );
   }
 
+  // Empty state
   if (!digest) {
     return (
       <Screen>
-        <SectionTitle title="Weekly Report" subtitle="AI-generated digest" />
+        <View style={styles.headerWrap}>
+          <Text style={styles.headerTitle}>Weekly Report</Text>
+          <Text style={styles.headerSub}>AI-generated digest</Text>
+        </View>
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyIcon}>📊</Text>
-          <Text style={styles.emptyTitle}>No reports yet</Text>
+          <BarChart2 size={48} color={palette.inkFaint} strokeWidth={1.5} />
+          <Text style={styles.emptyTitle}>No weekly report yet</Text>
           <Text style={styles.emptySub}>
             Weekly AI digests are generated every Monday. Check back after your
-            child&apos;s first week.
+            child's first week.
           </Text>
         </View>
       </Screen>
     );
   }
 
-  const weekEnd = new Date(digest.week_start);
+  const weekEnd = new Date(digest.weekOf);
   weekEnd.setDate(weekEnd.getDate() + 6);
-  const weekLabel = `${new Date(digest.week_start).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – ${weekEnd.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
+  const weekLabel = `${new Date(digest.weekOf).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+  })} – ${weekEnd.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })}`;
 
   return (
     <Screen>
       {/* Header */}
-      <SectionTitle
-        title="Weekly Report Card"
-        subtitle={`AI-generated digest · ${weekLabel}`}
-      />
+      <View style={styles.headerWrap}>
+        <Text style={styles.headerTitle}>Weekly Report</Text>
+        <Text style={styles.headerSub}>AI-generated digest · {weekLabel}</Text>
+      </View>
 
       {/* Week selector */}
       {list.length > 1 && (
@@ -203,65 +201,87 @@ export function WeeklyDigestScreen() {
         >
           {list.map((d) => (
             <WeekChip
-              key={d.week_start}
-              weekStart={d.week_start}
-              active={d.week_start === activeWeek}
-              onPress={() => setSelectedWeek(d.week_start)}
+              key={d.weekOf}
+              weekOf={d.weekOf}
+              active={d.weekOf === activeWeek}
+              onPress={() => setSelectedWeek(d.weekOf)}
             />
           ))}
         </ScrollView>
       )}
 
-      {/* Attendance ring + stat */}
+      {/* Attendance ring */}
       <View style={styles.attendanceCard}>
-        <AttendanceRing pct={digest.attendance_pct} />
-        <View style={styles.attendanceStats}>
-          <View style={styles.statRow}>
-            <View style={[styles.statDot, { backgroundColor: palette.success }]} />
-            <Text style={styles.statLabel}>Present</Text>
-            <Text style={styles.statValue}>{digest.days_present} days</Text>
-          </View>
-          <View style={styles.statRow}>
-            <View style={[styles.statDot, { backgroundColor: palette.danger }]} />
-            <Text style={styles.statLabel}>Absent</Text>
-            <Text style={styles.statValue}>{digest.days_absent} days</Text>
+        <AttendanceRing pct={digest.attendancePercent} />
+        <View style={styles.attendanceInfo}>
+          <Text style={styles.attendanceHeading}>Attendance</Text>
+          <Text style={styles.attendanceWeek}>Week of {weekLabel}</Text>
+          <View style={styles.attendancePctRow}>
+            <View
+              style={[
+                styles.attendancePill,
+                {
+                  backgroundColor:
+                    digest.attendancePercent >= 90
+                      ? "#ECFDF5"
+                      : digest.attendancePercent >= 75
+                      ? "#FFFBEB"
+                      : "#FFF5F5",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.attendancePillText,
+                  {
+                    color:
+                      digest.attendancePercent >= 90
+                        ? palette.success
+                        : digest.attendancePercent >= 75
+                        ? palette.warning
+                        : palette.danger,
+                  },
+                ]}
+              >
+                {digest.attendancePercent >= 90
+                  ? "Excellent"
+                  : digest.attendancePercent >= 75
+                  ? "Good"
+                  : "Needs attention"}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
 
-      {/* Overall summary */}
-      <View style={styles.overallCard}>
-        <Text style={styles.overallIcon}>✨</Text>
-        <Text style={styles.overallText}>{digest.overall_summary}</Text>
-      </View>
-
       {/* Insights */}
-      <InsightRow
-        icon="💪"
+      <InsightCard
+        Icon={TrendingUp}
         title="Strengths This Week"
-        body={digest.strengths_summary}
-        color={palette.success}
-        bg="#f0fdf4"
+        body={digest.insights.strengths}
+        accentColor={palette.success}
+        bgColor="#F0FDF4"
       />
-      <InsightRow
-        icon="📈"
+      <InsightCard
+        Icon={TrendingDown}
         title="Areas to Improve"
-        body={digest.weaknesses_summary}
-        color={palette.warning}
-        bg="#fffbeb"
+        body={digest.insights.weaknesses}
+        accentColor={palette.warning}
+        bgColor="#FFFBEB"
       />
-      <InsightRow
-        icon="👩‍🏫"
+      <InsightCard
+        Icon={Star}
         title="Teacher Highlights"
-        body={digest.teacher_highlights}
-        color={palette.brand}
-        bg={palette.brandSoft}
+        body={digest.insights.teacherHighlights}
+        accentColor={palette.brand}
+        bgColor={palette.brandSoft}
       />
 
       {/* Footer note */}
       <View style={styles.footer}>
+        <Zap size={13} color={palette.inkFaint} strokeWidth={2} />
         <Text style={styles.footerText}>
-          🤖 This report is generated by AI from your child's attendance and teacher
+          This report is generated by AI from your child's attendance and teacher
           notes. For detailed feedback, contact the school directly.
         </Text>
       </View>
@@ -272,6 +292,32 @@ export function WeeklyDigestScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  // Header
+  headerWrap: { gap: 3 },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: palette.ink,
+    letterSpacing: -0.4,
+  },
+  headerSub: {
+    fontSize: 13,
+    color: palette.inkSoft,
+    fontWeight: "400",
+    lineHeight: 18,
+  },
+
+  // Loading
+  loadingWrap: {
+    alignItems: "center",
+    paddingTop: 60,
+    gap: 14,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: palette.inkSoft,
+  },
+
   // Week selector
   weekRow: { marginHorizontal: -spacing.md },
   weekRowContent: {
@@ -283,24 +329,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: palette.surfaceMuted,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: palette.stroke,
   },
   weekChipActive: {
-    backgroundColor: palette.brandSoft,
+    backgroundColor: palette.brandMid,
     borderColor: palette.brand,
   },
   weekChipText: {
     fontSize: 12.5,
     fontWeight: "600",
-    color: "#64748B",
+    color: palette.inkSoft,
   },
   weekChipTextActive: {
     color: palette.brand,
   },
 
-  // Attendance ring
+  // Attendance card
   attendanceCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -308,12 +354,12 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: palette.stroke,
     padding: spacing.md,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
+    shadowColor: palette.brand,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
     elevation: 2,
   },
   ringWrap: { alignItems: "center" },
@@ -333,65 +379,50 @@ const styles = StyleSheet.create({
   },
   ringLabel: {
     fontSize: 10,
-    color: "#94A3B8",
+    color: palette.inkFaint,
     fontWeight: "600",
     letterSpacing: 0.2,
   },
-  attendanceStats: { flex: 1, gap: 10 },
-  statRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  attendanceInfo: { flex: 1, gap: 4 },
+  attendanceHeading: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: palette.ink,
+    letterSpacing: -0.2,
   },
-  statDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  attendanceWeek: {
+    fontSize: 12,
+    color: palette.inkSoft,
   },
-  statLabel: {
-    fontSize: 13,
-    color: "#64748B",
-    flex: 1,
+  attendancePctRow: { marginTop: 4 },
+  attendancePill: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
   },
-  statValue: {
-    fontSize: 14,
+  attendancePillText: {
+    fontSize: 12,
     fontWeight: "700",
-    color: "#0F172A",
-  },
-
-  // Overall summary
-  overallCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    backgroundColor: palette.brandSoft,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: palette.brandMid,
-    padding: spacing.md,
-  },
-  overallIcon: { fontSize: 20, marginTop: 1 },
-  overallText: {
-    flex: 1,
-    fontSize: 14,
-    color: palette.brandDeep,
-    lineHeight: 21,
-    fontWeight: "500",
   },
 
   // Insight cards
   insightCard: {
     borderLeftWidth: 4,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: spacing.md,
     gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   insightHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  insightIcon: { fontSize: 16 },
   insightTitle: {
     fontSize: 13.5,
     fontWeight: "700",
@@ -399,21 +430,25 @@ const styles = StyleSheet.create({
   },
   insightBody: {
     fontSize: 13.5,
-    color: "#475569",
+    color: palette.inkSoft,
     lineHeight: 20,
   },
 
   // Footer
   footer: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: palette.surfaceMuted,
+    borderRadius: 12,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: palette.stroke,
   },
   footerText: {
+    flex: 1,
     fontSize: 11.5,
-    color: "#94A3B8",
+    color: palette.inkFaint,
     lineHeight: 17,
   },
 
@@ -423,15 +458,14 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     gap: 12,
   },
-  emptyIcon: { fontSize: 48 },
   emptyTitle: {
     fontSize: 18,
     fontWeight: "800",
-    color: "#0F172A",
+    color: palette.ink,
   },
   emptySub: {
     fontSize: 13.5,
-    color: "#64748B",
+    color: palette.inkSoft,
     textAlign: "center",
     lineHeight: 20,
     paddingHorizontal: 24,

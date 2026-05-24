@@ -1,17 +1,20 @@
 export const palette = {
-  brand:        "#0d9488",  // teal-600
-  brandDeep:    "#0f766e",  // teal-700
-  brandSoft:    "#ccfbf1",  // teal-100
-  brandMid:     "#99f6e4",  // teal-200
-  accent:       "#f59e0b",  // amber
-  canvas:       "#f6f9f8",
-  surface:      "#ffffff",
-  surfaceMuted: "#f0faf8",
-  ink:          "#0d1f1e",
-  inkSoft:      "#4d7874",
-  inkFaint:     "#94a3b8",
-  stroke:       "#d1ece9",
-  strokeBright: "#99f6e4",
+  brand:        "#5B5FEF",  // indigo-purple
+  brandDeep:    "#4449CC",
+  brandSoft:    "#EEEEFF",  // very light purple
+  brandMid:     "#C7C9FF",
+  heroTop:      "#2D2B6E",  // dark navy for hero card
+  heroBottom:   "#1A1860",
+  accent:       "#4CBFA4",  // mint-teal accent
+  accentSoft:   "#E5F7F3",  // light mint for secondary cards
+  canvas:       "#ECEDF6",  // lavender background
+  surface:      "#FFFFFF",
+  surfaceMuted: "#F4F5FF",
+  ink:          "#1A1A2E",
+  inkSoft:      "#6B7280",
+  inkFaint:     "#9CA3AF",
+  stroke:       "#E5E7EB",
+  strokeBright: "#C7C9FF",
   success:      "#16a34a",
   warning:      "#d97706",
   danger:       "#dc2626",

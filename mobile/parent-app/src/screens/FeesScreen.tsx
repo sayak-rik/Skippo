@@ -3,17 +3,15 @@
 // Shows pending + overdue invoices with a Pay Now button, and payment history.
 // ---------------------------------------------------------------------------
 
-import { LinearGradient } from "expo-linear-gradient";
 import {
   ActivityIndicator,
   Alert,
-  Linking,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { AlertCircle, CheckCircle, CreditCard, Receipt } from "lucide-react-native";
 
 import { InfoCard } from "../components/InfoCard";
 import { Screen } from "../components/Screen";
@@ -51,6 +49,11 @@ function InvoiceCard({
   const color     = STATUS_COLOR[invoice.status] ?? palette.ink;
   const bg        = STATUS_BG[invoice.status]    ?? "#f8fafc";
 
+  const StatusIcon =
+    invoice.status === "paid"    ? CheckCircle :
+    invoice.status === "overdue" ? AlertCircle :
+    CreditCard;
+
   return (
     <View style={styles.invoiceCard}>
       <View style={styles.invoiceTop}>
@@ -59,6 +62,7 @@ function InvoiceCard({
           <Text style={styles.invoiceStudent}>{invoice.student_name}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: bg }]}>
+          <StatusIcon size={10} color={color} strokeWidth={3} />
           <Text style={[styles.statusText, { color }]}>
             {invoice.status.toUpperCase()}
           </Text>
@@ -77,14 +81,7 @@ function InvoiceCard({
             onPress={() => onPay(invoice)}
             activeOpacity={0.8}
           >
-            <LinearGradient
-              colors={["#4f46e5", "#7c3aed"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.payBtnGradient}
-            >
-              <Text style={styles.payBtnText}>Pay Now</Text>
-            </LinearGradient>
+            <Text style={styles.payBtnText}>Pay Now</Text>
           </TouchableOpacity>
         )}
 
@@ -104,7 +101,7 @@ function TransactionRow({ txn }: { txn: PaymentTransaction }) {
   return (
     <View style={styles.txnRow}>
       <View style={styles.txnIcon}>
-        <Text style={{ fontSize: 16 }}>✅</Text>
+        <CheckCircle size={16} color="#16a34a" strokeWidth={2.5} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.txnId} numberOfLines={1}>
@@ -187,25 +184,26 @@ export function FeesScreen() {
       <SectionTitle title="Fees & Payments" subtitle="Manage your school fee payments" />
 
       {/* ── Summary hero ──────────────────────────────────────────────────── */}
-      <LinearGradient
-        colors={hasOverdue ? ["#dc2626", "#b91c1c"] : ["#4f46e5", "#7c3aed"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.heroCard}
-      >
+      <View style={[styles.heroCard, hasOverdue && styles.heroCardOverdue]}>
         <View style={styles.heroOrb1} />
         <View style={styles.heroOrb2} />
 
-        <Text style={styles.heroLabel}>
-          {hasOverdue ? "⚠️  OVERDUE FEES" : "TOTAL DUE"}
-        </Text>
+        <View style={styles.heroIconRow}>
+          {hasOverdue
+            ? <AlertCircle size={22} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
+            : <CreditCard  size={22} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
+          }
+          <Text style={styles.heroLabel}>
+            {hasOverdue ? "OVERDUE FEES" : "TOTAL DUE"}
+          </Text>
+        </View>
         <Text style={styles.heroAmount}>
           ₹{totalOwed.toLocaleString("en-IN")}
         </Text>
         <Text style={styles.heroSub}>
           {pending.length} pending invoice{pending.length !== 1 ? "s" : ""}
         </Text>
-      </LinearGradient>
+      </View>
 
       {/* ── Pending invoices ──────────────────────────────────────────────── */}
       {pending.length > 0 && (
@@ -237,7 +235,10 @@ export function FeesScreen() {
 
       {invoices.length === 0 && !loading && (
         <InfoCard title="All clear!" subtitle="">
-          <Text style={styles.emptyText}>No outstanding fees at this time.</Text>
+          <View style={styles.emptyState}>
+            <Receipt size={32} color={palette.inkFaint} strokeWidth={1.5} />
+            <Text style={styles.emptyText}>No outstanding fees at this time.</Text>
+          </View>
         </InfoCard>
       )}
 
@@ -254,15 +255,20 @@ export function FeesScreen() {
 
 const styles = StyleSheet.create({
   heroCard: {
-    borderRadius: 28,
+    borderRadius: 24,
     padding: spacing.lg,
     overflow: "hidden",
-    shadowColor: "#4f46e5",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 10,
+    backgroundColor: palette.brand,
+    shadowColor: palette.brand,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8,
     marginBottom: spacing.sm,
+  },
+  heroCardOverdue: {
+    backgroundColor: "#dc2626",
+    shadowColor: "#dc2626",
   },
   heroOrb1: {
     position: "absolute",
@@ -282,13 +288,18 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     backgroundColor: "rgba(255,255,255,0.05)",
   },
+  heroIconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 6,
+  },
   heroLabel: {
     fontSize: 11,
     fontWeight: "700",
     color: "rgba(255,255,255,0.7)",
     letterSpacing: 1.5,
     textTransform: "uppercase",
-    marginBottom: 6,
   },
   heroAmount: {
     fontSize: 38,
@@ -310,6 +321,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: palette.stroke,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
   },
   invoiceTop: {
     flexDirection: "row",
@@ -327,9 +343,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     borderRadius: 99,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
   statusText: {
     fontSize: 10,
@@ -354,11 +373,14 @@ const styles = StyleSheet.create({
   },
   payBtn: {
     borderRadius: 14,
-    overflow: "hidden",
-  },
-  payBtnGradient: {
+    backgroundColor: palette.brand,
     paddingHorizontal: 20,
     paddingVertical: 10,
+    shadowColor: palette.brand,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   payBtnText: {
     color: "#fff",
@@ -404,9 +426,15 @@ const styles = StyleSheet.create({
     color: palette.ink,
   },
 
+  emptyState: {
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
   emptyText: {
     fontSize: 14,
     color: palette.inkSoft,
     lineHeight: 21,
+    textAlign: "center",
   },
 });

@@ -1,31 +1,24 @@
-// ---------------------------------------------------------------------------
-// RootNavigator – top-level navigation for the driver app.
-//
-// Unauthenticated:
-//   Login           – OTP login screen
-//   DriverSignup    – invite or self-signup (req 6)
-//
-// Authenticated, pending approval:
-//   PendingApproval – shown until admin approves self-signup (req 6)
-//
-// Authenticated, approved:
-//   MainTabs        – 5 tabs with emoji icons
-//   Breakdown       – accessible from SOSScreen (emergency flow)
-//   + FloatingSOS   – persistent SOS button overlaid on all tab screens (req 10)
-// ---------------------------------------------------------------------------
-
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  AlertTriangle,
+  FileText,
+  Home,
+  Map,
+  Smartphone,
+  Users,
+} from "lucide-react-native";
 import { useState } from "react";
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { BreakdownScreen } from "../screens/BreakdownScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { DevicesScreen } from "../screens/DevicesScreen";
-import { NavigateScreen } from "../screens/NavigateScreen";
 import { DriverSignupScreen } from "../screens/DriverSignupScreen";
 import { LoginScreen } from "../screens/LoginScreen";
+import { NavigateScreen } from "../screens/NavigateScreen";
 import { PendingApprovalScreen } from "../screens/PendingApprovalScreen";
+import { QRScanScreen } from "../screens/QRScanScreen";
 import { RenewalsScreen } from "../screens/RenewalsScreen";
 import { RosterScreen } from "../screens/RosterScreen";
 import { SOSScreen } from "../screens/SOSScreen";
@@ -37,29 +30,123 @@ import { spacing } from "../theme/spacing";
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Tab configuration — emoji icons for clean visual language
-const TABS = [
-  { name: "Dashboard", component: DashboardScreen, emoji: "🚌", label: "Home"      },
-  { name: "Navigate",  component: NavigateScreen,  emoji: "🗺",  label: "Map"       },
-  { name: "Roster",    component: RosterScreen,    emoji: "📋", label: "Roster"    },
-  { name: "SOS",       component: SOSScreen,        emoji: "🚨", label: "Emergency" },
-  { name: "Renewals",  component: RenewalsScreen,   emoji: "📄", label: "Renewals"  },
-  { name: "Devices",   component: DevicesScreen,    emoji: "📱", label: "Devices"   },
+type TabConfig = {
+  name: string;
+  component: React.ComponentType<any>;
+  icon: (focused: boolean) => React.ReactNode;
+  label: string;
+  isEmergency?: boolean;
+};
+
+const ICON_SIZE = 22;
+const ICON_STROKE = 2;
+
+const TABS: TabConfig[] = [
+  {
+    name: "Dashboard",
+    component: DashboardScreen,
+    label: "Home",
+    icon: (focused) => (
+      <Home
+        size={ICON_SIZE}
+        color={focused ? palette.brand : palette.inkFaint}
+        strokeWidth={focused ? 2.5 : ICON_STROKE}
+      />
+    ),
+  },
+  {
+    name: "Navigate",
+    component: NavigateScreen,
+    label: "Map",
+    icon: (focused) => (
+      <Map
+        size={ICON_SIZE}
+        color={focused ? palette.brand : palette.inkFaint}
+        strokeWidth={focused ? 2.5 : ICON_STROKE}
+      />
+    ),
+  },
+  {
+    name: "Roster",
+    component: RosterScreen,
+    label: "Roster",
+    icon: (focused) => (
+      <Users
+        size={ICON_SIZE}
+        color={focused ? palette.brand : palette.inkFaint}
+        strokeWidth={focused ? 2.5 : ICON_STROKE}
+      />
+    ),
+  },
+  {
+    name: "SOS",
+    component: SOSScreen,
+    label: "Emergency",
+    isEmergency: true,
+    icon: (focused) => (
+      <AlertTriangle
+        size={ICON_SIZE}
+        color={palette.danger}
+        strokeWidth={focused ? 2.5 : ICON_STROKE}
+      />
+    ),
+  },
+  {
+    name: "Renewals",
+    component: RenewalsScreen,
+    label: "Docs",
+    icon: (focused) => (
+      <FileText
+        size={ICON_SIZE}
+        color={focused ? palette.brand : palette.inkFaint}
+        strokeWidth={focused ? 2.5 : ICON_STROKE}
+      />
+    ),
+  },
+  {
+    name: "Devices",
+    component: DevicesScreen,
+    label: "Account",
+    icon: (focused) => (
+      <Smartphone
+        size={ICON_SIZE}
+        color={focused ? palette.brand : palette.inkFaint}
+        strokeWidth={focused ? 2.5 : ICON_STROKE}
+      />
+    ),
+  },
 ];
 
 // ── TabIcon ───────────────────────────────────────────────────────────────────
 
-function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
-  const isEmergency = label === "Emergency";
+function TabIcon({
+  icon,
+  label,
+  focused,
+  isEmergency,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  focused: boolean;
+  isEmergency?: boolean;
+}) {
   return (
-    <View style={[
-      styles.tabItem,
-      focused && styles.tabItemActive,
-      isEmergency && styles.tabItemSOS,
-      isEmergency && focused && styles.tabItemSOSActive,
-    ]}>
-      <Text style={styles.tabEmoji}>{emoji}</Text>
-      <Text style={[styles.tabLabel, focused && styles.tabLabelActive, isEmergency && styles.tabLabelSOS]}>
+    <View
+      style={[
+        styles.tabItem,
+        focused && !isEmergency && styles.tabItemActive,
+        isEmergency && styles.tabItemSOS,
+        isEmergency && focused && styles.tabItemSOSActive,
+      ]}
+    >
+      {icon}
+      <Text
+        style={[
+          styles.tabLabel,
+          focused && !isEmergency && styles.tabLabelActive,
+          isEmergency && styles.tabLabelSOS,
+        ]}
+      >
         {label}
       </Text>
     </View>
@@ -67,16 +154,13 @@ function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focu
 }
 
 // ── FloatingSOS ───────────────────────────────────────────────────────────────
-// A floating SOS button always visible above the tab bar regardless of which
-// tab is active.  Tapping it triggers the SOS action and shows the full-screen
-// red overlay without navigating away (req 10).
 
 function FloatingSOS() {
   const actions = useDriverActions();
   const activeTripId = useDriverSessionStore((s) => s.activeTripId);
   const [overlayVisible, setOverlayVisible] = useState(false);
 
-  if (!activeTripId) return null; // Only visible during an active trip
+  if (!activeTripId) return null;
 
   async function handleFloatingSOS() {
     await actions.triggerSos.mutateAsync();
@@ -90,13 +174,15 @@ function FloatingSOS() {
         onPress={handleFloatingSOS}
         activeOpacity={0.85}
       >
+        <AlertTriangle size={18} color="#fff" strokeWidth={2.5} />
         <Text style={styles.floatBtnText}>SOS</Text>
       </TouchableOpacity>
 
-      {/* Full-screen SOS overlay — covers everything when triggered */}
       <Modal visible={overlayVisible} animationType="fade" statusBarTranslucent>
         <View style={styles.sosOverlay}>
-          <Text style={styles.overlayIcon}>🚨</Text>
+          <View style={styles.overlayIconRing}>
+            <AlertTriangle size={52} color="#fff" strokeWidth={2} />
+          </View>
           <Text style={styles.overlayTitle}>SOS ACTIVE</Text>
           <Text style={styles.overlaySub}>
             Emergency services and all route parents have been notified.{"\n"}
@@ -109,7 +195,9 @@ function FloatingSOS() {
               "Wait for school or emergency services.",
             ].map((s, i) => (
               <View key={i} style={styles.overlayStep}>
-                <Text style={styles.overlayStepNum}>{i + 1}</Text>
+                <View style={styles.overlayStepNum}>
+                  <Text style={styles.overlayStepNumText}>{i + 1}</Text>
+                </View>
                 <Text style={styles.overlayStepText}>{s}</Text>
               </View>
             ))}
@@ -146,14 +234,17 @@ function MainTabs() {
             component={tab.component}
             options={{
               tabBarIcon: ({ focused }) => (
-                <TabIcon emoji={tab.emoji} label={tab.label} focused={focused} />
+                <TabIcon
+                  icon={tab.icon(focused)}
+                  label={tab.label}
+                  focused={focused}
+                  isEmergency={tab.isEmergency}
+                />
               ),
             }}
           />
         ))}
       </Tab.Navigator>
-
-      {/* FloatingSOS sits on top of the tab content during active trips */}
       <FloatingSOS />
     </View>
   );
@@ -168,19 +259,21 @@ export function RootNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!isAuthenticated ? (
-        // Pre-auth screens
         <>
-          <Stack.Screen name="Login"        component={LoginScreen}       />
+          <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="DriverSignup" component={DriverSignupScreen} />
         </>
       ) : isPendingApproval ? (
-        // Self-signup waiting for admin approval
         <Stack.Screen name="PendingApproval" component={PendingApprovalScreen} />
       ) : (
-        // Full app
         <>
-          <Stack.Screen name="Main"      component={MainTabs}      />
+          <Stack.Screen name="Main" component={MainTabs} />
           <Stack.Screen name="Breakdown" component={BreakdownScreen} />
+          <Stack.Screen
+            name="QRScan"
+            component={QRScanScreen}
+            options={{ presentation: "fullScreenModal" }}
+          />
         </>
       )}
     </Stack.Navigator>
@@ -191,9 +284,9 @@ export function RootNavigator() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: 72,
+    height: 76,
     paddingTop: 6,
-    paddingBottom: 10,
+    paddingBottom: 12,
     backgroundColor: palette.surface,
     borderTopWidth: 1,
     borderTopColor: palette.stroke,
@@ -204,36 +297,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    gap: 2,
+    paddingVertical: 6,
+    borderRadius: 14,
+    gap: 3,
+    minWidth: 52,
   },
-  tabItemActive:    { backgroundColor: palette.brandSoft },
-  tabItemSOS:       { backgroundColor: "rgba(197,48,48,0.08)", borderRadius: 12 },
-  tabItemSOSActive: { backgroundColor: "rgba(197,48,48,0.18)" },
-  tabEmoji:         { fontSize: 17 },
-  tabLabel:         { fontSize: 9, fontWeight: "600", color: palette.inkSoft, letterSpacing: 0.2 },
-  tabLabelActive:   { color: palette.brandDeep, fontWeight: "800" },
-  tabLabelSOS:      { color: palette.danger },
+  tabItemActive: { backgroundColor: palette.brandSoft },
+  tabItemSOS: { backgroundColor: palette.dangerSoft, borderRadius: 14 },
+  tabItemSOSActive: { backgroundColor: "#FECACA" },
+  tabLabel: { fontSize: 9, fontWeight: "600", color: palette.inkFaint, letterSpacing: 0.2 },
+  tabLabelActive: { color: palette.brand, fontWeight: "800" },
+  tabLabelSOS: { color: palette.danger, fontWeight: "700" },
 
-  // Floating SOS button — always above tab content during active trips
+  // Floating SOS
   floatBtn: {
     position: "absolute",
     right: spacing.lg,
-    bottom: 88, // sits above the 72px tab bar with some gap
+    bottom: 92,
     backgroundColor: palette.danger,
     borderRadius: 32,
     paddingHorizontal: spacing.lg,
     paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     shadowColor: palette.danger,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45,
     shadowRadius: 10,
     elevation: 10,
   },
-  floatBtnText: { color: "#fff", fontWeight: "900", fontSize: 16, letterSpacing: 0.5 },
+  floatBtnText: { color: "#fff", fontWeight: "900", fontSize: 15, letterSpacing: 0.3 },
 
-  // Full-screen SOS overlay
+  // SOS overlay
   sosOverlay: {
     flex: 1,
     backgroundColor: palette.danger,
@@ -242,18 +338,42 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     padding: spacing.xl,
   },
-  overlayIcon: { fontSize: 72 },
+  overlayIconRing: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.35)",
+  },
   overlayTitle: { fontSize: 42, fontWeight: "900", color: "#fff", letterSpacing: -1 },
-  overlaySub: { fontSize: 16, color: "rgba(255,255,255,0.9)", textAlign: "center", lineHeight: 24 },
+  overlaySub: {
+    fontSize: 16,
+    color: "rgba(255,255,255,0.9)",
+    textAlign: "center",
+    lineHeight: 26,
+  },
   overlaySteps: {
     gap: spacing.md,
     alignSelf: "stretch",
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.14)",
     borderRadius: 20,
     padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
   },
-  overlayStep: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
-  overlayStepNum: { fontSize: 20, fontWeight: "900", color: "rgba(255,255,255,0.6)", width: 24 },
+  overlayStep: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  overlayStepNum: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  overlayStepNumText: { fontSize: 14, fontWeight: "900", color: "#fff" },
   overlayStepText: { flex: 1, fontSize: 15, color: "#fff", lineHeight: 22 },
   dismissBtn: {
     backgroundColor: "rgba(255,255,255,0.2)",

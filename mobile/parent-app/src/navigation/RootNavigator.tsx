@@ -3,54 +3,58 @@
 //
 // Unauthenticated:  Login  (default)
 //                   Signup (3-step parent + bus onboarding)
-// Authenticated:    MainTabs (6 bottom tabs with emoji icons)
+//                   NewParent
+// Authenticated:    MainTabs (5 bottom tabs with Lucide icons, no labels)
 // ---------------------------------------------------------------------------
 
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { StyleSheet, Text, View } from "react-native";
+import { Bus, CreditCard, GraduationCap, Home, User } from "lucide-react-native";
+import { StyleSheet, View } from "react-native";
 
-import { DismissalScreen } from "../screens/DismissalScreen";
 import { FeesScreen } from "../screens/FeesScreen";
 import { HomeScreen } from "../screens/HomeScreen";
 import { LiveTrackScreen } from "../screens/LiveTrackScreen";
 import { LoginScreen } from "../screens/LoginScreen";
-import { MessagesScreen } from "../screens/MessagesScreen";
-import { NotificationsScreen } from "../screens/NotificationsScreen";
+import { NewParentScreen } from "../screens/NewParentScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { ProgressScreen } from "../screens/ProgressScreen";
 import { SignupScreen } from "../screens/SignupScreen";
-import { SupportScreen } from "../screens/SupportScreen";
-import { WeeklyDigestScreen } from "../screens/WeeklyDigestScreen";
 import { useSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
-import { spacing } from "../theme/spacing";
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+const Tab   = createBottomTabNavigator();
 
-// Tab configuration — emoji icons replace the single-letter placeholders for
-// a more polished, minimalist look (req 5).
-const TABS = [
-  { name: "Home",          component: HomeScreen,          emoji: "🏠", label: "Home"      },
-  { name: "Track",         component: LiveTrackScreen,     emoji: "📍", label: "Track"     },
-  { name: "Pickup",        component: DismissalScreen,     emoji: "🚗", label: "Pickup"    },
-  { name: "Fees",          component: FeesScreen,          emoji: "💳", label: "Fees"      },
-  { name: "Progress",      component: ProgressScreen,      emoji: "📚", label: "Progress"  },
-  { name: "WeeklyDigest",  component: WeeklyDigestScreen,  emoji: "📊", label: "Report"    },
-  { name: "Messages",      component: MessagesScreen,      emoji: "✉️", label: "Messages"  },
-  { name: "Notifications", component: NotificationsScreen, emoji: "🔔", label: "Alerts"    },
-  { name: "Support",       component: SupportScreen,       emoji: "🆘", label: "Support"   },
-  { name: "Profile",       component: ProfileScreen,       emoji: "👤", label: "Profile"   },
+// ── Tab configuration ─────────────────────────────────────────────────────────
+
+type LucideIcon = typeof Home;
+
+const TABS: { name: string; component: unknown; Icon: LucideIcon }[] = [
+  { name: "Home",     component: HomeScreen,      Icon: Home          },
+  { name: "Track",    component: LiveTrackScreen,  Icon: Bus           },
+  { name: "Fees",     component: FeesScreen,       Icon: CreditCard    },
+  { name: "Progress", component: ProgressScreen,   Icon: GraduationCap },
+  { name: "Profile",  component: ProfileScreen,    Icon: User          },
 ];
 
 // ── TabIcon ───────────────────────────────────────────────────────────────────
 
-function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
+function TabIcon({
+  Icon,
+  focused,
+}: {
+  Icon: LucideIcon;
+  focused: boolean;
+}) {
   return (
-    <View style={[styles.tabItem, focused && styles.tabItemActive]}>
-      <Text style={styles.tabEmoji}>{emoji}</Text>
-      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{label}</Text>
+    <View style={styles.tabItem}>
+      <Icon
+        size={24}
+        color={focused ? palette.brand : palette.inkFaint}
+        strokeWidth={focused ? 2.2 : 1.8}
+      />
+      {focused && <View style={styles.activeDot} />}
     </View>
   );
 }
@@ -61,20 +65,18 @@ function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        headerShown: false,
+        headerShown:    false,
         tabBarShowLabel: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle:    styles.tabBar,
       }}
     >
-      {TABS.map((tab) => (
+      {TABS.map(({ name, component, Icon }) => (
         <Tab.Screen
-          key={tab.name}
-          name={tab.name}
-          component={tab.component}
+          key={name}
+          name={name}
+          component={component}
           options={{
-            tabBarIcon: ({ focused }) => (
-              <TabIcon emoji={tab.emoji} label={tab.label} focused={focused} />
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon Icon={Icon} focused={focused} />,
           }}
         />
       ))}
@@ -93,8 +95,9 @@ export function RootNavigator() {
         <Stack.Screen name="Main" component={MainTabs} />
       ) : (
         <>
-          <Stack.Screen name="Login"  component={LoginScreen}  />
-          <Stack.Screen name="Signup" component={SignupScreen} />
+          <Stack.Screen name="Login"     component={LoginScreen}     />
+          <Stack.Screen name="Signup"    component={SignupScreen}    />
+          <Stack.Screen name="NewParent" component={NewParentScreen} />
         </>
       )}
     </Stack.Navigator>
@@ -105,9 +108,7 @@ export function RootNavigator() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: 72,
-    paddingTop: 6,
-    paddingBottom: 10,
+    height: 64,
     backgroundColor: palette.surface,
     borderTopWidth: 1,
     borderTopColor: palette.stroke,
@@ -117,13 +118,12 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    gap: 2,
+    gap: 4,
   },
-  tabItemActive:  { backgroundColor: palette.brandSoft },
-  tabEmoji:       { fontSize: 17 },
-  tabLabel:       { fontSize: 9, fontWeight: "600", color: palette.inkSoft, letterSpacing: 0.2 },
-  tabLabelActive: { color: palette.brandDeep, fontWeight: "800" },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: palette.brand,
+  },
 });

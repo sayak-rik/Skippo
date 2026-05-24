@@ -1,15 +1,8 @@
-// ---------------------------------------------------------------------------
-// BreakdownScreen – vehicle breakdown flow (req 10, 11, 12).
-//
-// Step 1: Confirm and broadcast a breakdown alert to all parents (req 11).
-// Step 2: View and contact nearby school vehicles for assistance (req 12).
-// ---------------------------------------------------------------------------
-
-import { Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ArrowLeft, Bus, Check, Phone, Wrench } from "lucide-react-native";
 import { useState } from "react";
+import { Linking, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Screen } from "../components/Screen";
-import { SectionTitle } from "../components/SectionTitle";
 import { useDriverActions, useNearbyVehicles } from "../hooks/useDriverDashboard";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
@@ -31,25 +24,32 @@ export function BreakdownScreen({ navigation }: { navigation?: any }) {
     }
   }
 
-  function callDriver(vehicle: NearbyVehicle) {
-    Linking.openURL(`tel:${vehicle.phone.replace(/\s/g, "")}`);
-  }
-
   return (
     <Screen>
-      <SectionTitle
-        title="Vehicle Breakdown"
-        subtitle="Alert parents and coordinate support"
-      />
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation?.goBack?.()}
+          activeOpacity={0.7}
+        >
+          <ArrowLeft size={20} color={palette.ink} strokeWidth={2.5} />
+        </TouchableOpacity>
+        <View>
+          <Text style={styles.title}>Vehicle Breakdown</Text>
+          <Text style={styles.subtitle}>Alert parents and coordinate support</Text>
+        </View>
+      </View>
 
-      {/* ── Step 1: Alert parents ───────────────────────────────────── */}
+      {/* Alert card */}
       {!alertSent ? (
         <View style={styles.alertCard}>
-          <Text style={styles.alertIcon}>🔧</Text>
-          <Text style={styles.alertTitle}>Broadcast breakdown to parents</Text>
+          <View style={styles.alertIconWrap}>
+            <Wrench size={32} color={palette.warning} strokeWidth={2} />
+          </View>
+          <Text style={styles.alertTitle}>Broadcast breakdown alert</Text>
           <Text style={styles.alertBody}>
-            This will immediately alert all parents on your current route that the vehicle has broken
-            down and that alternative transport is being arranged.
+            This will immediately notify all parents on your current route that the vehicle has
+            broken down and that alternative transport is being arranged.
           </Text>
           <TouchableOpacity
             style={[styles.broadcastBtn, sending && styles.btnDisabled]}
@@ -64,7 +64,9 @@ export function BreakdownScreen({ navigation }: { navigation?: any }) {
         </View>
       ) : (
         <View style={styles.sentCard}>
-          <Text style={styles.sentIcon}>✓</Text>
+          <View style={styles.sentIconWrap}>
+            <Check size={28} color={palette.success} strokeWidth={3} />
+          </View>
           <Text style={styles.sentTitle}>Parents notified</Text>
           <Text style={styles.sentBody}>
             All route parents have been sent a breakdown alert. The school has also been notified.
@@ -72,142 +74,162 @@ export function BreakdownScreen({ navigation }: { navigation?: any }) {
         </View>
       )}
 
-      {/* ── Step 2: Contact nearby vehicles (req 12) ────────────────── */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Nearby school vehicles</Text>
-        <Text style={styles.sectionSub}>
-          Contact these drivers to coordinate student transfers.
-        </Text>
-      </View>
+      {/* Nearby vehicles */}
+      <Text style={styles.sectionTitle}>Nearby school vehicles</Text>
+      <Text style={styles.sectionSub}>Contact these drivers to coordinate student transfers.</Text>
+
+      {(nearbyVehicles as NearbyVehicle[]).length === 0 && (
+        <View style={styles.emptyNearby}>
+          <Bus size={28} color={palette.inkFaint} strokeWidth={1.5} />
+          <Text style={styles.emptyNearbyText}>No nearby vehicles found.</Text>
+        </View>
+      )}
 
       {(nearbyVehicles as NearbyVehicle[]).map((v) => (
         <View key={v.id} style={styles.vehicleCard}>
-          <View style={styles.vehicleIcon}>
-            <Text style={styles.vehicleIconText}>🚌</Text>
+          <View style={styles.vehicleIconWrap}>
+            <Bus size={22} color={palette.brand} strokeWidth={2} />
           </View>
-          <View style={styles.vehicleInfo}>
+          <View style={{ flex: 1 }}>
             <Text style={styles.vehicleName}>{v.label} · {v.routeName}</Text>
             <Text style={styles.vehicleDriver}>{v.driverName}</Text>
             <Text style={styles.vehicleDist}>{v.distanceKm} km away</Text>
           </View>
           <TouchableOpacity
             style={styles.callBtn}
-            onPress={() => callDriver(v)}
+            onPress={() => Linking.openURL(`tel:${v.phone.replace(/\s/g, "")}`)}
             activeOpacity={0.8}
           >
+            <Phone size={15} color="#fff" strokeWidth={2.5} />
             <Text style={styles.callBtnText}>Call</Text>
           </TouchableOpacity>
         </View>
       ))}
-
-      <TouchableOpacity
-        style={styles.backLink}
-        onPress={() => navigation?.goBack?.()}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.backLinkText}>← Back to emergency controls</Text>
-      </TouchableOpacity>
-
-      <View style={{ height: spacing.xl }} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingTop: spacing.sm,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.stroke,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  title: { fontSize: 20, fontWeight: "800", color: palette.ink, letterSpacing: -0.3 },
+  subtitle: { fontSize: 12, color: palette.inkSoft, marginTop: 1 },
   alertCard: {
-    backgroundColor: "#fffbeb",
-    borderRadius: 26,
+    backgroundColor: palette.surface,
+    borderRadius: 24,
     borderWidth: 1.5,
-    borderColor: "#d97706",
+    borderColor: "#FDE68A",
     padding: spacing.lg,
     gap: spacing.md,
     alignItems: "center",
-    shadowColor: "#d97706",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 5,
+    shadowColor: palette.warning,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 4,
   },
-  alertIcon: { fontSize: 48 },
-  alertTitle: { fontSize: 20, fontWeight: "900", color: palette.ink, textAlign: "center", letterSpacing: -0.3 },
+  alertIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: "#FFF3CD",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  alertTitle: { fontSize: 18, fontWeight: "800", color: palette.ink, textAlign: "center" },
   alertBody: { fontSize: 14, color: palette.inkSoft, textAlign: "center", lineHeight: 22 },
   broadcastBtn: {
-    backgroundColor: "#d97706",
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: spacing.xl,
+    backgroundColor: palette.warning,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignSelf: "stretch",
     alignItems: "center",
-    shadowColor: "#d97706",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowColor: palette.warning,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   btnDisabled: { opacity: 0.5 },
-  broadcastBtnText: { color: "#fff", fontWeight: "800", fontSize: 15, letterSpacing: 0.2 },
+  broadcastBtnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
   sentCard: {
-    backgroundColor: "#f0fdf4",
-    borderRadius: 26,
+    backgroundColor: "#F0FDF4",
+    borderRadius: 24,
     borderWidth: 1.5,
-    borderColor: palette.success,
+    borderColor: "#BBF7D0",
     padding: spacing.lg,
     gap: spacing.sm,
     alignItems: "center",
-    shadowColor: palette.success,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 3,
   },
-  sentIcon: { fontSize: 40, color: palette.success },
-  sentTitle: { fontSize: 18, fontWeight: "900", color: palette.ink, letterSpacing: -0.3 },
+  sentIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#DCFCE7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sentTitle: { fontSize: 17, fontWeight: "800", color: palette.ink },
   sentBody: { fontSize: 14, color: palette.inkSoft, textAlign: "center", lineHeight: 22 },
-  section: { gap: 4 },
   sectionTitle: { fontSize: 16, fontWeight: "800", color: palette.ink, letterSpacing: -0.2 },
-  sectionSub: { fontSize: 13, color: palette.inkSoft },
+  sectionSub: { fontSize: 13, color: palette.inkSoft, marginTop: -spacing.sm + 2 },
+  emptyNearby: { alignItems: "center", gap: 8, paddingVertical: spacing.lg },
+  emptyNearbyText: { fontSize: 14, color: palette.inkFaint },
   vehicleCard: {
     flexDirection: "row",
     alignItems: "center",
+    gap: spacing.md,
     backgroundColor: palette.surface,
-    borderRadius: 20,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: palette.stroke,
     padding: spacing.md,
-    gap: spacing.md,
-    shadowColor: "#0d9488",
+    shadowColor: "#4449CC",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 2,
   },
-  vehicleIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  vehicleIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     backgroundColor: palette.brandSoft,
-    alignItems: "center",
-    justifyContent: "center",
     borderWidth: 1,
     borderColor: palette.brandMid,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  vehicleIconText: { fontSize: 22 },
-  vehicleInfo: { flex: 1 },
-  vehicleName: { fontSize: 14, fontWeight: "800", color: palette.ink, letterSpacing: -0.2 },
+  vehicleName: { fontSize: 14, fontWeight: "800", color: palette.ink },
   vehicleDriver: { fontSize: 13, color: palette.inkSoft, marginTop: 1 },
   vehicleDist: { fontSize: 12, color: palette.brand, fontWeight: "700", marginTop: 2 },
   callBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     backgroundColor: palette.brand,
     borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 11,
-    shadowColor: "#0d9488",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    shadowColor: palette.brand,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
   },
-  callBtnText: { color: "#fff", fontWeight: "800", fontSize: 14 },
-  backLink: { alignItems: "center", paddingVertical: spacing.sm },
-  backLinkText: { fontSize: 13, color: palette.inkSoft },
+  callBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
 });

@@ -11,37 +11,54 @@ import {
   View,
 } from "react-native";
 
+import { PhoneInput } from "../components/PhoneInput";
 import { Screen } from "../components/Screen";
 import { SkippoLogo } from "../components/SkippoLogo";
-import { api } from "../lib/api";
+import { api, setAuthToken } from "../lib/api";
 import { useAvailableRoutes } from "../hooks/useParentDashboard";
 import { useSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
 import { RouteOption } from "../types";
 
-export function SignupScreen({ navigation }: { navigation?: any }) {
-  const login = useSessionStore((s) => s.login);
-  const setSelectedRoute = useSessionStore((s) => s.setSelectedRoute);
+// Steps:
+//   1 – Phone + OTP verification (account is auto-created by the backend on verify)
+//   2 – Confirm / enter parent name (only shown when needs_profile_completion = true)
+//   3 – Pick a bus route (optional but encouraged)
+type Step = 1 | 2 | 3;
+
+const TOTAL_STEPS = 3;
+
+export function SignupScreen({ navigation, route }: { navigation?: any; route?: any }) {
+  const login             = useSessionStore((s) => s.login);
+  const setSelectedRoute  = useSessionStore((s) => s.setSelectedRoute);
   const { data: routes = [] } = useAvailableRoutes();
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [loading, setLoading] = useState(false);
+  // Pre-filled from LoginScreen when it detected a signup-path phone
+  const params: {
+    phone?: string;
+    schoolSlug?: string;
+    childName?: string;
+    pendingParentName?: string;
+  } = route?.params ?? {};
+
+  const [step, setStep]             = useState<Step>(1);
+  const [loading, setLoading]       = useState(false);
 
   // Step 1 — OTP
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [verifiedToken, setVerifiedToken] = useState<string | null>(null);
+  const [phone, setPhone]           = useState(params.phone ?? "");
+  const [schoolSlug, setSchoolSlug] = useState(params.schoolSlug ?? "");
+  const [otp, setOtp]               = useState("");
+  const [otpSent, setOtpSent]       = useState(false);
+  const [verifiedData, setVerifiedData] = useState<any>(null);
 
-  // Step 2 — child details
-  const [childName, setChildName] = useState("");
-  const [grade, setGrade] = useState("");
+  // Step 2 — parent name
+  const [parentName, setParentName] = useState(params.pendingParentName ?? "");
 
   // Step 3 — bus picker
   const [selectedRouteId, setLocalRouteId] = useState<number | null>(null);
 
-  // ── Step 1a: send OTP ─────────────────────────────────────────────────────
+  // ── Step 1a: send OTP ──────────────────────────────────────────────────────
 
   async function handleSendOtp() {
     const contact = phone.trim();
@@ -51,16 +68,40 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
     }
     setLoading(true);
     try {
-      await api.post("/api/auth/otp/request/", { contact, channel: "sms", role: "parent" });
+      // If we don't have a school slug yet (manual signup entry, not from login redirect),
+      // run the lookup first to discover it.
+      let slug = schoolSlug;
+      if (!slug) {
+        const { data: lookup } = await api.post("/api/auth/parent/lookup/", { phone: contact });
+        if (lookup.action === "login") {
+          // They already have an account — send back to login
+          Alert.alert(
+            "Account exists",
+            "You already have an account. Please sign in instead.",
+            [{ text: "Sign in", onPress: () => navigation?.navigate?.("Login") }]
+          );
+          return;
+        }
+        slug = lookup.school_slug;
+        setSchoolSlug(slug);
+      }
+
+      await api.post("/api/auth/otp/request/", {
+        contact,
+        channel: "sms",
+        role: "parent",
+        school_slug: slug,
+      });
       setOtpSent(true);
-    } catch {
-      Alert.alert("Error", "Could not send OTP. Please check your number and try again.");
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail ?? "Could not send OTP. Make sure your number is registered with your school.";
+      Alert.alert("Error", msg);
     } finally {
       setLoading(false);
     }
   }
 
-  // ── Step 1b: verify OTP ───────────────────────────────────────────────────
+  // ── Step 1b: verify OTP ────────────────────────────────────────────────────
 
   async function handleVerifyOtp() {
     const contact = phone.trim();
@@ -71,72 +112,112 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
     }
     setLoading(true);
     try {
-      const { data } = await api.post("/api/auth/otp/verify/", { contact, code, role: "parent" });
-      setVerifiedToken(data.token);
-      setStep(2);
-    } catch {
-      Alert.alert("Invalid OTP", "The code you entered is incorrect or has expired.");
+      const { data } = await api.post("/api/auth/otp/verify/", {
+        contact,
+        code,
+        role: "parent",
+        school_slug: schoolSlug,
+      });
+
+      // The backend has now created the ParentProfile and linked the student(s).
+      setVerifiedData(data);
+      setAuthToken(data.access); // needed for the complete-profile call in step 2
+
+      if (data.needs_profile_completion) {
+        setStep(2);
+      } else {
+        // Name already present (from pending_parent_name) — skip to bus picker
+        setStep(3);
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail ?? "The code you entered is incorrect or has expired.";
+      Alert.alert("Invalid OTP", msg);
     } finally {
       setLoading(false);
     }
   }
 
-  // ── Step 2: child details → step 3 ───────────────────────────────────────
+  // ── Step 2: save parent name ───────────────────────────────────────────────
 
-  function handleStep2() {
-    if (!childName.trim() || !grade.trim()) {
-      Alert.alert("Missing fields", "Please enter your child's name and grade.");
-      return;
-    }
-    setStep(3);
-  }
-
-  // ── Step 3: pick bus + complete signup ────────────────────────────────────
-
-  async function handleCompleteSignup() {
-    if (!selectedRouteId) {
-      Alert.alert("Pick a bus", "Please select the bus your child travels in.");
+  async function handleSaveName() {
+    const name = parentName.trim();
+    if (!name) {
+      Alert.alert("Missing field", "Please enter your name.");
       return;
     }
     setLoading(true);
     try {
-      await api.post("/api/auth/parent/complete-signup/", {
-        childName: childName.trim(),
-        grade: grade.trim(),
-        routeId: selectedRouteId,
-      });
-      await api.post("/api/transport/parent/change-bus/", { routeId: selectedRouteId });
-      setSelectedRoute(selectedRouteId);
-      // verifiedToken is already set; retrieve name from the OTP verify response
-      login({ name: childName.trim(), school_slug: "", token: verifiedToken!, routeId: selectedRouteId });
+      await api.post("/api/auth/parent/complete-profile/", { name });
+      setStep(3);
     } catch {
-      Alert.alert("Signup failed", "Something went wrong. Please try again.");
+      Alert.alert("Error", "Could not save your name. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Step 3: finish (with or without bus selection) ─────────────────────────
 
-  const stepLabels = ["Verify phone", "Child details", "Pick a bus"];
+  async function handleFinish() {
+    const data = verifiedData!;
+    const name = parentName.trim() || data.user?.name || "";
+
+    if (selectedRouteId) {
+      try {
+        await api.post("/api/transport/parent/change-bus/", { routeId: selectedRouteId });
+        setSelectedRoute(selectedRouteId);
+      } catch {
+        // Non-fatal — user can change bus from profile later
+      }
+    }
+
+    login({
+      name,
+      school_slug: data.school_slug,
+      token: data.access,
+      routeId: selectedRouteId ?? undefined,
+    });
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  const stepLabels: Record<Step, string> = {
+    1: "Verify your phone",
+    2: "Your name",
+    3: "Pick a bus",
+  };
 
   return (
-    <Screen>
+    <Screen style={styles.screen}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.kav}
       >
-        {/* Header */}
+        {/* ── Header ──────────────────────────────────────────────────── */}
         <View style={styles.header}>
-          <SkippoLogo size={48} />
-          <Text style={styles.kicker}>Skippo · Parent Signup</Text>
-          <Text style={styles.headline}>{stepLabels[step - 1]}</Text>
+          <SkippoLogo size={44} />
+          <Text style={styles.kicker}>Skippo · Parent</Text>
+          <Text style={styles.headline}>{stepLabels[step]}</Text>
+          {step === 1 && params.childName ? (
+            <Text style={styles.sub}>
+              Welcome!{" "}
+              <Text style={styles.childName}>{params.childName}</Text>
+              {" "}is enrolled at your school.
+            </Text>
+          ) : null}
         </View>
 
-        {/* Step progress */}
+        {/* ── Step dots ───────────────────────────────────────────────── */}
         <View style={styles.stepRow}>
-          {[1, 2, 3].map((s) => (
-            <View key={s} style={[styles.stepPip, step >= s && styles.stepPipActive]} />
+          {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.stepDot,
+                i < step       && styles.stepDotDone,
+                i === step - 1 && styles.stepDotCurrent,
+              ]}
+            />
           ))}
         </View>
 
@@ -145,13 +226,9 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
           <View style={styles.card}>
             <View style={styles.field}>
               <Text style={styles.label}>Phone number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="+91 98XXXXXX21"
-                placeholderTextColor={palette.inkSoft}
-                keyboardType="phone-pad"
+              <PhoneInput
                 value={phone}
-                onChangeText={setPhone}
+                onChangePhone={setPhone}
                 editable={!otpSent}
               />
             </View>
@@ -162,7 +239,7 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
                 <TextInput
                   style={styles.input}
                   placeholder="Enter 6-digit OTP"
-                  placeholderTextColor={palette.inkSoft}
+                  placeholderTextColor={palette.inkFaint}
                   keyboardType="number-pad"
                   secureTextEntry
                   value={otp}
@@ -177,7 +254,7 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
               style={[styles.btn, loading && styles.btnDisabled]}
               onPress={otpSent ? handleVerifyOtp : handleSendOtp}
               disabled={loading}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
               <Text style={styles.btnText}>
                 {loading
@@ -187,40 +264,42 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
             </TouchableOpacity>
 
             {otpSent && (
-              <TouchableOpacity onPress={() => { setOtpSent(false); setOtp(""); }} activeOpacity={0.7}>
-                <Text style={styles.resendText}>← Change number or resend</Text>
+              <TouchableOpacity
+                onPress={() => { setOtpSent(false); setOtp(""); }}
+                activeOpacity={0.7}
+                style={styles.linkRow}
+              >
+                <Text style={styles.linkText}>← Change number or resend</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
 
-        {/* ── Step 2: Child details ────────────────────────────────────── */}
+        {/* ── Step 2: Parent name ──────────────────────────────────────── */}
         {step === 2 && (
           <View style={styles.card}>
+            <Text style={styles.cardSub}>
+              We couldn't find your name in our records. Please enter it so teachers can identify you.
+            </Text>
             <View style={styles.field}>
-              <Text style={styles.label}>Child's full name</Text>
+              <Text style={styles.label}>Your full name</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Aryan Sharma"
-                placeholderTextColor={palette.inkSoft}
+                placeholder="e.g. Priya Sharma"
+                placeholderTextColor={palette.inkFaint}
                 autoCapitalize="words"
-                value={childName}
-                onChangeText={setChildName}
+                value={parentName}
+                onChangeText={setParentName}
+                autoFocus
               />
             </View>
-            <View style={styles.field}>
-              <Text style={styles.label}>Grade / Class</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Class 4B"
-                placeholderTextColor={palette.inkSoft}
-                autoCapitalize="words"
-                value={grade}
-                onChangeText={setGrade}
-              />
-            </View>
-            <TouchableOpacity style={styles.btn} onPress={handleStep2} activeOpacity={0.8}>
-              <Text style={styles.btnText}>Continue</Text>
+            <TouchableOpacity
+              style={[styles.btn, loading && styles.btnDisabled]}
+              onPress={handleSaveName}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.btnText}>{loading ? "Saving…" : "Continue"}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -229,10 +308,12 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
         {step === 3 && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Select your child's bus</Text>
-            <Text style={styles.cardSub}>You can change this later from your profile.</Text>
+            <Text style={styles.cardSub}>Optional — you can change this later from your profile.</Text>
+
             {routes.length === 0 && (
-              <Text style={styles.emptyText}>Loading available routes…</Text>
+              <Text style={styles.emptyText}>No routes available yet.</Text>
             )}
+
             <FlatList
               data={routes}
               keyExtractor={(r) => String(r.id)}
@@ -242,10 +323,13 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
                 const active = selectedRouteId === item.id;
                 return (
                   <TouchableOpacity
-                    style={[styles.routeRow, active && styles.routeRowActive]}
+                    style={[styles.routeCard, active && styles.routeCardActive]}
                     onPress={() => setLocalRouteId(item.id)}
                     activeOpacity={0.8}
                   >
+                    {/* Blue left border accent when selected */}
+                    {active && <View style={styles.routeCardAccent} />}
+
                     <View style={styles.routeInfo}>
                       <Text style={[styles.routeName, active && styles.routeNameActive]}>
                         {item.busLabel} · {item.name}
@@ -253,41 +337,50 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
                       <Text style={styles.routeDriver}>Driver: {item.driverName}</Text>
                       <Text style={styles.routeStops}>{item.stops.join("  ›  ")}</Text>
                     </View>
-                    {active && <Text style={styles.routeCheck}>✓</Text>}
+
+                    {active && (
+                      <View style={styles.routeCheckBadge}>
+                        <Text style={styles.routeCheckText}>✓</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               }}
             />
+
             <TouchableOpacity
-              style={[styles.btn, (!selectedRouteId || loading) && styles.btnDisabled]}
-              onPress={handleCompleteSignup}
-              disabled={!selectedRouteId || loading}
-              activeOpacity={0.8}
+              style={[styles.btn, loading && styles.btnDisabled]}
+              onPress={handleFinish}
+              disabled={loading}
+              activeOpacity={0.85}
             >
               <Text style={styles.btnText}>
-                {loading ? "Creating account…" : "Complete signup"}
+                {loading ? "Setting up…" : selectedRouteId ? "Finish setup" : "Skip for now"}
               </Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* Back link */}
+        {/* ── Back link ────────────────────────────────────────────────── */}
         {step > 1 && (
           <TouchableOpacity
-            style={styles.backLink}
-            onPress={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
+            style={styles.linkRow}
+            onPress={() => setStep((s) => (s - 1) as Step)}
           >
-            <Text style={styles.backText}>← Back</Text>
+            <Text style={styles.linkText}>← Back</Text>
           </TouchableOpacity>
         )}
 
-        {/* Login link */}
+        {/* ── Sign-in link ─────────────────────────────────────────────── */}
         {step === 1 && (
           <TouchableOpacity
-            style={styles.backLink}
+            style={styles.linkRow}
             onPress={() => navigation?.navigate?.("Login")}
           >
-            <Text style={styles.backText}>Already have an account? Sign in →</Text>
+            <Text style={styles.linkText}>
+              Already have an account?{" "}
+              <Text style={styles.linkBold}>Sign in →</Text>
+            </Text>
           </TouchableOpacity>
         )}
       </KeyboardAvoidingView>
@@ -296,87 +389,94 @@ export function SignupScreen({ navigation }: { navigation?: any }) {
 }
 
 const styles = StyleSheet.create({
-  kav: { flex: 1, gap: spacing.lg },
-  header: { gap: spacing.sm, marginTop: spacing.md },
+  screen: { backgroundColor: palette.canvas },
+  kav:    { flex: 1, gap: spacing.lg },
+
+  // Header
+  header: { gap: spacing.xs, marginTop: spacing.md },
   kicker: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: palette.brand,
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
+    fontSize: 12, fontWeight: "700", color: palette.brand,
+    textTransform: "uppercase", letterSpacing: 1.2, marginTop: spacing.sm,
   },
-  headline: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: palette.ink,
-    letterSpacing: -0.5,
+  headline:  { fontSize: 26, fontWeight: "900", color: palette.ink, letterSpacing: -0.5 },
+  sub:       { fontSize: 14, color: palette.inkSoft, lineHeight: 20 },
+  childName: { fontWeight: "700", color: palette.ink },
+
+  // Step dots
+  stepRow: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
+  stepDot: {
+    width: 8, height: 8, borderRadius: 99,
+    backgroundColor: palette.stroke,
   },
-  stepRow: { flexDirection: "row", gap: spacing.sm },
-  stepPip: {
-    height: 4,
-    flex: 1,
-    borderRadius: 99,
-    backgroundColor: palette.surfaceMuted,
-  },
-  stepPipActive: { backgroundColor: palette.brand },
+  stepDotDone:    { backgroundColor: palette.brandMid, width: 24 },
+  stepDotCurrent: { backgroundColor: palette.brand, width: 24 },
+
+  // Card
   card: {
-    backgroundColor: palette.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: palette.stroke,
-    padding: spacing.lg,
-    gap: spacing.md,
+    backgroundColor: palette.surface, borderRadius: 20,
+    borderWidth: 1, borderColor: palette.stroke,
+    padding: spacing.lg, gap: spacing.md,
+    shadowColor: palette.brand, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08, shadowRadius: 20, elevation: 3,
   },
   cardTitle: { fontSize: 16, fontWeight: "800", color: palette.ink },
-  cardSub: { fontSize: 13, color: palette.inkSoft, marginTop: -spacing.sm },
+  cardSub:   { fontSize: 13, color: palette.inkSoft, lineHeight: 19 },
+
+  // Fields
   field: { gap: spacing.xs },
   label: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: palette.inkSoft,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
+    fontSize: 11, fontWeight: "700", color: palette.inkSoft,
+    textTransform: "uppercase", letterSpacing: 0.8,
   },
   input: {
-    backgroundColor: palette.surfaceMuted,
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: palette.ink,
-    borderWidth: 1,
-    borderColor: palette.stroke,
+    backgroundColor: palette.surfaceMuted, borderRadius: 12,
+    paddingHorizontal: spacing.md, paddingVertical: 14,
+    fontSize: 15, color: palette.ink,
+    borderWidth: 1, borderColor: palette.stroke,
   },
+
+  // Button
   btn: {
-    backgroundColor: palette.brand,
-    borderRadius: 14,
-    alignItems: "center",
-    paddingVertical: 16,
+    backgroundColor: palette.brand, borderRadius: 12,
+    alignItems: "center", paddingVertical: 16,
+    shadowColor: palette.brand, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22, shadowRadius: 10, elevation: 4,
   },
-  btnDisabled: { opacity: 0.4 },
-  btnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
-  resendText: { fontSize: 13, color: palette.inkSoft, textAlign: "center" },
+  btnDisabled: { opacity: 0.45 },
+  btnText:     { color: "#fff", fontWeight: "800", fontSize: 15 },
+
+  // Empty / links
   emptyText: { fontSize: 13, color: palette.inkSoft, textAlign: "center", paddingVertical: spacing.sm },
-  routeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: spacing.md,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: palette.stroke,
-    backgroundColor: palette.surfaceMuted,
-    gap: spacing.sm,
+  linkRow:   { alignItems: "center", paddingVertical: spacing.sm },
+  linkText:  { fontSize: 13, color: palette.inkSoft },
+  linkBold:  { color: palette.brand, fontWeight: "700" },
+
+  // Route cards
+  routeCard: {
+    flexDirection: "row", alignItems: "center",
+    padding: spacing.md, borderRadius: 14,
+    borderWidth: 1.5, borderColor: palette.stroke,
+    backgroundColor: palette.surface, gap: spacing.sm,
+    overflow: "hidden",
   },
-  routeRowActive: {
+  routeCardActive: {
     borderColor: palette.brand,
     backgroundColor: palette.brandSoft,
   },
-  routeInfo: { flex: 1, gap: 2 },
-  routeName: { fontSize: 14, fontWeight: "800", color: palette.ink },
+  routeCardAccent: {
+    position: "absolute", left: 0, top: 0, bottom: 0,
+    width: 4, backgroundColor: palette.brand,
+    borderTopLeftRadius: 14, borderBottomLeftRadius: 14,
+  },
+  routeInfo:       { flex: 1, gap: 2 },
+  routeName:       { fontSize: 14, fontWeight: "800", color: palette.ink },
   routeNameActive: { color: palette.brandDeep },
-  routeDriver: { fontSize: 12, color: palette.inkSoft },
-  routeStops: { fontSize: 11, color: palette.inkSoft, marginTop: 2 },
-  routeCheck: { fontSize: 18, color: palette.brand, fontWeight: "900" },
-  backLink: { alignItems: "center", paddingVertical: spacing.sm },
-  backText: { fontSize: 13, color: palette.inkSoft },
+  routeDriver:     { fontSize: 12, color: palette.inkSoft },
+  routeStops:      { fontSize: 11, color: palette.inkFaint, marginTop: 2 },
+  routeCheckBadge: {
+    width: 24, height: 24, borderRadius: 99,
+    backgroundColor: palette.brand,
+    alignItems: "center", justifyContent: "center",
+  },
+  routeCheckText: { color: "#fff", fontSize: 13, fontWeight: "900" },
 });

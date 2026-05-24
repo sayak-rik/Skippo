@@ -14,14 +14,20 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import {
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  Phone,
+} from "lucide-react-native";
 
-import { InfoCard } from "../components/InfoCard";
 import { Screen } from "../components/Screen";
-import { SectionTitle } from "../components/SectionTitle";
+import { api } from "../lib/api";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
 
-// ── Static FAQ data (backed by /api/calls/faq/ when connected) ───────────────
+// ── Static FAQ data ───────────────────────────────────────────────────────────
 
 const FAQS: { category: string; q: string; a: string }[] = [
   {
@@ -76,7 +82,7 @@ const REASON_OPTIONS = [
   { value: "general",    label: "General enquiry" },
 ];
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── FAQ sub-components ────────────────────────────────────────────────────────
 
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
@@ -88,7 +94,10 @@ function FAQItem({ q, a }: { q: string; a: string }) {
     >
       <View style={styles.faqRow}>
         <Text style={styles.faqQ}>{q}</Text>
-        <Text style={styles.faqChevron}>{open ? "▲" : "▼"}</Text>
+        {open
+          ? <ChevronUp size={16} color={palette.inkFaint} strokeWidth={2} />
+          : <ChevronDown size={16} color={palette.inkFaint} strokeWidth={2} />
+        }
       </View>
       {open && <Text style={styles.faqA}>{a}</Text>}
     </TouchableOpacity>
@@ -121,8 +130,10 @@ export function SupportScreen() {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      // TODO: replace with real API call when backend integration is wired.
-      await new Promise((r) => setTimeout(r, 900));
+      await api.post("/api/calls/faq/", {
+        reason: selectedReason,
+        note: reasonText,
+      });
       setSubmitted(true);
       Alert.alert(
         "Request received",
@@ -144,16 +155,30 @@ export function SupportScreen() {
 
   return (
     <Screen>
-      <SectionTitle title="Support" subtitle="How can we help you?" />
+      {/* Header */}
+      <View style={styles.headerWrap}>
+        <View style={styles.headerRow}>
+          <HelpCircle size={24} color={palette.brand} strokeWidth={2} />
+          <Text style={styles.headerTitle}>Support</Text>
+        </View>
+        <Text style={styles.headerSub}>How can we help you?</Text>
+      </View>
 
       {/* ── Call Request card ────────────────────────────────────────── */}
-      <InfoCard
-        title="Request a call"
-        subtitle="The school will call you back after reviewing your request."
-      >
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Phone size={18} color={palette.brand} strokeWidth={2} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardTitle}>Request a call</Text>
+            <Text style={styles.cardSubtitle}>
+              The school will call you back after reviewing your request.
+            </Text>
+          </View>
+        </View>
+
         {submitted ? (
           <View style={styles.submittedBanner}>
-            <Text style={styles.submittedIcon}>✅</Text>
+            <CheckCircle size={24} color={palette.success} strokeWidth={2} />
             <View style={{ flex: 1 }}>
               <Text style={styles.submittedTitle}>Request submitted</Text>
               <Text style={styles.submittedSub}>
@@ -201,8 +226,9 @@ export function SupportScreen() {
 
             {/* Availability notice */}
             <View style={styles.noticePill}>
+              <Phone size={13} color={palette.brand} strokeWidth={2} />
               <Text style={styles.noticeText}>
-                📞  Calls are available Mon–Sat, 9 AM – 5 PM after school approval.
+                Calls are available Mon–Sat, 9 AM – 5 PM after school approval.
               </Text>
             </View>
 
@@ -220,14 +246,18 @@ export function SupportScreen() {
             </TouchableOpacity>
           </>
         )}
-      </InfoCard>
+      </View>
 
       {/* ── FAQ section ──────────────────────────────────────────────── */}
-      <InfoCard title="Frequently asked questions">
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <HelpCircle size={18} color={palette.brand} strokeWidth={2} />
+          <Text style={styles.cardTitle}>Frequently asked questions</Text>
+        </View>
         {CATEGORIES.map((cat) => (
           <FAQCategory key={cat} category={cat} />
         ))}
-      </InfoCard>
+      </View>
 
       {/* ── Contact footer ────────────────────────────────────────────── */}
       <View style={styles.footer}>
@@ -242,6 +272,54 @@ export function SupportScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  // Header
+  headerWrap: { gap: 4 },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: palette.ink,
+    letterSpacing: -0.4,
+  },
+  headerSub: {
+    fontSize: 13,
+    color: palette.inkSoft,
+    fontWeight: "400",
+    lineHeight: 18,
+  },
+
+  // White card
+  card: {
+    backgroundColor: palette.surface,
+    borderRadius: 20,
+    padding: spacing.md,
+    gap: spacing.md,
+    shadowColor: palette.brand,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: palette.stroke,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: palette.ink,
+    letterSpacing: -0.2,
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: palette.inkSoft,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+
   // FAQ
   faqCategory: { gap: 2 },
   categoryLabel: {
@@ -261,7 +339,6 @@ const styles = StyleSheet.create({
   },
   faqRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   faqQ: { flex: 1, fontSize: 13, fontWeight: "600", color: palette.ink, lineHeight: 19 },
-  faqChevron: { fontSize: 10, color: palette.inkFaint, marginTop: 3 },
   faqA: { fontSize: 13, color: palette.inkSoft, lineHeight: 19 },
 
   // Reason chips
@@ -282,10 +359,10 @@ const styles = StyleSheet.create({
   },
   reasonChipActive: {
     borderColor: palette.brand,
-    backgroundColor: palette.brandSoft,
+    backgroundColor: palette.brandMid,
   },
   reasonChipText: { fontSize: 12, color: palette.inkSoft, fontWeight: "500" },
-  reasonChipTextActive: { color: palette.brand, fontWeight: "700" },
+  reasonChipTextActive: { color: palette.brandDeep, fontWeight: "700" },
 
   // Text area
   textarea: {
@@ -302,11 +379,16 @@ const styles = StyleSheet.create({
 
   // Notice pill
   noticePill: {
-    backgroundColor: "#eef2ff",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: palette.brandSoft,
     borderRadius: 10,
     padding: 10,
+    borderWidth: 1,
+    borderColor: palette.brandMid,
   },
-  noticeText: { fontSize: 12, color: palette.brand, lineHeight: 17 },
+  noticeText: { flex: 1, fontSize: 12, color: palette.brand, lineHeight: 17 },
 
   // Submit button
   submitBtn: {
@@ -323,11 +405,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#F0FDF4",
     borderRadius: 12,
     padding: spacing.sm,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
   },
-  submittedIcon:  { fontSize: 24 },
   submittedTitle: { fontSize: 14, fontWeight: "700", color: palette.success },
   submittedSub:   { fontSize: 12, color: palette.inkSoft, marginTop: 2 },
   newRequestLink: { fontSize: 12, color: palette.brand, fontWeight: "600" },

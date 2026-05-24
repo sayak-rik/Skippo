@@ -31,6 +31,8 @@ SMS_DRY_RUN = os.getenv("SMS_DRY_RUN", "false").lower() == "true"
 
 MSG91_API_URL = "https://api.msg91.com/api/v5/flow/"
 
+PARENT_APP_LINK = os.getenv("PARENT_APP_LINK", "https://play.google.com/store/apps/details?id=com.skippo.parent")
+
 
 class SMSRequest(BaseModel):
     to: str
@@ -46,6 +48,11 @@ class SMSResponse(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "sms-service"}
+
+
+@app.get("/config")
+def config():
+    return {"app_link": PARENT_APP_LINK}
 
 
 @app.post("/send", response_model=SMSResponse)

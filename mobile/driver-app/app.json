@@ -6,25 +6,41 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#f5f8f8"
+      "backgroundColor": "#ECEDF6"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Skippo needs camera access to scan student QR codes for bus enrollment.",
+        "NSPhotoLibraryUsageDescription": "Skippo needs photo library access for profile pictures."
+      }
     },
     "android": {
       "package": "com.skippo.driver",
       "adaptiveIcon": {
-        "backgroundColor": "#f5f8f8"
-      }
+        "backgroundColor": "#ECEDF6"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
       "output": "single",
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Skippo needs camera access to scan student QR codes for bus enrollment."
+        }
+      ]
+    ],
     "extra": {
       "apiUrl": "https://api.skippo.app"
     }

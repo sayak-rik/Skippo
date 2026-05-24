@@ -8,7 +8,6 @@
 //   completed → pickup done — show confirmation + option to dismiss
 // ---------------------------------------------------------------------------
 
-import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -17,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Car, CheckCircle2, Clock, MapPin } from "lucide-react-native";
 
 import { InfoCard } from "../components/InfoCard";
 import { Screen } from "../components/Screen";
@@ -73,23 +73,20 @@ export function DismissalScreen() {
       <Screen>
         <SectionTitle title="Car Pickup" subtitle="Dismissal queue" />
 
-        <LinearGradient
-          colors={["#16a34a", "#15803d"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.heroCard}
-        >
+        <View style={styles.heroCardGreen}>
           <View style={styles.heroOrb} />
-          <Text style={styles.heroEmoji}>🎒</Text>
+          <View style={styles.heroIconCircle}>
+            <CheckCircle2 size={36} color="#fff" strokeWidth={2.5} />
+          </View>
           <Text style={styles.heroTitle}>{studentName} is at the gate</Text>
           <Text style={styles.heroSub}>
             Head to the pickup gate — {studentName} is ready and waiting for you.
           </Text>
           <View style={styles.heroPill}>
-            <View style={styles.heroPillDot} />
+            <View style={[styles.heroPillDot, { backgroundColor: "#86efac" }]} />
             <Text style={styles.heroPillText}>READY FOR PICKUP</Text>
           </View>
-        </LinearGradient>
+        </View>
 
         <InfoCard title="What to do" subtitle="Quick steps">
           {[
@@ -110,18 +107,12 @@ export function DismissalScreen() {
           onPress={handleDone}
           disabled={completePickup.isPending}
           activeOpacity={0.85}
+          style={[styles.doneBtn, completePickup.isPending && styles.btnLoading]}
         >
-          <LinearGradient
-            colors={["#16a34a", "#15803d"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.doneBtn}
-          >
-            {completePickup.isPending
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.doneBtnText}>Pickup complete ✓</Text>
-            }
-          </LinearGradient>
+          {completePickup.isPending
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.doneBtnText}>Pickup complete</Text>
+          }
         </TouchableOpacity>
       </Screen>
     );
@@ -133,12 +124,7 @@ export function DismissalScreen() {
       <Screen>
         <SectionTitle title="Car Pickup" subtitle="Dismissal queue" />
 
-        <LinearGradient
-          colors={["#4f46e5", "#7c3aed"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.heroCard}
-        >
+        <View style={styles.heroCardBlue}>
           <View style={styles.heroOrb} />
           <Text style={styles.heroLabel}>QUEUE POSITION</Text>
           <Text style={styles.queueNum}>#{intent.queue_position}</Text>
@@ -149,7 +135,7 @@ export function DismissalScreen() {
             <View style={styles.heroPillDot} />
             <Text style={styles.heroPillText}>WAITING FOR SCHOOL</Text>
           </View>
-        </LinearGradient>
+        </View>
 
         <InfoCard title="What happens next" subtitle="While you wait">
           <Text style={styles.waitText}>
@@ -158,7 +144,7 @@ export function DismissalScreen() {
           </Text>
           <View style={styles.waitRow}>
             <View style={styles.waitIcon}>
-              <Text style={styles.waitIconText}>🔔</Text>
+              <Clock size={18} color={palette.brand} strokeWidth={2.5} />
             </View>
             <Text style={styles.waitSub}>
               Keep notifications on — you'll be pinged immediately.
@@ -194,7 +180,9 @@ export function DismissalScreen() {
       <Screen>
         <SectionTitle title="Car Pickup" subtitle="Dismissal queue" />
         <View style={styles.completedCard}>
-          <Text style={styles.completedEmoji}>✅</Text>
+          <View style={styles.completedIconCircle}>
+            <CheckCircle2 size={40} color={palette.success} strokeWidth={2.5} />
+          </View>
           <Text style={styles.completedTitle}>Pickup complete</Text>
           <Text style={styles.completedSub}>
             {studentName} has been picked up. See you tomorrow!
@@ -228,12 +216,12 @@ export function DismissalScreen() {
       {/* How it works */}
       <InfoCard title="How dismissal works" subtitle="3 simple steps">
         {[
-          { emoji: "📍", text: `Tap "I'm on my way" and pick your ETA.` },
-          { emoji: "📋", text: "School sees you in the live queue and calls your child." },
-          { emoji: "🚗", text: "You get a push notification when your child is at the gate." },
+          { icon: <MapPin size={18} color={palette.brand} strokeWidth={2.5} />, text: `Tap "I'm on my way" and pick your ETA.` },
+          { icon: <Clock size={18} color={palette.brand} strokeWidth={2.5} />,  text: "School sees you in the live queue and calls your child." },
+          { icon: <Car size={18} color={palette.brand} strokeWidth={2.5} />,    text: "You get a push notification when your child is at the gate." },
         ].map((item, i) => (
           <View key={i} style={styles.stepRow}>
-            <Text style={styles.stepEmoji}>{item.emoji}</Text>
+            <View style={styles.stepIconWrap}>{item.icon}</View>
             <Text style={styles.stepText}>{item.text}</Text>
           </View>
         ))}
@@ -266,21 +254,19 @@ export function DismissalScreen() {
         onPress={handleSignal}
         disabled={signalArrival.isPending}
         activeOpacity={0.85}
-        style={signalArrival.isPending ? styles.ctaLoading : undefined}
+        style={[styles.cta, signalArrival.isPending && styles.ctaLoading]}
       >
-        <LinearGradient
-          colors={["#4f46e5", "#7c3aed"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.cta}
-        >
-          {signalArrival.isPending
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.ctaText}>
+        {signalArrival.isPending
+          ? <ActivityIndicator color="#fff" />
+          : (
+            <View style={styles.ctaInner}>
+              <Car size={18} color="#fff" strokeWidth={2.5} />
+              <Text style={styles.ctaText}>
                 I'm on my way · {ETA_OPTIONS.find(o => o.value === selectedEta)?.label}
               </Text>
-          }
-        </LinearGradient>
+            </View>
+          )
+        }
       </TouchableOpacity>
 
       <Text style={styles.hint}>
@@ -299,18 +285,32 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
   },
 
-  // ── Hero card (shared between pending / notified) ────────────────────────
-  heroCard: {
-    borderRadius: 28,
+  // ── Hero cards ────────────────────────────────────────────────────────────
+  heroCardBlue: {
+    borderRadius: 24,
     padding: spacing.lg,
     gap: spacing.sm,
     overflow: "hidden",
     alignItems: "center",
-    shadowColor: "#4f46e5",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 28,
-    elevation: 10,
+    backgroundColor: palette.brand,
+    shadowColor: palette.brand,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  heroCardGreen: {
+    borderRadius: 24,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    overflow: "hidden",
+    alignItems: "center",
+    backgroundColor: "#16a34a",
+    shadowColor: "#16a34a",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 8,
   },
   heroOrb: {
     position: "absolute",
@@ -321,6 +321,15 @@ const styles = StyleSheet.create({
     borderRadius: 75,
     backgroundColor: "rgba(255,255,255,0.08)",
   },
+  heroIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.xs,
+  },
   heroLabel: {
     fontSize: 10,
     fontWeight: "700",
@@ -328,7 +337,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1.5,
   },
-  heroEmoji: { fontSize: 48 },
   heroTitle: {
     fontSize: 22,
     fontWeight: "900",
@@ -356,7 +364,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#86efac",
+    backgroundColor: "rgba(255,255,255,0.7)",
   },
   heroPillText: {
     fontSize: 11,
@@ -372,7 +380,7 @@ const styles = StyleSheet.create({
     lineHeight: 80,
   },
 
-  // ── Steps / info rows ────────────────────────────────────────────────────
+  // ── Steps / info rows ─────────────────────────────────────────────────────
   stepRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -388,7 +396,15 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   stepNumText: { fontSize: 12, fontWeight: "900", color: palette.brand },
-  stepEmoji: { fontSize: 18, flexShrink: 0, marginTop: 1 },
+  stepIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: palette.brandSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
   stepText: { flex: 1, fontSize: 14, color: palette.inkSoft, lineHeight: 21 },
 
   // ── Wait state ────────────────────────────────────────────────────────────
@@ -412,7 +428,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
-  waitIconText: { fontSize: 16 },
   waitSub: { flex: 1, fontSize: 13, color: palette.brand, fontWeight: "600", lineHeight: 19 },
 
   // ── Detail row (pending state) ────────────────────────────────────────────
@@ -432,7 +447,9 @@ const styles = StyleSheet.create({
   doneBtn: {
     borderRadius: 16,
     alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 17,
+    backgroundColor: "#16a34a",
     shadowColor: "#16a34a",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
@@ -440,18 +457,26 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   doneBtnText: { color: "#fff", fontWeight: "800", fontSize: 16 },
+  btnLoading: { opacity: 0.7 },
 
   // ── Completed state ───────────────────────────────────────────────────────
   completedCard: {
     backgroundColor: "#f0fdf4",
-    borderRadius: 26,
+    borderRadius: 24,
     borderWidth: 1.5,
     borderColor: palette.success,
     padding: spacing.lg,
     alignItems: "center",
     gap: spacing.sm,
   },
-  completedEmoji: { fontSize: 48 },
+  completedIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#dcfce7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   completedTitle: { fontSize: 20, fontWeight: "900", color: palette.ink, letterSpacing: -0.3 },
   completedSub: { fontSize: 14, color: palette.inkSoft, textAlign: "center", lineHeight: 21 },
   retryBtn: {
@@ -464,7 +489,7 @@ const styles = StyleSheet.create({
   },
   retryBtnText: { fontSize: 14, fontWeight: "700", color: palette.brand },
 
-  // ── Idle / ETA picker ────────────────────────────────────────────────────
+  // ── Idle / ETA picker ─────────────────────────────────────────────────────
   etaSection: { gap: spacing.sm },
   etaLabel: {
     fontSize: 16,
@@ -486,7 +511,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: 3,
     alignItems: "center",
-    shadowColor: "#4f46e5",
+    shadowColor: palette.brand,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -509,18 +534,21 @@ const styles = StyleSheet.create({
   etaSub: { fontSize: 11, color: palette.inkFaint, fontWeight: "500" },
   etaSubActive: { color: palette.brandDeep },
 
-  // ── Main CTA ─────────────────────────────────────────────────────────────
+  // ── Main CTA ──────────────────────────────────────────────────────────────
   cta: {
     borderRadius: 16,
     alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 17,
-    shadowColor: "#4f46e5",
+    backgroundColor: palette.brand,
+    shadowColor: palette.brand,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 5,
   },
   ctaLoading: { opacity: 0.7 },
+  ctaInner: { flexDirection: "row", alignItems: "center", gap: 8 },
   ctaText: { color: "#fff", fontWeight: "800", fontSize: 15, letterSpacing: 0.2 },
   hint: {
     fontSize: 12,

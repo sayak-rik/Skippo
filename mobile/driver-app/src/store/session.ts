@@ -9,17 +9,21 @@ type DriverSessionState = {
   isPendingApproval: boolean;
   signupRequestId: number | null;
   aadharNumber: string;
+  driverId: number | null;
+  routeId: number | null;
   login: (payload: {
     name: string;
     token: string;
     is_pending_approval?: boolean;
     signup_request_id?: number;
     aadhar_number?: string;
+    driver_id?: number;
   }) => void;
   logout: () => void;
   startTrip: (tripId: number) => void;
   endTrip: () => void;
   approvalGranted: () => void;
+  setRouteId: (routeId: number) => void;
 };
 
 export const useDriverSessionStore = create<DriverSessionState>((set) => ({
@@ -30,6 +34,8 @@ export const useDriverSessionStore = create<DriverSessionState>((set) => ({
   isPendingApproval: false,
   signupRequestId: null,
   aadharNumber: "",
+  driverId: null,
+  routeId: null,
   login: (payload) => {
     setAuthToken(payload.token);
     set({
@@ -39,6 +45,7 @@ export const useDriverSessionStore = create<DriverSessionState>((set) => ({
       isPendingApproval: payload.is_pending_approval ?? false,
       signupRequestId: payload.signup_request_id ?? null,
       aadharNumber: payload.aadhar_number ?? "",
+      driverId: payload.driver_id ?? null,
     });
   },
   logout: () => {
@@ -49,9 +56,12 @@ export const useDriverSessionStore = create<DriverSessionState>((set) => ({
       token: null,
       isPendingApproval: false,
       signupRequestId: null,
+      driverId: null,
+      routeId: null,
     });
   },
   startTrip: (tripId) => set({ activeTripId: tripId }),
   endTrip: () => set({ activeTripId: null }),
   approvalGranted: () => set({ isPendingApproval: false }),
+  setRouteId: (routeId) => set({ routeId }),
 }));

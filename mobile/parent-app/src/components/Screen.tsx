@@ -1,5 +1,5 @@
 import { PropsWithChildren } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View, ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { palette } from "../theme/palette";
@@ -8,9 +8,10 @@ import { spacing } from "../theme/spacing";
 type ScreenProps = PropsWithChildren<{
   scroll?: boolean;
   padded?: boolean;
+  style?: ViewStyle;
 }>;
 
-export function Screen({ children, scroll = true, padded = true }: ScreenProps) {
+export function Screen({ children, scroll = true, padded = true, style }: ScreenProps) {
   const content = (
     <View style={[styles.content, !padded && styles.contentNoPad]}>
       {children}
@@ -18,7 +19,7 @@ export function Screen({ children, scroll = true, padded = true }: ScreenProps) 
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={[styles.safeArea, style]} edges={["top"]}>
       {scroll
         ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             {content}
