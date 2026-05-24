@@ -1,24 +1,40 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from common.demo_state import (
-    complete_pickup,
-    get_dismissal_queue,
-    get_parent_intent,
-    mark_child_ready,
-    signal_arrival,
-)
+from apps.academics.models import Student
+from apps.dismissal.models import DismissalIntent
 
 
-def _broadcast_queue(school_id: int = 1) -> None:
-    """Push a fresh queue snapshot to all dashboard subscribers on this school."""
+def _get_queue(school_id: int) -> dict:
+    """Build the dismissal queue snapshot for a school."""
+    intents = DismissalIntent.objects.filter(
+        school_id=school_id, status__in=["pending", "notified"]
+    ).select_related("student", "parent__user").order_by("created_at")
+    return {
+        "queue": [
+            {
+                "id": i.id,
+                "studentId": i.student.id,
+                "studentName": i.student.full_name,
+                "etaMinutes": i.eta_minutes,
+                "status": i.status,
+                "createdAt": str(i.created_at),
+            }
+            for i in intents
+        ],
+        "count": intents.count(),
+    }
+
+
+def _broadcast_queue(school_id: int) -> None:
     channel_layer = get_channel_layer()
     if channel_layer is None:
         return
-    payload = get_dismissal_queue()
+    payload = _get_queue(school_id)
     async_to_sync(channel_layer.group_send)(
         f"dismissal_{school_id}",
         {"type": "dismissal.update", "payload": payload},
@@ -29,7 +45,7 @@ class DismissalRootView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        return Response({"module": "dismissal", "status": "ready", "mode": "demo"})
+        return Response({"module": "dismissal", "status": "ready", "mode": "live"})
 
 
 class DismissalIntentView(APIView):
@@ -38,9 +54,8 @@ class DismissalIntentView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        student_id = request.data.get("student_id", 1)
+        student_id = request.data.get("student_id")
         eta_minutes = request.data.get("eta_minutes", 5)
-
         try:
             student_id = int(student_id)
             eta_minutes = int(eta_minutes)
@@ -50,20 +65,59 @@ class DismissalIntentView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        intent = signal_arrival(student_id, eta_minutes)
-        _broadcast_queue()
-        return Response({"intent": intent}, status=status.HTTP_201_CREATED)
+        student = Student.objects.filter(id=student_id).select_related("school").first()
+        if not student:
+            return Response({"detail": "Student not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Upsert: if a pending intent already exists, update it
+        parent = None
+        if request.user and request.user.is_authenticated:
+            from apps.accounts.models import ParentProfile
+            parent = ParentProfile.objects.filter(user=request.user).first()
+
+        intent, _ = DismissalIntent.objects.update_or_create(
+            school=student.school,
+            student=student,
+            status=DismissalIntent.Status.PENDING,
+            defaults={"eta_minutes": eta_minutes, "parent": parent},
+        )
+        _broadcast_queue(student.school_id)
+        return Response(
+            {
+                "intent": {
+                    "id": intent.id,
+                    "studentId": student_id,
+                    "etaMinutes": eta_minutes,
+                    "status": intent.status,
+                }
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     def get(self, request):
         """GET /api/dismissal/intent/?student_id=1  — fetch current intent for a student."""
-        student_id = request.query_params.get("student_id", 1)
+        student_id = request.query_params.get("student_id")
         try:
             student_id = int(student_id)
         except (TypeError, ValueError):
             return Response({"detail": "Invalid student_id."}, status=status.HTTP_400_BAD_REQUEST)
 
-        intent = get_parent_intent(student_id)
-        return Response({"intent": intent})
+        intent = DismissalIntent.objects.filter(
+            student_id=student_id, status__in=["pending", "notified"]
+        ).order_by("-created_at").first()
+        if intent is None:
+            return Response({"intent": None})
+        return Response(
+            {
+                "intent": {
+                    "id": intent.id,
+                    "studentId": student_id,
+                    "etaMinutes": intent.eta_minutes,
+                    "status": intent.status,
+                    "createdAt": str(intent.created_at),
+                }
+            }
+        )
 
 
 class DismissalQueueView(APIView):
@@ -72,7 +126,12 @@ class DismissalQueueView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        return Response(get_dismissal_queue())
+        school_id = request.query_params.get("school_id", 1)
+        try:
+            school_id = int(school_id)
+        except (TypeError, ValueError):
+            return Response({"detail": "Invalid school_id."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(_get_queue(school_id))
 
 
 class DismissalReadyView(APIView):
@@ -81,14 +140,19 @@ class DismissalReadyView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, student_id: int):
-        intent = mark_child_ready(student_id)
+        intent = DismissalIntent.objects.filter(
+            student_id=student_id, status=DismissalIntent.Status.PENDING
+        ).order_by("-created_at").first()
         if not intent:
             return Response(
-                {"detail": "No pending pickup intent found for this student."},
+                {"detail": "No pending pickup intent found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        _broadcast_queue()
-        return Response({"intent": intent})
+        intent.status = DismissalIntent.Status.NOTIFIED
+        intent.notified_at = timezone.now()
+        intent.save(update_fields=["status", "notified_at"])
+        _broadcast_queue(intent.school_id)
+        return Response({"intent": {"id": intent.id, "studentId": student_id, "status": intent.status}})
 
 
 class DismissalCompleteView(APIView):
@@ -97,11 +161,17 @@ class DismissalCompleteView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, student_id: int):
-        intent = complete_pickup(student_id)
+        intent = DismissalIntent.objects.filter(
+            student_id=student_id,
+            status__in=[DismissalIntent.Status.PENDING, DismissalIntent.Status.NOTIFIED],
+        ).order_by("-created_at").first()
         if not intent:
             return Response(
-                {"detail": "No active pickup intent found for this student."},
+                {"detail": "No active pickup intent found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        _broadcast_queue()
-        return Response({"intent": intent})
+        intent.status = DismissalIntent.Status.COMPLETED
+        intent.completed_at = timezone.now()
+        intent.save(update_fields=["status", "completed_at"])
+        _broadcast_queue(intent.school_id)
+        return Response({"intent": {"id": intent.id, "studentId": student_id, "status": intent.status}})

@@ -1,25 +1,19 @@
 from celery import shared_task
-
-from common.demo_state import STATE
+from django.utils import timezone
+from datetime import timedelta
 
 
 @shared_task
 def expire_old_pickup_intents() -> int:
     """Auto-expire pickup intents older than 3 hours.
 
-    In the demo this marks lingering 'pending' intents as completed so the
-    queue stays clean across restarts.  In production this would hit the DB.
-    Returns the number of intents expired.
+    Marks lingering 'pending' and 'notified' intents as completed so the
+    queue stays clean.  Returns the number of intents expired.
     """
-    # Demo timestamp cutoff — intents created before 14:00 today are expired.
-    cutoff_prefix = "2026-04-22T14:00"
-    expired = 0
-    for intent in STATE["pickupIntents"]:
-        if (
-            intent["status"] == "pending"
-            and intent["created_at"] < cutoff_prefix
-        ):
-            intent["status"] = "completed"
-            intent["completed_at"] = "2026-04-22T17:00:00+05:30"
-            expired += 1
+    from apps.dismissal.models import DismissalIntent
+    cutoff = timezone.now() - timedelta(hours=3)
+    expired = DismissalIntent.objects.filter(
+        status__in=["pending", "notified"],
+        created_at__lt=cutoff,
+    ).update(status="completed", completed_at=timezone.now())
     return expired

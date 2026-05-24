@@ -134,6 +134,51 @@ class OTPRequest(TimestampedModel):
     context = models.JSONField(default=dict, blank=True)  # e.g. {"student_id": 5} for action OTPs
 
 
+# ── Role-Based Access Control ─────────────────────────────────────────────────
+
+ALL_PERMISSIONS = [
+    ("manage_students",     "Manage Students"),
+    ("view_students",       "View Students"),
+    ("manage_fees",         "Manage Fees"),
+    ("collect_fees",        "Collect Fees"),
+    ("view_fees",           "View Fees"),
+    ("manage_attendance",   "Manage Attendance"),
+    ("view_attendance",     "View Attendance"),
+    ("manage_timetable",    "Manage Timetable"),
+    ("manage_staff",        "Manage Staff"),
+    ("view_staff",          "View Staff"),
+    ("manage_exams",        "Manage Exams"),
+    ("enter_marks",         "Enter Marks"),
+    ("send_communications", "Send Communications"),
+    ("view_reports",        "View Reports"),
+    ("manage_settings",     "Manage Settings"),
+]
+
+PERMISSION_CODES = [code for code, _ in ALL_PERMISSIONS]
+
+
+class SchoolRole(SchoolScopedModel):
+    """A named role with a set of permission codes, scoped to one school."""
+    name = models.CharField(max_length=64)
+    permissions = models.JSONField(default=list)   # list of permission code strings
+    is_system = models.BooleanField(default=False)  # built-in roles cannot be deleted
+
+    class Meta:
+        unique_together = [("school", "name")]
+        ordering = ["name"]
+
+
+class UserSchoolRole(TimestampedModel):
+    """Assigns a SchoolRole to a PlatformUser within a school."""
+    school = models.ForeignKey("tenancy.School", on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="school_roles")
+    role = models.ForeignKey(SchoolRole, on_delete=models.CASCADE, related_name="assignments")
+    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="role_assignments_made")
+
+    class Meta:
+        unique_together = [("user", "role")]
+
+
 class DriverSignupRequest(TimestampedModel):
     """A self-initiated driver signup request that requires admin approval.
 
@@ -157,3 +202,59 @@ class DriverSignupRequest(TimestampedModel):
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
     )
+
+
+# ── Teacher Leave & Substitute Management ─────────────────────────────────────
+
+class TeacherLeave(SchoolScopedModel):
+    """A leave request by or for a teacher, managed by admin."""
+
+    class Status(models.TextChoices):
+        PENDING  = "pending",  "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    class LeaveType(models.TextChoices):
+        SICK    = "sick",    "Sick"
+        CASUAL  = "casual",  "Casual"
+        OTHER   = "other",   "Other"
+
+    teacher    = models.ForeignKey(TeacherProfile, on_delete=models.CASCADE, related_name="leaves")
+    leave_type = models.CharField(max_length=16, choices=LeaveType.choices, default=LeaveType.CASUAL)
+    start_date = models.DateField()
+    end_date   = models.DateField()
+    reason     = models.TextField(blank=True)
+    status     = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="approved_leaves",
+    )
+    admin_note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-start_date"]
+
+
+class SubstituteAssignment(SchoolScopedModel):
+    """Records which teacher is covering a specific slot on a specific date
+    for a teacher who is on leave."""
+
+    leave        = models.ForeignKey(TeacherLeave, on_delete=models.CASCADE, related_name="substitutes")
+    date         = models.DateField()
+    # Optionally linked to the exact timetable slot being covered
+    timetable_slot = models.ForeignKey(
+        "academics.TimetableSlot", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="substitute_assignments",
+    )
+    period_label = models.CharField(max_length=128, blank=True)  # e.g. "Period 2 – Maths (09:00–09:45)"
+    substitute   = models.ForeignKey(
+        TeacherProfile, on_delete=models.CASCADE, related_name="substitute_assignments",
+    )
+    assigned_by  = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL,
+    )
+
+    class Meta:
+        ordering = ["date"]
+        unique_together = [("leave", "date", "timetable_slot")]

@@ -3,7 +3,9 @@ from django.urls import path
 from apps.transport.views import (
     AvailableRoutesView,
     BoardStudentView,
+    DriverConfirmStudentRemovalView,
     DriverDashboardView,
+    DriverRequestStudentRemovalView,
     DriverSwitchVehicleView,
     DriverVehicleListView,
     DropStudentView,
@@ -11,7 +13,9 @@ from apps.transport.views import (
     NearbyVehiclesView,
     ParentChangeBusView,
     ParentConfirmFirstStopView,
+    ParentDirectUnenrollView,
     ParentDriverContactView,
+    ParentEnrollmentStatusView,
     ParentUpdateStopView,
     QRScanEnrolView,
     StartTripView,
@@ -43,8 +47,10 @@ urlpatterns = [
     path("trips/<int:trip_id>/students/<int:student_id>/drop/",  DropStudentView.as_view(), name="transport-student-drop"),
 
     # Parent bus assignment (req 3)
-    path("parent/routes/",      AvailableRoutesView.as_view(), name="transport-available-routes"),
-    path("parent/change-bus/",  ParentChangeBusView.as_view(), name="transport-parent-change-bus"),
+    path("parent/routes/",      AvailableRoutesView.as_view(),         name="transport-available-routes"),
+    path("parent/change-bus/",  ParentChangeBusView.as_view(),         name="transport-parent-change-bus"),
+    path("parent/enrollment/",  ParentEnrollmentStatusView.as_view(),  name="transport-parent-enrollment"),
+    path("parent/unenroll/",    ParentDirectUnenrollView.as_view(),    name="transport-parent-unenroll"),
 
     # Driver contact for parent (req 4)
     path("parent/driver-contact/", ParentDriverContactView.as_view(), name="transport-parent-driver-contact"),
@@ -64,4 +70,8 @@ urlpatterns = [
     # Parent-initiated bus removal (OTP confirmed)
     path("students/<int:student_id>/unenroll/",           StudentUnenrolRequestView.as_view(),  name="transport-student-unenroll"),
     path("students/<int:student_id>/unenroll/confirm/",   StudentUnenrolConfirmView.as_view(),  name="transport-student-unenroll-confirm"),
+
+    # Driver-initiated student removal (parent must confirm via OTP)
+    path("driver/students/<int:student_id>/request-remove/",  DriverRequestStudentRemovalView.as_view(),  name="transport-driver-request-remove"),
+    path("driver/students/<int:student_id>/confirm-remove/",  DriverConfirmStudentRemovalView.as_view(),  name="transport-driver-confirm-remove"),
 ]

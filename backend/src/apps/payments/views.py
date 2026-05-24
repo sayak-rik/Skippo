@@ -230,14 +230,23 @@ class LinkedAccountView(APIView):
 
 # ── Parent: Invoice list ──────────────────────────────────────────────────────
 
+def _parent_and_school(request):
+    """Derive parent + school from the authenticated JWT user (no header dependency)."""
+    parent = ParentProfile.objects.select_related("school").get(user=request.user)
+    return parent, parent.school
+
+
 class ParentInvoiceListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        school      = _school(request)
-        parent      = ParentProfile.objects.get(user=request.user, school=school)
-        student_ids = parent.studentparentlink_set.values_list("student_id", flat=True)
-        qs = FeeInvoice.objects.filter(school=school, student_id__in=student_ids)
+        try:
+            parent, school = _parent_and_school(request)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=404)
+
+        student_ids = parent.student_links.values_list("student_id", flat=True)
+        qs = FeeInvoice.objects.filter(school=school, student_id__in=student_ids).select_related("student")
         status_filter = request.query_params.get("status")
         if status_filter:
             qs = qs.filter(status=status_filter)
@@ -250,14 +259,17 @@ class CreatePaymentOrderView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        school     = _school(request)
-        parent     = ParentProfile.objects.get(user=request.user, school=school)
+        try:
+            parent, school = _parent_and_school(request)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=404)
+
         invoice_id = request.data.get("invoice_id")
 
         try:
             invoice = FeeInvoice.objects.get(
                 pk=invoice_id, school=school,
-                student__studentparentlink__parent=parent,
+                student__parent_links__parent=parent,
             )
         except FeeInvoice.DoesNotExist:
             return Response({"detail": "Invoice not found."}, status=404)
@@ -310,8 +322,11 @@ class VerifyPaymentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        school     = _school(request)
-        parent     = ParentProfile.objects.get(user=request.user, school=school)
+        try:
+            parent, school = _parent_and_school(request)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=404)
+
         invoice_id = request.data.get("invoice_id")
         payment_id = request.data.get("razorpay_payment_id")
         order_id   = request.data.get("razorpay_order_id")
@@ -320,7 +335,7 @@ class VerifyPaymentView(APIView):
         try:
             invoice = FeeInvoice.objects.get(
                 pk=invoice_id, school=school,
-                student__studentparentlink__parent=parent,
+                student__parent_links__parent=parent,
             )
         except FeeInvoice.DoesNotExist:
             return Response({"detail": "Invoice not found."}, status=404)
@@ -374,7 +389,10 @@ class ParentTransactionListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        school = _school(request)
-        parent = ParentProfile.objects.get(user=request.user, school=school)
+        try:
+            parent, school = _parent_and_school(request)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=404)
+
         qs = PaymentTransaction.objects.filter(school=school, parent=parent)
         return Response(PaymentTransactionSerializer(qs, many=True).data)

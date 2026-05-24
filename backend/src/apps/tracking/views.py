@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.tracking.services.google_maps import google_maps_config
-from common.demo_state import ping_location, tracking_fleet, tracking_trip
+from apps.tracking.models import Trip, LiveLocation
 
 
 class TrackingRootView(APIView):
@@ -23,25 +23,62 @@ class FleetTrackingView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        return Response(
-            {
-                "map": google_maps_config(),
-                "results": tracking_fleet(),
-            }
+        trips = Trip.objects.filter(status="active").select_related(
+            "route", "vehicle", "driver__user", "school"
         )
+        results = []
+        for t in trips:
+            latest = LiveLocation.objects.filter(trip=t).order_by("-created_at").first()
+            results.append(
+                {
+                    "id": t.id,
+                    "routeName": t.route.name if t.route else "",
+                    "busLabel": t.vehicle.registration_number if t.vehicle else "",
+                    "status": t.status,
+                    "location": {
+                        "latitude": float(latest.latitude),
+                        "longitude": float(latest.longitude),
+                    }
+                    if latest
+                    else None,
+                }
+            )
+        return Response({"map": google_maps_config(), "results": results})
 
 
 class TripTrackingDetailView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, trip_id: int):
-        trip = tracking_trip(trip_id)
+        trip = (
+            Trip.objects.filter(id=trip_id)
+            .select_related("route", "vehicle", "driver__user")
+            .first()
+        )
         if trip is None:
-            return Response({"detail": "Trip not found."}, status=404)
+            return Response({"detail": "Trip not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        latest = LiveLocation.objects.filter(trip=trip).order_by("-created_at").first()
+
         return Response(
             {
                 "map": google_maps_config(),
-                "result": trip,
+                "result": {
+                    "id": trip.id,
+                    "routeName": trip.route.name if trip.route else "",
+                    "busLabel": trip.vehicle.registration_number if trip.vehicle else "",
+                    "status": trip.status,
+                    "etaMinutes": 0,
+                    "busLocation": {
+                        "latitude": float(latest.latitude),
+                        "longitude": float(latest.longitude),
+                        "speed": float(latest.speed or 0),
+                        "heading": float(latest.heading or 0),
+                        "updatedAt": str(latest.created_at),
+                    }
+                    if latest
+                    else None,
+                },
             }
         )
 
@@ -71,16 +108,29 @@ class PingTripLocationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        ping = ping_location(
-            trip_id,
-            float(latitude),
-            float(longitude),
-            float(speed),
-            float(heading),
-        )
-        if ping is None:
+        from apps.transport.models import Trip as TransportTrip, TripLocationPing
+
+        trip = TransportTrip.objects.filter(id=trip_id, status="active").first()
+        if trip is None:
             return Response(
                 {"detail": "Trip not found or not currently active."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(ping, status=status.HTTP_201_CREATED)
+
+        ping = TripLocationPing.objects.create(
+            trip=trip,
+            latitude=float(latitude),
+            longitude=float(longitude),
+            speed=float(speed),
+            heading=float(heading),
+        )
+
+        return Response(
+            {
+                "id": ping.id,
+                "latitude": float(ping.latitude),
+                "longitude": float(ping.longitude),
+                "createdAt": str(ping.created_at),
+            },
+            status=status.HTTP_201_CREATED,
+        )

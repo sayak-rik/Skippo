@@ -13,21 +13,15 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.models import (
+    DriverInvitation,
     DriverProfile,
+    DriverSignupRequest,
     OTPRequest,
     ParentProfile,
     TeacherInvitation,
     TeacherProfile,
 )
 from apps.tenancy.models import School
-from common.demo_state import (
-    accept_driver_invite,
-    accept_invite,
-    login_payload,
-    submit_driver_self_signup,
-    validate_driver_invite,
-    validate_invite,
-)
 from common.sms import send_sms
 from integrations.email_service import send_otp_email
 
@@ -94,35 +88,48 @@ class AccountsRootView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        return Response({"module": "accounts", "status": "ready", "mode": "demo"})
-
-
-class DemoLoginView(APIView):
-    """Demo login – returns a hard-coded payload for the given role.
-
-    POST body:
-        role (str) – one of parent | driver | teacher.
-    """
-
-    permission_classes = [permissions.AllowAny]
-
-    def post(self, request):
-        role = request.data.get("role")
-        if role not in {"parent", "driver", "teacher"}:
-            return Response({"detail": "Unsupported role."}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(login_payload(role), status=status.HTTP_200_OK)
+        return Response({"module": "accounts", "status": "ready", "mode": "live"})
 
 
 class MeView(APIView):
-    """Return the current user's login payload (demo version, role from query param)."""
+    """Return the current authenticated user's profile data."""
 
-    permission_classes = [permissions.AllowAny]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        role = request.query_params.get("role", "parent")
-        if role not in {"parent", "driver", "teacher"}:
-            return Response({"detail": "Unsupported role."}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(login_payload(role))
+        user = request.user
+        role = "unknown"
+        if ParentProfile.objects.filter(user=user).exists():
+            role = "parent"
+        elif DriverProfile.objects.filter(user=user).exists():
+            role = "driver"
+        elif TeacherProfile.objects.filter(user=user).exists():
+            role = "teacher"
+        elif user.is_staff or user.is_superuser:
+            role = "superuser" if user.is_superuser else "staff"
+
+        # Collect effective permissions from SchoolRole assignments.
+        # Superusers get the wildcard "*" which the dashboard treats as all-access.
+        if user.is_superuser:
+            effective_permissions = ["*"]
+        else:
+            from apps.accounts.models import UserSchoolRole
+            assignments = UserSchoolRole.objects.filter(user=user).select_related("role")
+            perms: set[str] = set()
+            for assignment in assignments:
+                perms.update(assignment.role.permissions)
+            effective_permissions = sorted(perms)
+
+        return Response({
+            "id": user.id,
+            "name": user.get_full_name(),
+            "email": user.email,
+            "role": role,
+            "permissions": effective_permissions,
+            "is_superuser": user.is_superuser,
+            "is_staff": user.is_staff,
+        })
 
 
 # ── Teacher invite flow ───────────────────────────────────────────────────────
@@ -136,13 +143,22 @@ class ValidateInviteView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, token: str):
-        invite = validate_invite(token)
+        invite = (
+            TeacherInvitation.objects
+            .filter(token=token, is_used=False, expires_at__gt=timezone.now())
+            .select_related("school")
+            .first()
+        )
         if invite is None:
             return Response(
                 {"detail": "Invite not found or already used."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(invite, status=status.HTTP_200_OK)
+        return Response({
+            "email": invite.email,
+            "school_slug": invite.school.slug,
+            "school_name": invite.school.name,
+        }, status=status.HTTP_200_OK)
 
 
 class AcceptInviteView(APIView):
@@ -165,13 +181,37 @@ class AcceptInviteView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        payload = accept_invite(token, name=name, phone=phone)
-        if payload is None:
+        invite = (
+            TeacherInvitation.objects
+            .filter(token=token, is_used=False, expires_at__gt=timezone.now())
+            .select_related("school")
+            .first()
+        )
+        if invite is None:
             return Response(
                 {"detail": "Invite not found or already used."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(payload, status=status.HTTP_201_CREATED)
+        first, *rest = name.split(" ", 1)
+        user = User.objects.create_user(
+            username=f"teacher_{secrets.token_hex(4)}",
+            first_name=first,
+            last_name=rest[0] if rest else "",
+            email=invite.email,
+            password=secrets.token_urlsafe(16),
+        )
+        user.phone = phone
+        user.save()
+        TeacherProfile.objects.create(school=invite.school, user=user)
+        invite.is_used = True
+        invite.used_at = timezone.now()
+        invite.save()
+        tokens = _jwt_for_user(user)
+        return Response({
+            **tokens,
+            "role": "teacher",
+            "name": user.get_full_name(),
+        }, status=status.HTTP_201_CREATED)
 
 
 # ── Driver invite flow (req 6) ────────────────────────────────────────────────
@@ -188,13 +228,21 @@ class ValidateDriverInviteView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, token: str):
-        invite = validate_driver_invite(token)
+        invite = (
+            DriverInvitation.objects
+            .filter(token=token, is_used=False, expires_at__gt=timezone.now())
+            .select_related("school")
+            .first()
+        )
         if invite is None:
             return Response(
                 {"detail": "Invite not found or already used."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(invite, status=status.HTTP_200_OK)
+        return Response({
+            "school_slug": invite.school.slug,
+            "school_name": invite.school.name,
+        }, status=status.HTTP_200_OK)
 
 
 class AcceptDriverInviteView(APIView):
@@ -220,13 +268,42 @@ class AcceptDriverInviteView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        payload = accept_driver_invite(token, name=name, phone=phone, aadhar=aadhar)
-        if payload is None:
+        invite = (
+            DriverInvitation.objects
+            .filter(token=token, is_used=False, expires_at__gt=timezone.now())
+            .select_related("school")
+            .first()
+        )
+        if invite is None:
             return Response(
                 {"detail": "Invite not found or already used."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(payload, status=status.HTTP_201_CREATED)
+        first, *rest = name.split(" ", 1)
+        user = User.objects.create_user(
+            username=f"driver_{secrets.token_hex(4)}",
+            first_name=first,
+            last_name=rest[0] if rest else "",
+            password=secrets.token_urlsafe(16),
+        )
+        user.phone = phone
+        user.save()
+        DriverProfile.objects.create(
+            school=invite.school,
+            user=user,
+            phone=phone,
+            aadhar_number=aadhar,
+            is_approved=True,
+        )
+        invite.is_used = True
+        invite.used_at = timezone.now()
+        invite.save()
+        tokens = _jwt_for_user(user)
+        return Response({
+            **tokens,
+            "role": "driver",
+            "name": user.get_full_name(),
+        }, status=status.HTTP_201_CREATED)
 
 
 # ── OTP login (parent & driver) ───────────────────────────────────────────────
@@ -289,11 +366,15 @@ class OTPRequestView(APIView):
         elif role == "parent":
             profile = ParentProfile.objects.filter(school=school, phone=contact).select_related("user").first()
             if profile is None:
-                return Response(
-                    {"detail": "No account found for this contact at the given school."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-            fallback_email = profile.user.email or None
+                # Allow OTP for pending parents (admin-imported, not yet signed up)
+                from apps.academics.models import Student
+                if not Student.objects.filter(school=school, pending_parent_phone=contact).exists():
+                    return Response(
+                        {"detail": "No account found for this contact at the given school."},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+            else:
+                fallback_email = profile.user.email or None
         else:  # driver
             profile = DriverProfile.objects.filter(school=school, phone=contact).select_related("user").first()
             if profile is None:
@@ -410,10 +491,48 @@ class OTPVerifyView(APIView):
             if user is None:
                 return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
         elif role == "parent":
-            try:
-                profile = ParentProfile.objects.select_related("user").get(school=school, phone=contact)
-            except ParentProfile.DoesNotExist:
-                return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            profile = (
+                ParentProfile.objects
+                .filter(school=school, phone=contact)
+                .select_related("user")
+                .first()
+            )
+            if profile is None:
+                # Signup path: phone verified — auto-create account and link student(s)
+                from apps.academics.models import Student, StudentParentLink
+                students = list(
+                    Student.objects.filter(school=school, pending_parent_phone=contact)
+                )
+                if not students:
+                    return Response(
+                        {"detail": "No pending enrollment found. Please contact your school admin."},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                pending_name = students[0].pending_parent_name or ""
+                parts = pending_name.split(" ", 1)
+                user = User(
+                    username=f"parent_{contact.lstrip('+')}",
+                    phone=contact,
+                    first_name=parts[0],
+                    last_name=parts[1] if len(parts) > 1 else "",
+                    default_school=school,
+                )
+                user.set_unusable_password()
+                user.save()
+                profile = ParentProfile.objects.create(school=school, user=user, phone=contact)
+                for s in students:
+                    StudentParentLink.objects.get_or_create(
+                        student=s,
+                        parent=profile,
+                        defaults={
+                            "is_primary": True,
+                            "source": StudentParentLink.Source.ADMIN,
+                            "school": school,
+                        },
+                    )
+                    s.pending_parent_phone = ""
+                    s.pending_parent_name = ""
+                    s.save(update_fields=["pending_parent_phone", "pending_parent_name"])
             user = profile.user
         else:
             try:
@@ -428,7 +547,14 @@ class OTPVerifyView(APIView):
             user = profile.user
 
         tokens = _jwt_for_user(user)
-        return Response({**tokens, "role": role, "user": {"id": user.id, "name": user.get_full_name()}})
+        needs_profile_completion = role == "parent" and not user.get_full_name().strip()
+        return Response({
+            **tokens,
+            "role": role,
+            "user": {"id": user.id, "name": user.get_full_name()},
+            "school_slug": school.slug,
+            "needs_profile_completion": needs_profile_completion,
+        })
 
 
 class PasswordResetRequestView(APIView):
@@ -543,6 +669,684 @@ class PasswordResetConfirmView(APIView):
         return Response({"detail": "Password updated successfully."}, status=status.HTTP_200_OK)
 
 
+# ── Parent discovery & new-parent signup flow ─────────────────────────────────
+
+def _mask_phone(phone: str) -> str:
+    """Return a privacy-safe representation like +91 ****7821."""
+    stripped = phone.lstrip("+")
+    if len(stripped) <= 4:
+        return "****"
+    return f"+{stripped[:2]} ****{stripped[-4:]}"
+
+
+class ParentSchoolListView(APIView):
+    """List all active schools for the new-parent signup discovery flow.
+
+    GET /api/auth/parent/schools/
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        schools = (
+            School.objects
+            .filter(is_active=True)
+            .order_by("name")
+            .values("id", "name", "slug")
+        )
+        return Response({"results": list(schools)})
+
+
+class ParentClassroomListView(APIView):
+    """List classrooms for a given school (name + section pairs only).
+
+    GET /api/auth/parent/classrooms/?school_slug=X
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from apps.academics.models import Classroom
+
+        school_slug = request.query_params.get("school_slug", "").strip()
+        if not school_slug:
+            return Response({"detail": "school_slug is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            school = School.objects.get(slug=school_slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        classrooms = (
+            Classroom.objects
+            .filter(school=school)
+            .order_by("name", "section")
+            .values("id", "name", "section")
+        )
+        return Response({"results": list(classrooms)})
+
+
+class ParentStudentDiscoveryView(APIView):
+    """List students in a classroom for the new-parent signup discovery flow.
+
+    GET /api/auth/parent/discovery-students/?classroom_id=X
+
+    Returns minimal info — no parent phone numbers are exposed.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from apps.academics.models import Classroom, Student, StudentParentLink
+
+        classroom_id = request.query_params.get("classroom_id", "").strip()
+        if not classroom_id:
+            return Response({"detail": "classroom_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            classroom = Classroom.objects.get(pk=classroom_id)
+        except Classroom.DoesNotExist:
+            return Response({"detail": "Classroom not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        linked_student_ids = set(
+            StudentParentLink.objects
+            .filter(student__classroom=classroom)
+            .values_list("student_id", flat=True)
+        )
+        students = Student.objects.filter(classroom=classroom).order_by("full_name")
+        results = []
+        for s in students:
+            if s.id in linked_student_ids:
+                parent_status = "linked"
+            elif s.pending_parent_phone:
+                parent_status = "pending"
+            else:
+                parent_status = "none"
+            results.append({"id": s.id, "name": s.full_name, "parent_status": parent_status})
+
+        return Response({"results": results})
+
+
+class ParentSignupCheckView(APIView):
+    """Determine the migration situation for a student and send the appropriate OTP.
+
+    POST /api/auth/parent/signup/check/
+    Body: { student_id, new_phone }
+
+    Situations:
+      "free"    → student has no parent; OTP sent to new_phone
+      "pending" → student has a pending_parent_phone; OTP sent to that old phone
+      "linked"  → student has a full ParentProfile; OTP sent to that parent's phone
+
+    Response includes other_students (same old parent) so the UI can offer migration modal.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        import logging
+        from apps.academics.models import Student, StudentParentLink
+
+        log = logging.getLogger(__name__)
+
+        student_id = request.data.get("student_id")
+        new_phone = (request.data.get("new_phone") or "").strip()
+
+        if not student_id or not new_phone:
+            return Response(
+                {"detail": "student_id and new_phone are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            student = Student.objects.select_related("school").get(pk=student_id)
+        except Student.DoesNotExist:
+            return Response({"detail": "Student not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        school = student.school
+        code = _generate_otp()
+
+        link = (
+            StudentParentLink.objects
+            .filter(student=student)
+            .select_related("parent__user", "parent")
+            .first()
+        )
+
+        if link:
+            old_phone = link.parent.phone
+            other_students = list(
+                Student.objects
+                .filter(parent_links__parent=link.parent)
+                .exclude(pk=student_id)
+                .values("id", "full_name")
+            )
+            OTPRequest.objects.create(
+                school=school,
+                contact=old_phone,
+                channel=OTPRequest.Channel.SMS,
+                role=OTPRequest.Role.PARENT,
+                purpose=OTPRequest.Purpose.CONFIRM_ACTION,
+                code_hash=_hash_code(code),
+                expires_at=timezone.now() + timedelta(minutes=_OTP_TTL_MINUTES),
+                context={
+                    "_signup": True,
+                    "type": "linked",
+                    "new_phone": new_phone,
+                    "student_id": student_id,
+                    "other_student_ids": [s["id"] for s in other_students],
+                },
+            )
+            send_sms(
+                to=old_phone,
+                message=(
+                    f"A parent is registering on Skippo for your child's profile. "
+                    f"Verification code: {code}. Valid {_OTP_TTL_MINUTES} min. Do not share."
+                ),
+            )
+            return Response({
+                "situation": "linked",
+                "otp_phone": old_phone,
+                "otp_phone_masked": _mask_phone(old_phone),
+                "school_slug": school.slug,
+                "other_students": [{"id": s["id"], "name": s["full_name"]} for s in other_students],
+            })
+
+        elif student.pending_parent_phone:
+            old_phone = student.pending_parent_phone
+            other_students = list(
+                Student.objects
+                .filter(school=school, pending_parent_phone=old_phone)
+                .exclude(pk=student_id)
+                .values("id", "full_name")
+            )
+            OTPRequest.objects.create(
+                school=school,
+                contact=old_phone,
+                channel=OTPRequest.Channel.SMS,
+                role=OTPRequest.Role.PARENT,
+                purpose=OTPRequest.Purpose.CONFIRM_ACTION,
+                code_hash=_hash_code(code),
+                expires_at=timezone.now() + timedelta(minutes=_OTP_TTL_MINUTES),
+                context={
+                    "_signup": True,
+                    "type": "pending",
+                    "new_phone": new_phone,
+                    "student_id": student_id,
+                    "other_student_ids": [s["id"] for s in other_students],
+                },
+            )
+            send_sms(
+                to=old_phone,
+                message=(
+                    f"A parent is registering on Skippo for your child's profile. "
+                    f"Verification code: {code}. Valid {_OTP_TTL_MINUTES} min. Do not share."
+                ),
+            )
+            return Response({
+                "situation": "pending",
+                "otp_phone": old_phone,
+                "otp_phone_masked": _mask_phone(old_phone),
+                "school_slug": school.slug,
+                "other_students": [{"id": s["id"], "name": s["full_name"]} for s in other_students],
+            })
+
+        else:
+            OTPRequest.objects.create(
+                school=school,
+                contact=new_phone,
+                channel=OTPRequest.Channel.SMS,
+                role=OTPRequest.Role.PARENT,
+                purpose=OTPRequest.Purpose.CONFIRM_ACTION,
+                code_hash=_hash_code(code),
+                expires_at=timezone.now() + timedelta(minutes=_OTP_TTL_MINUTES),
+                context={
+                    "_signup": True,
+                    "type": "free",
+                    "new_phone": new_phone,
+                    "student_id": student_id,
+                },
+            )
+            send_sms(
+                to=new_phone,
+                message=f"Your Skippo verification code is {code}. Valid for {_OTP_TTL_MINUTES} minutes.",
+            )
+            return Response({
+                "situation": "free",
+                "otp_phone": new_phone,
+                "otp_phone_masked": _mask_phone(new_phone),
+                "school_slug": school.slug,
+                "other_students": [],
+            })
+
+
+class ParentSignupCompleteView(APIView):
+    """Verify OTP and create the new parent account, migrating students as needed.
+
+    POST /api/auth/parent/signup/complete/
+    Body:
+        otp_phone    – phone that received the OTP (old phone for migration, new phone for free)
+        otp_code     – 6-digit code
+        new_phone    – the new parent's phone number
+        new_name     – parent's display name
+        school_slug  – school identifier
+        student_ids  – list of student IDs to link/migrate
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        from apps.academics.models import Student, StudentParentLink
+
+        otp_phone   = (request.data.get("otp_phone")   or "").strip()
+        otp_code    = (request.data.get("otp_code")     or "").strip()
+        new_phone   = (request.data.get("new_phone")    or "").strip()
+        new_name    = (request.data.get("new_name")     or "").strip()
+        school_slug = (request.data.get("school_slug")  or "").strip()
+        student_ids = request.data.get("student_ids", [])
+
+        if not all([otp_phone, otp_code, new_phone, school_slug]) or not student_ids:
+            return Response(
+                {"detail": "otp_phone, otp_code, new_phone, school_slug, and student_ids are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            school = School.objects.get(slug=school_slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        otp_record = (
+            OTPRequest.objects.filter(
+                school=school,
+                contact=otp_phone,
+                purpose=OTPRequest.Purpose.CONFIRM_ACTION,
+                is_used=False,
+                expires_at__gt=timezone.now(),
+                attempts__lt=_OTP_MAX_ATTEMPTS,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if otp_record is None or not otp_record.context.get("_signup"):
+            return Response(
+                {"detail": "No valid verification code found. Please start over."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if otp_record.code_hash != _hash_code(otp_code):
+            otp_record.attempts += 1
+            otp_record.save(update_fields=["attempts"])
+            remaining = _OTP_MAX_ATTEMPTS - otp_record.attempts
+            return Response(
+                {"detail": f"Incorrect code. {remaining} attempt(s) remaining."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        otp_record.is_used = True
+        otp_record.save(update_fields=["is_used"])
+
+        ctx = otp_record.context
+        situation = ctx.get("type")
+        ctx_student_id = ctx.get("student_id")
+        eligible_ids = set([ctx_student_id] + ctx.get("other_student_ids", []))
+        requested_ids = set(int(sid) for sid in student_ids) & eligible_ids
+
+        if not requested_ids:
+            return Response(
+                {"detail": "None of the requested students are eligible."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Create new user + profile
+        import secrets as _secrets
+        base_username = f"parent_{new_phone.lstrip('+')}"
+        username = base_username
+        if User.objects.filter(username=username).exists():
+            username = f"{base_username}_{_secrets.token_hex(3)}"
+
+        parts = new_name.split(" ", 1) if new_name else [""]
+        user = User(
+            username=username,
+            phone=new_phone,
+            first_name=parts[0],
+            last_name=parts[1] if len(parts) > 1 else "",
+            default_school=school,
+        )
+        user.set_unusable_password()
+        user.save()
+        new_profile = ParentProfile.objects.create(school=school, user=user, phone=new_phone)
+
+        students = Student.objects.filter(pk__in=requested_ids, school=school)
+        for s in students:
+            if situation == "linked":
+                StudentParentLink.objects.filter(student=s).delete()
+            elif situation == "pending":
+                s.pending_parent_phone = ""
+                s.pending_parent_name = ""
+                s.save(update_fields=["pending_parent_phone", "pending_parent_name"])
+            StudentParentLink.objects.get_or_create(
+                student=s,
+                parent=new_profile,
+                defaults={"is_primary": True, "source": StudentParentLink.Source.DIRECT, "school": school},
+            )
+
+        tokens = _jwt_for_user(user)
+        needs_completion = not user.get_full_name().strip()
+        return Response({
+            **tokens,
+            "role": "parent",
+            "user": {"id": user.id, "name": user.get_full_name()},
+            "school_slug": school.slug,
+            "needs_profile_completion": needs_completion,
+        }, status=status.HTTP_201_CREATED)
+
+
+class ParentSchoolNotFoundView(APIView):
+    """Send a Skippo outreach email to a school that a parent couldn't find.
+
+    POST /api/auth/parent/school-not-found/
+    Body: { school_name, email }
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        from integrations.email_service import send_school_outreach_email
+
+        school_name = (request.data.get("school_name") or "").strip()
+        email = (request.data.get("email") or "").strip().lower()
+
+        if not school_name or not email:
+            return Response(
+                {"detail": "school_name and email are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        send_school_outreach_email(to=email, school_name=school_name)
+        return Response({"detail": "We've sent details about Skippo to that address."})
+
+
+class ParentPhoneLookupView(APIView):
+    """Determine whether a phone number belongs to a known parent or a pending parent.
+
+    POST /api/auth/parent/lookup/
+    Body: { "phone": "+91..." }
+
+    Returns one of:
+        action="login"  – phone is an existing ParentProfile; proceed with OTP login
+        action="signup" – phone is pending_parent_phone on a Student; proceed with OTP signup
+        404             – phone not found in either table
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        from apps.academics.models import Student
+
+        phone = (request.data.get("phone") or "").strip()
+        if not phone:
+            return Response({"detail": "phone is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile = (
+            ParentProfile.objects
+            .filter(phone=phone)
+            .select_related("user", "school")
+            .first()
+        )
+        if profile:
+            return Response({
+                "action": "login",
+                "school_slug": profile.school.slug,
+                "name": profile.user.get_full_name(),
+            })
+
+        student = (
+            Student.objects
+            .filter(pending_parent_phone=phone)
+            .select_related("school")
+            .first()
+        )
+        if student:
+            return Response({
+                "action": "signup",
+                "school_slug": student.school.slug,
+                "child_name": student.full_name,
+                "pending_parent_name": student.pending_parent_name,
+            })
+
+        return Response(
+            {"detail": "No account or pending enrollment found for this number. Contact your school admin."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+class ParentCompleteProfileView(APIView):
+    """Set the authenticated parent's display name (used after first login when name is missing).
+
+    POST /api/auth/parent/complete-profile/
+    Body: { "name": "Full Name" }
+    Requires: Authorization: Bearer <access_token>
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        name = (request.data.get("name") or "").strip()
+        if not name:
+            return Response({"detail": "name is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        parts = name.split(" ", 1)
+        request.user.first_name = parts[0]
+        request.user.last_name = parts[1] if len(parts) > 1 else ""
+        request.user.save(update_fields=["first_name", "last_name"])
+        return Response({"name": request.user.get_full_name()})
+
+
+class ParentProfileView(APIView):
+    """Get or update the authenticated parent's own profile + all linked students.
+
+    GET  /api/auth/parent/profile/
+    PATCH /api/auth/parent/profile/   Body: { "name": "..." }
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        try:
+            parent = ParentProfile.objects.select_related("user", "school").get(user=request.user)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        from apps.academics.models import StudentParentLink
+        links = StudentParentLink.objects.filter(parent=parent).select_related("student__classroom")
+        students = [
+            {
+                "id": link.student.id,
+                "name": link.student.full_name,
+                "grade": link.student.classroom.name if link.student.classroom else "",
+            }
+            for link in links
+        ]
+        return Response({
+            "name": request.user.get_full_name(),
+            "phone": parent.phone,
+            "school_name": parent.school.name,
+            "students": students,
+        })
+
+    def patch(self, request):
+        name = (request.data.get("name") or "").strip()
+        if not name:
+            return Response({"detail": "name is required."}, status=status.HTTP_400_BAD_REQUEST)
+        parts = name.split(" ", 1)
+        request.user.first_name = parts[0]
+        request.user.last_name = parts[1] if len(parts) > 1 else ""
+        request.user.save(update_fields=["first_name", "last_name"])
+        return Response({"name": request.user.get_full_name()})
+
+
+class ParentAddStudentView(APIView):
+    """Claim an unclaimed student whose pending_parent_phone matches the parent's phone.
+
+    POST /api/auth/parent/add-student/
+    Body: { "student_id": 1 }
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from apps.academics.models import Student, StudentParentLink
+
+        student_id = request.data.get("student_id")
+        if not student_id:
+            return Response({"detail": "student_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            parent = ParentProfile.objects.select_related("school").get(user=request.user)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            student = Student.objects.get(id=int(student_id), school=parent.school)
+        except Student.DoesNotExist:
+            return Response({"detail": "Student not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if StudentParentLink.objects.filter(student=student, parent=parent).exists():
+            return Response({"detail": "This student is already linked to your account."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if StudentParentLink.objects.filter(student=student).exclude(parent=parent).exists():
+            return Response({"detail": "This student is already linked to another parent account."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not student.pending_parent_phone:
+            return Response(
+                {"detail": "This student has no parent number on file. Contact your school."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        parent_phone = parent.phone.replace(" ", "").replace("-", "")
+        student_phone = student.pending_parent_phone.replace(" ", "").replace("-", "")
+        if parent_phone != student_phone:
+            return Response(
+                {"detail": "Your number doesn't match this student's school records. Contact your school admin."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        StudentParentLink.objects.create(student=student, parent=parent, school=parent.school)
+        student.pending_parent_phone = ""
+        student.save(update_fields=["pending_parent_phone"])
+
+        return Response({
+            "detail": "Student added to your account.",
+            "student": {"id": student.id, "name": student.full_name},
+        }, status=status.HTTP_201_CREATED)
+
+
+class ParentChangePhoneRequestView(APIView):
+    """Send an OTP to a new phone number as the first step of changing a parent's contact number.
+
+    POST /api/auth/parent/change-phone/request/
+    Body: { "new_phone": "+91..." }
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        new_phone = (request.data.get("new_phone") or "").strip()
+        if not new_phone:
+            return Response({"detail": "new_phone is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            parent = ParentProfile.objects.select_related("school").get(user=request.user)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if ParentProfile.objects.filter(phone=new_phone).exclude(id=parent.id).exists():
+            return Response(
+                {"detail": "This number is already registered to another account."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        code = _generate_otp()
+        OTPRequest.objects.create(
+            school=parent.school,
+            contact=new_phone,
+            channel=OTPRequest.Channel.SMS,
+            role=OTPRequest.Role.PARENT,
+            purpose=OTPRequest.Purpose.CONFIRM_ACTION,
+            code_hash=_hash_code(code),
+            expires_at=timezone.now() + timedelta(minutes=_OTP_TTL_MINUTES),
+            context={"action": "change_phone", "parent_id": parent.id, "new_phone": new_phone},
+        )
+
+        send_sms(
+            to=new_phone,
+            message=(
+                f"Skippo: Your verification code is {code}. "
+                f"Valid for {_OTP_TTL_MINUTES} minutes. Don't share this."
+            ),
+        )
+
+        return Response({"detail": "OTP sent to your new number."})
+
+
+class ParentChangePhoneConfirmView(APIView):
+    """Confirm a parent's phone number change using the OTP sent to the new number.
+
+    POST /api/auth/parent/change-phone/confirm/
+    Body: { "new_phone": "+91...", "code": "123456" }
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        new_phone = (request.data.get("new_phone") or "").strip()
+        code = (request.data.get("code") or "").strip()
+
+        if not new_phone or not code:
+            return Response({"detail": "new_phone and code are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            parent = ParentProfile.objects.get(user=request.user)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        otp = (
+            OTPRequest.objects.filter(
+                contact=new_phone,
+                role=OTPRequest.Role.PARENT,
+                purpose=OTPRequest.Purpose.CONFIRM_ACTION,
+                is_used=False,
+                expires_at__gt=timezone.now(),
+                attempts__lt=_OTP_MAX_ATTEMPTS,
+                context__action="change_phone",
+                context__parent_id=parent.id,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if otp is None:
+            return Response({"detail": "No valid OTP found. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if otp.code_hash != _hash_code(code):
+            otp.attempts += 1
+            otp.save(update_fields=["attempts"])
+            return Response({"detail": "Incorrect code. Please try again."}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp.is_used = True
+        otp.save(update_fields=["is_used"])
+
+        parent.phone = new_phone
+        parent.save(update_fields=["phone"])
+
+        return Response({"detail": "Phone number updated successfully.", "new_phone": new_phone})
+
+
 class DriverSelfSignupView(APIView):
     """Self-signup for a driver without an admin invite (req 6).
 
@@ -574,18 +1378,26 @@ class DriverSelfSignupView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        payload = submit_driver_self_signup(
-            school_slug=school_slug,
+        try:
+            school = School.objects.get(slug=school_slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        DriverSignupRequest.objects.create(
+            school=school,
             name=name,
             phone=phone,
-            aadhar=aadhar,
-            vehicle_reg=vehicle_reg,
+            aadhar_number=aadhar,
+            vehicle_registration=vehicle_reg,
         )
-        return Response(payload, status=status.HTTP_201_CREATED)
+        return Response(
+            {"detail": "Signup submitted. Pending admin approval."},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class AdminTeacherListView(APIView):
-    """List teachers (active + pending invitations) for the current school.
+    """List all TeacherProfiles for the school with leave status.
 
     GET /api/auth/admin/teachers/
     """
@@ -594,38 +1406,59 @@ class AdminTeacherListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        from datetime import date
+        from apps.accounts.models import TeacherLeave
+        from apps.academics.models import Classroom
+
         slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
         try:
             school = School.objects.get(slug=slug, is_active=True)
         except School.DoesNotExist:
             return Response({"detail": "School not found."}, status=404)
 
+        today = date.today()
+        profiles = TeacherProfile.objects.filter(school=school).select_related("user")
+
         results = []
-
-        for profile in TeacherProfile.objects.filter(school=school).select_related("user"):
+        for profile in profiles:
             u = profile.user
+
+            active_leave = (
+                TeacherLeave.objects
+                .filter(
+                    teacher=profile,
+                    school=school,
+                    status="approved",
+                    start_date__lte=today,
+                    end_date__gte=today,
+                )
+                .first()
+            )
+
+            classroom = Classroom.objects.filter(school=school, teacher=profile).first()
+
+            active_leave_data = None
+            if active_leave:
+                active_leave_data = {
+                    "id": active_leave.id,
+                    "start_date": active_leave.start_date.isoformat(),
+                    "end_date": active_leave.end_date.isoformat(),
+                    "leave_type": active_leave.leave_type,
+                    "status": active_leave.status,
+                }
+
             results.append({
-                "id":         profile.id,
-                "name":       u.get_full_name() or u.email,
-                "email":      u.email,
-                "phone":      u.phone,
-                "code":       profile.employee_code,
-                "status":     "active",
-                "join_date":  profile.created_at.date().isoformat(),
+                "id": profile.id,
+                "name": u.get_full_name() or u.email,
+                "email": u.email,
+                "employee_code": profile.employee_code,
+                "classroom_id": classroom.id if classroom else None,
+                "classroom_name": classroom.name if classroom else None,
+                "active_leave": active_leave_data,
+                "leave_status": "on_leave" if active_leave else "active",
             })
 
-        for inv in TeacherInvitation.objects.filter(school=school, is_used=False).order_by("-id"):
-            results.append({
-                "id":         f"inv_{inv.id}",
-                "name":       inv.email.split("@")[0].replace(".", " ").title(),
-                "email":      inv.email,
-                "phone":      "",
-                "code":       "",
-                "status":     "invited",
-                "join_date":  "",
-            })
-
-        return Response({"results": results, "count": len(results)})
+        return Response(results)
 
 
 class CreateTeacherInviteView(APIView):
@@ -663,3 +1496,885 @@ class CreateTeacherInviteView(APIView):
 
         signup_url = f"https://app.skippo.co.in/teacher/signup?token={token}"
         return Response({"id": invitation.id, "signup_url": signup_url, "email": email}, status=201)
+
+
+# ── Admin driver management ───────────────────────────────────────────────────
+
+def _school_from_slug(request):
+    slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+    try:
+        return School.objects.get(slug=slug, is_active=True), None
+    except School.DoesNotExist:
+        return None, Response({"detail": "School not found."}, status=404)
+
+
+def _driver_serialise(driver):
+    from apps.transport.models import DriverVehicleAssignment, Route
+    assignment = (
+        DriverVehicleAssignment.objects
+        .filter(driver=driver, is_active=True)
+        .select_related("vehicle")
+        .first()
+    )
+    vehicle_data = None
+    route_data = None
+    if assignment:
+        vehicle_data = {
+            "id": assignment.vehicle.id,
+            "registration_number": assignment.vehicle.registration_number,
+            "vehicle_type": assignment.vehicle.vehicle_type,
+            "capacity": assignment.vehicle.capacity,
+        }
+        route = Route.objects.filter(vehicle=assignment.vehicle).first()
+        if route:
+            route_data = {"id": route.id, "name": route.name}
+    return {
+        "id": driver.id,
+        "name": driver.user.get_full_name(),
+        "phone": driver.phone,
+        "aadhar": driver.aadhar_number,
+        "is_approved": driver.is_approved,
+        "vehicle": vehicle_data,
+        "route": route_data,
+        "created_at": driver.created_at.date().isoformat(),
+    }
+
+
+class AdminDriverListView(APIView):
+    """List all drivers for the school or manually add a new one.
+
+    GET  /api/auth/admin/drivers/
+    POST /api/auth/admin/drivers/  Body: { "name", "phone", "aadhar"(opt) }
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        school, err = _school_from_slug(request)
+        if err:
+            return err
+        drivers = (
+            DriverProfile.objects
+            .filter(school=school)
+            .select_related("user")
+            .order_by("user__first_name", "user__last_name")
+        )
+        return Response({"results": [_driver_serialise(d) for d in drivers], "count": drivers.count()})
+
+    def post(self, request):
+        school, err = _school_from_slug(request)
+        if err:
+            return err
+
+        name = request.data.get("name", "").strip()
+        phone = request.data.get("phone", "").strip()
+        aadhar = request.data.get("aadhar", "").strip()
+
+        if not name or not phone:
+            return Response({"detail": "name and phone are required."}, status=400)
+        if DriverProfile.objects.filter(school=school, phone=phone).exists():
+            return Response({"detail": "A driver with this phone number already exists."}, status=400)
+
+        first, *rest = name.split(" ", 1)
+        user = User.objects.create_user(
+            username=f"driver_{secrets.token_hex(4)}",
+            first_name=first,
+            last_name=rest[0] if rest else "",
+            password=secrets.token_urlsafe(16),
+        )
+        user.phone = phone
+        user.save()
+        driver = DriverProfile.objects.create(
+            school=school, user=user, phone=phone, aadhar_number=aadhar, is_approved=True,
+        )
+
+        # Generate invite token so the driver can onboard via the driver app
+        invite_token = secrets.token_urlsafe(24)
+        DriverInvitation.objects.create(
+            school=school,
+            token=invite_token,
+            invited_by=request.user,
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+        send_sms(
+            to=phone,
+            message=(
+                f"Welcome to Skippo! You've been added as a driver for {school.name}. "
+                f"Download the Skippo Driver app and enter invite code: {invite_token} "
+                f"to complete your onboarding. Valid for 7 days."
+            ),
+        )
+
+        data = _driver_serialise(driver)
+        data["invite_token"] = invite_token
+        return Response(data, status=201)
+
+
+class AdminDriverDetailView(APIView):
+    """Get, update, or delete a specific driver.
+
+    GET    /api/auth/admin/drivers/{driver_id}/
+    PATCH  /api/auth/admin/drivers/{driver_id}/  Body: { "name", "phone" }
+    DELETE /api/auth/admin/drivers/{driver_id}/
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _fetch(self, request, driver_id):
+        school, err = _school_from_slug(request)
+        if err:
+            return None, err
+        try:
+            return DriverProfile.objects.select_related("user", "school").get(id=driver_id, school=school), None
+        except DriverProfile.DoesNotExist:
+            return None, Response({"detail": "Driver not found."}, status=404)
+
+    def get(self, request, driver_id):
+        driver, err = self._fetch(request, driver_id)
+        if err:
+            return err
+        from apps.transport.models import DriverVehicleAssignment, Route, Stop
+        assignment = (
+            DriverVehicleAssignment.objects
+            .filter(driver=driver, is_active=True)
+            .select_related("vehicle")
+            .first()
+        )
+        vehicle_data = None
+        route_data = None
+        if assignment:
+            vehicle_data = {
+                "id": assignment.vehicle.id,
+                "registration_number": assignment.vehicle.registration_number,
+                "vehicle_type": assignment.vehicle.vehicle_type,
+                "capacity": assignment.vehicle.capacity,
+            }
+            route = Route.objects.filter(vehicle=assignment.vehicle).first()
+            if route:
+                stops = list(Stop.objects.filter(route=route).order_by("sequence").values("id", "name", "sequence"))
+                route_data = {
+                    "id": route.id,
+                    "name": route.name,
+                    "stops": stops,
+                    "start_point": stops[0]["name"] if stops else "",
+                }
+        return Response({
+            "id": driver.id,
+            "name": driver.user.get_full_name(),
+            "phone": driver.phone,
+            "aadhar": driver.aadhar_number,
+            "is_approved": driver.is_approved,
+            "vehicle": vehicle_data,
+            "route": route_data,
+            "created_at": driver.created_at.date().isoformat(),
+        })
+
+    def patch(self, request, driver_id):
+        driver, err = self._fetch(request, driver_id)
+        if err:
+            return err
+        name = request.data.get("name", "").strip()
+        phone = request.data.get("phone", "").strip()
+        if name:
+            first, *rest = name.split(" ", 1)
+            driver.user.first_name = first
+            driver.user.last_name = rest[0] if rest else ""
+            driver.user.save(update_fields=["first_name", "last_name"])
+        if phone and phone != driver.phone:
+            if DriverProfile.objects.filter(school=driver.school, phone=phone).exclude(id=driver.id).exists():
+                return Response({"detail": "A driver with this phone number already exists."}, status=400)
+            driver.phone = phone
+            driver.user.phone = phone
+            driver.save(update_fields=["phone"])
+            driver.user.save(update_fields=["phone"])
+        return Response(_driver_serialise(driver))
+
+    def delete(self, request, driver_id):
+        driver, err = self._fetch(request, driver_id)
+        if err:
+            return err
+        user = driver.user
+        driver.delete()
+        user.delete()
+        return Response(status=204)
+
+
+class AdminDriverStudentsView(APIView):
+    """List all students enrolled on the driver's active route.
+
+    GET /api/auth/admin/drivers/{driver_id}/students/
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, driver_id):
+        school, err = _school_from_slug(request)
+        if err:
+            return err
+        try:
+            driver = DriverProfile.objects.select_related("user").get(id=driver_id, school=school)
+        except DriverProfile.DoesNotExist:
+            return Response({"detail": "Driver not found."}, status=404)
+
+        from apps.transport.models import DriverVehicleAssignment, Route, StudentBusEnrollment
+        assignment = (
+            DriverVehicleAssignment.objects
+            .filter(driver=driver, is_active=True)
+            .select_related("vehicle")
+            .first()
+        )
+        students = []
+        route_name = ""
+        vehicle_data = None
+        if assignment:
+            vehicle_data = {
+                "registration_number": assignment.vehicle.registration_number,
+                "vehicle_type": assignment.vehicle.vehicle_type,
+                "capacity": assignment.vehicle.capacity,
+            }
+            route = Route.objects.filter(vehicle=assignment.vehicle).first()
+            if route:
+                route_name = route.name
+                for e in StudentBusEnrollment.objects.filter(route=route, is_active=True).select_related("student__classroom"):
+                    s = e.student
+                    cls = s.classroom
+                    cls_label = ""
+                    if cls:
+                        cls_label = cls.name + (f"-{cls.section}" if cls.section else "")
+                    students.append({
+                        "id": s.id,
+                        "name": s.full_name,
+                        "classroom": cls_label or "Unassigned",
+                        "route_name": route_name,
+                    })
+        return Response({
+            "driver": {
+                "id": driver.id,
+                "name": driver.user.get_full_name(),
+                "phone": driver.phone,
+                "vehicle": vehicle_data,
+                "route_name": route_name,
+            },
+            "students": students,
+            "count": len(students),
+        })
+
+
+class AdminDriverSignupRequestListView(APIView):
+    """List driver self-signup requests for this school.
+
+    GET /api/auth/admin/driver-requests/?status=pending
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        school, err = _school_from_slug(request)
+        if err:
+            return err
+        status_filter = request.query_params.get("status", "pending")
+        qs = DriverSignupRequest.objects.filter(school=school)
+        if status_filter in ("pending", "approved", "rejected"):
+            qs = qs.filter(status=status_filter)
+        results = [
+            {
+                "id": r.id,
+                "name": r.name,
+                "phone": r.phone,
+                "aadhar": r.aadhar_number,
+                "vehicle_registration": r.vehicle_registration,
+                "status": r.status,
+                "created_at": r.created_at.date().isoformat(),
+            }
+            for r in qs.order_by("-created_at")
+        ]
+        return Response({"results": results, "count": len(results)})
+
+
+class AdminDriverSignupRequestReviewView(APIView):
+    """Approve or reject a driver self-signup request.
+
+    POST /api/auth/admin/driver-requests/{request_id}/review/
+    Body: { "action": "approve" | "reject" }
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, request_id):
+        school, err = _school_from_slug(request)
+        if err:
+            return err
+        try:
+            signup_req = DriverSignupRequest.objects.get(id=request_id, school=school)
+        except DriverSignupRequest.DoesNotExist:
+            return Response({"detail": "Request not found."}, status=404)
+
+        action = request.data.get("action", "").strip()
+        if action not in ("approve", "reject"):
+            return Response({"detail": "action must be 'approve' or 'reject'."}, status=400)
+        if signup_req.status != DriverSignupRequest.Status.PENDING:
+            return Response({"detail": "This request has already been reviewed."}, status=400)
+
+        signup_req.reviewed_at = timezone.now()
+        signup_req.reviewed_by = request.user
+
+        if action == "approve":
+            if DriverProfile.objects.filter(school=school, phone=signup_req.phone).exists():
+                return Response({"detail": "A driver with this phone number already exists."}, status=400)
+            first, *rest = signup_req.name.split(" ", 1)
+            user = User.objects.create_user(
+                username=f"driver_{secrets.token_hex(4)}",
+                first_name=first,
+                last_name=rest[0] if rest else "",
+                password=secrets.token_urlsafe(16),
+            )
+            user.phone = signup_req.phone
+            user.save()
+            DriverProfile.objects.create(
+                school=school, user=user, phone=signup_req.phone,
+                aadhar_number=signup_req.aadhar_number, is_approved=True,
+            )
+            signup_req.status = DriverSignupRequest.Status.APPROVED
+        else:
+            signup_req.status = DriverSignupRequest.Status.REJECTED
+
+        signup_req.save()
+        return Response({"detail": f"Request {action}d.", "status": signup_req.status})
+
+
+# ── Admin: Roles & Permissions (RBAC) ─────────────────────────────────────────
+
+class AdminPermissionListView(APIView):
+    """GET all available permission codes with labels."""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.accounts.models import ALL_PERMISSIONS
+        return Response([{"code": c, "label": l} for c, l in ALL_PERMISSIONS])
+
+
+class AdminRoleListView(APIView):
+    """GET list / POST create school roles."""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        school, err = _school_from_slug(request)
+        if err:
+            return err
+        from apps.accounts.models import SchoolRole
+        roles = SchoolRole.objects.filter(school=school)
+        return Response([
+            {"id": r.id, "name": r.name, "permissions": r.permissions, "is_system": r.is_system, "created_at": r.created_at.date().isoformat()}
+            for r in roles
+        ])
+
+    def post(self, request):
+        school, err = _school_from_slug(request)
+        if err:
+            return err
+        name = (request.data.get("name") or "").strip()
+        perms = request.data.get("permissions", [])
+        if not name:
+            return Response({"detail": "name is required."}, status=400)
+        from apps.accounts.models import SchoolRole, PERMISSION_CODES
+        invalid = [p for p in perms if p not in PERMISSION_CODES]
+        if invalid:
+            return Response({"detail": f"Unknown permissions: {invalid}"}, status=400)
+        if SchoolRole.objects.filter(school=school, name=name).exists():
+            return Response({"detail": "A role with this name already exists."}, status=400)
+        role = SchoolRole.objects.create(school=school, name=name, permissions=perms)
+        return Response({"id": role.id, "name": role.name, "permissions": role.permissions}, status=201)
+
+
+class AdminRoleDetailView(APIView):
+    """GET / PATCH / DELETE a school role."""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get(self, request, role_id):
+        school, err = _school_from_slug(request)
+        if err:
+            return None, err
+        from apps.accounts.models import SchoolRole
+        try:
+            return SchoolRole.objects.get(id=role_id, school=school), None
+        except SchoolRole.DoesNotExist:
+            return None, Response({"detail": "Role not found."}, status=404)
+
+    def get(self, request, role_id):
+        role, err = self._get(request, role_id)
+        if err:
+            return err
+        return Response({"id": role.id, "name": role.name, "permissions": role.permissions, "is_system": role.is_system})
+
+    def patch(self, request, role_id):
+        role, err = self._get(request, role_id)
+        if err:
+            return err
+        if role.is_system:
+            return Response({"detail": "System roles cannot be modified."}, status=403)
+        from apps.accounts.models import PERMISSION_CODES
+        if "name" in request.data:
+            role.name = (request.data["name"] or "").strip()
+        if "permissions" in request.data:
+            perms = request.data["permissions"]
+            invalid = [p for p in perms if p not in PERMISSION_CODES]
+            if invalid:
+                return Response({"detail": f"Unknown permissions: {invalid}"}, status=400)
+            role.permissions = perms
+        role.save()
+        return Response({"id": role.id, "name": role.name, "permissions": role.permissions})
+
+    def delete(self, request, role_id):
+        role, err = self._get(request, role_id)
+        if err:
+            return err
+        if role.is_system:
+            return Response({"detail": "System roles cannot be deleted."}, status=403)
+        role.delete()
+        return Response(status=204)
+
+
+class AdminRoleAssignView(APIView):
+    """POST to assign a role to a user. DELETE to unassign."""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, role_id):
+        school, err = _school_from_slug(request)
+        if err:
+            return err
+        from apps.accounts.models import SchoolRole, UserSchoolRole
+        try:
+            role = SchoolRole.objects.get(id=role_id, school=school)
+        except SchoolRole.DoesNotExist:
+            return Response({"detail": "Role not found."}, status=404)
+        user_id = request.data.get("user_id")
+        if not user_id:
+            return Response({"detail": "user_id is required."}, status=400)
+        try:
+            target_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found."}, status=404)
+        assignment, created = UserSchoolRole.objects.get_or_create(
+            user=target_user, role=role,
+            defaults={"school": school, "assigned_by": request.user},
+        )
+        return Response({"detail": "Role assigned." if created else "Already assigned."}, status=201 if created else 200)
+
+    def delete(self, request, role_id):
+        school, err = _school_from_slug(request)
+        if err:
+            return err
+        from apps.accounts.models import SchoolRole, UserSchoolRole
+        try:
+            role = SchoolRole.objects.get(id=role_id, school=school)
+        except SchoolRole.DoesNotExist:
+            return Response({"detail": "Role not found."}, status=404)
+        user_id = request.data.get("user_id")
+        deleted, _ = UserSchoolRole.objects.filter(user_id=user_id, role=role).delete()
+        if not deleted:
+            return Response({"detail": "Assignment not found."}, status=404)
+        return Response(status=204)
+
+
+class AdminUserRoleListView(APIView):
+    """GET all roles assigned to a specific user within the school."""
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, user_id):
+        school, err = _school_from_slug(request)
+        if err:
+            return err
+        from apps.accounts.models import UserSchoolRole
+        assignments = (
+            UserSchoolRole.objects
+            .filter(user_id=user_id, school=school)
+            .select_related("role")
+        )
+        return Response([
+            {"role_id": a.role_id, "role_name": a.role.name, "permissions": a.role.permissions, "assigned_at": a.created_at.date().isoformat()}
+            for a in assignments
+        ])
+
+
+# ── Admin: Teacher management (leave & substitute) ────────────────────────────
+
+def _build_leave_dict(leave):
+    """Return a dict representation of a TeacherLeave including its substitutes."""
+    from apps.accounts.models import SubstituteAssignment
+    substitutes = []
+    for sa in SubstituteAssignment.objects.filter(leave=leave).select_related("substitute__user"):
+        substitutes.append({
+            "id": sa.id,
+            "date": sa.date.isoformat(),
+            "period_label": sa.period_label,
+            "substitute_id": sa.substitute.id,
+            "substitute_name": sa.substitute.user.get_full_name() or sa.substitute.user.email,
+        })
+    return {
+        "id": leave.id,
+        "leave_type": leave.leave_type,
+        "start_date": leave.start_date.isoformat(),
+        "end_date": leave.end_date.isoformat(),
+        "reason": leave.reason,
+        "status": leave.status,
+        "admin_note": leave.admin_note,
+        "substitutes": substitutes,
+    }
+
+
+class AdminTeacherDetailView(APIView):
+    """Detailed teacher profile with timetable slots and leave history.
+
+    GET /api/auth/admin/teachers/<teacher_id>/
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, teacher_id):
+        from datetime import date
+        from apps.accounts.models import TeacherLeave
+        from apps.academics.models import Classroom, TimetableSlot
+
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=404)
+
+        try:
+            profile = TeacherProfile.objects.select_related("user").get(id=teacher_id, school=school)
+        except TeacherProfile.DoesNotExist:
+            return Response({"detail": "Teacher not found."}, status=404)
+
+        today = date.today()
+        u = profile.user
+
+        classroom = Classroom.objects.filter(school=school, teacher=profile).first()
+
+        slots = TimetableSlot.objects.filter(
+            school=school, teacher=profile
+        ).select_related("subject", "timetable__classroom")
+
+        timetable_slots = []
+        for slot in slots:
+            slot_classroom = None
+            if hasattr(slot.timetable, "classroom") and slot.timetable.classroom:
+                slot_classroom = slot.timetable.classroom.name
+            timetable_slots.append({
+                "id": slot.id,
+                "weekday": slot.weekday,
+                "period_number": slot.period_number,
+                "starts_at": slot.starts_at.strftime("%H:%M:%S"),
+                "ends_at": slot.ends_at.strftime("%H:%M:%S"),
+                "slot_type": slot.slot_type,
+                "subject_name": slot.subject.name if slot.subject else None,
+                "timetable_id": slot.timetable_id,
+                "classroom_name": slot_classroom,
+            })
+
+        leaves = TeacherLeave.objects.filter(teacher=profile, school=school).order_by("-start_date")
+        leaves_data = [_build_leave_dict(leave) for leave in leaves]
+
+        active_leave = next(
+            (lv for lv in leaves if lv.status == "approved" and lv.start_date <= today <= lv.end_date),
+            None,
+        )
+
+        return Response({
+            "id": profile.id,
+            "name": u.get_full_name() or u.email,
+            "email": u.email,
+            "employee_code": profile.employee_code,
+            "classroom_id": classroom.id if classroom else None,
+            "classroom_name": classroom.name if classroom else None,
+            "timetable_slots": timetable_slots,
+            "leaves": leaves_data,
+            "leave_status": "on_leave" if active_leave else "active",
+        })
+
+
+class AdminTeacherLeaveListView(APIView):
+    """List or create leaves for a specific teacher.
+
+    GET  /api/auth/admin/teachers/<teacher_id>/leaves/
+    POST /api/auth/admin/teachers/<teacher_id>/leaves/
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_school_and_teacher(self, request, teacher_id):
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+        except School.DoesNotExist:
+            return None, None, Response({"detail": "School not found."}, status=404)
+        try:
+            profile = TeacherProfile.objects.get(id=teacher_id, school=school)
+        except TeacherProfile.DoesNotExist:
+            return None, None, Response({"detail": "Teacher not found."}, status=404)
+        return school, profile, None
+
+    def get(self, request, teacher_id):
+        from apps.accounts.models import TeacherLeave
+
+        school, profile, err = self._get_school_and_teacher(request, teacher_id)
+        if err:
+            return err
+
+        leaves = TeacherLeave.objects.filter(teacher=profile, school=school).order_by("-start_date")
+        return Response([_build_leave_dict(leave) for leave in leaves])
+
+    def post(self, request, teacher_id):
+        from apps.accounts.models import TeacherLeave
+
+        school, profile, err = self._get_school_and_teacher(request, teacher_id)
+        if err:
+            return err
+
+        leave_type = request.data.get("leave_type", "").strip()
+        start_date = request.data.get("start_date", "")
+        end_date = request.data.get("end_date", "")
+        reason = request.data.get("reason", "")
+        leave_status = request.data.get("status", "pending")
+
+        if not leave_type or not start_date or not end_date:
+            return Response(
+                {"detail": "leave_type, start_date, and end_date are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        leave = TeacherLeave.objects.create(
+            school=school,
+            teacher=profile,
+            leave_type=leave_type,
+            start_date=start_date,
+            end_date=end_date,
+            reason=reason,
+            status=leave_status,
+        )
+        return Response(_build_leave_dict(leave), status=status.HTTP_201_CREATED)
+
+
+class AdminTeacherLeaveDetailView(APIView):
+    """Update or delete a specific teacher leave.
+
+    PATCH  /api/auth/admin/teachers/<teacher_id>/leaves/<leave_id>/
+    DELETE /api/auth/admin/teachers/<teacher_id>/leaves/<leave_id>/
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_leave(self, request, teacher_id, leave_id):
+        from apps.accounts.models import TeacherLeave
+
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+        except School.DoesNotExist:
+            return None, Response({"detail": "School not found."}, status=404)
+        try:
+            profile = TeacherProfile.objects.get(id=teacher_id, school=school)
+        except TeacherProfile.DoesNotExist:
+            return None, Response({"detail": "Teacher not found."}, status=404)
+        try:
+            leave = TeacherLeave.objects.get(id=leave_id, teacher=profile, school=school)
+        except TeacherLeave.DoesNotExist:
+            return None, Response({"detail": "Leave not found."}, status=404)
+        return leave, None
+
+    def patch(self, request, teacher_id, leave_id):
+        leave, err = self._get_leave(request, teacher_id, leave_id)
+        if err:
+            return err
+
+        updatable_fields = ["leave_type", "start_date", "end_date", "reason", "status", "admin_note"]
+        for field in updatable_fields:
+            if field in request.data:
+                setattr(leave, field, request.data[field])
+
+        if "status" in request.data and request.data["status"] in ("approved", "rejected"):
+            leave.approved_by = request.user
+
+        leave.save()
+        return Response(_build_leave_dict(leave))
+
+    def delete(self, request, teacher_id, leave_id):
+        leave, err = self._get_leave(request, teacher_id, leave_id)
+        if err:
+            return err
+        leave.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminLeaveActionItemsView(APIView):
+    """Return all approved leaves with uncovered timetable slots (dashboard banner data).
+
+    GET /api/auth/admin/leaves/action-items/
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from datetime import date, timedelta
+        from apps.accounts.models import TeacherLeave, SubstituteAssignment
+        from apps.academics.models import Classroom, TimetableSlot
+
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=404)
+
+        today = date.today()
+
+        active_leaves = (
+            TeacherLeave.objects
+            .filter(school=school, status="approved", end_date__gte=today)
+            .select_related("teacher__user")
+        )
+
+        result = []
+        for leave in active_leaves:
+            profile = leave.teacher
+            u = profile.user
+            classroom = Classroom.objects.filter(school=school, teacher=profile).first()
+
+            start = max(today, leave.start_date)
+            end = leave.end_date
+
+            slots = TimetableSlot.objects.filter(
+                school=school, teacher=profile
+            ).select_related("subject", "timetable__classroom")
+
+            uncovered = []
+            current = start
+            while current <= end:
+                weekday = current.weekday()
+                if weekday in (5, 6):
+                    current += timedelta(days=1)
+                    continue
+
+                for slot in slots:
+                    if slot.weekday != weekday:
+                        continue
+                    has_sub = SubstituteAssignment.objects.filter(
+                        leave=leave,
+                        date=current,
+                        timetable_slot=slot,
+                    ).exists()
+                    if not has_sub:
+                        slot_classroom = None
+                        if hasattr(slot.timetable, "classroom") and slot.timetable.classroom:
+                            slot_classroom = slot.timetable.classroom.name
+                        uncovered.append({
+                            "date": current.isoformat(),
+                            "weekday": weekday,
+                            "timetable_slot_id": slot.id,
+                            "period_number": slot.period_number,
+                            "starts_at": slot.starts_at.strftime("%H:%M:%S"),
+                            "ends_at": slot.ends_at.strftime("%H:%M:%S"),
+                            "subject_name": slot.subject.name if slot.subject else None,
+                            "classroom_name": slot_classroom,
+                        })
+                current += timedelta(days=1)
+
+            if uncovered:
+                result.append({
+                    "leave_id": leave.id,
+                    "teacher_id": profile.id,
+                    "teacher_name": u.get_full_name() or u.email,
+                    "classroom_name": classroom.name if classroom else None,
+                    "start_date": leave.start_date.isoformat(),
+                    "end_date": leave.end_date.isoformat(),
+                    "uncovered_slots": uncovered,
+                })
+
+        return Response(result)
+
+
+class AdminSubstituteAssignView(APIView):
+    """Create or update a substitute assignment for a leave slot.
+
+    POST /api/auth/admin/leaves/<leave_id>/substitutes/
+    Body: { date, timetable_slot_id, substitute_id }
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, leave_id):
+        from apps.accounts.models import TeacherLeave, SubstituteAssignment
+        from apps.academics.models import TimetableSlot
+
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=404)
+
+        try:
+            leave = TeacherLeave.objects.get(id=leave_id, school=school)
+        except TeacherLeave.DoesNotExist:
+            return Response({"detail": "Leave not found."}, status=404)
+
+        date_str = request.data.get("date", "")
+        timetable_slot_id = request.data.get("timetable_slot_id")
+        substitute_id = request.data.get("substitute_id")
+
+        if not date_str or not timetable_slot_id or not substitute_id:
+            return Response(
+                {"detail": "date, timetable_slot_id, and substitute_id are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            slot = TimetableSlot.objects.select_related("subject").get(id=timetable_slot_id, school=school)
+        except TimetableSlot.DoesNotExist:
+            return Response({"detail": "Timetable slot not found."}, status=404)
+
+        try:
+            substitute = TeacherProfile.objects.get(id=substitute_id, school=school)
+        except TeacherProfile.DoesNotExist:
+            return Response({"detail": "Substitute teacher not found."}, status=404)
+
+        subject_label = slot.subject.name if slot.subject else slot.slot_type
+        period_label = (
+            f"Period {slot.period_number} – {subject_label} "
+            f"({slot.starts_at.strftime('%H:%M')}–{slot.ends_at.strftime('%H:%M')})"
+        )
+
+        assignment, _ = SubstituteAssignment.objects.update_or_create(
+            leave=leave,
+            date=date_str,
+            timetable_slot=slot,
+            defaults={
+                "substitute": substitute,
+                "assigned_by": request.user,
+                "period_label": period_label,
+                "school": school,
+            },
+        )
+
+        return Response({
+            "id": assignment.id,
+            "leave_id": leave.id,
+            "date": assignment.date.isoformat(),
+            "timetable_slot_id": slot.id,
+            "period_label": assignment.period_label,
+            "substitute_id": substitute.id,
+            "substitute_name": substitute.user.get_full_name() or substitute.user.email,
+        }, status=status.HTTP_201_CREATED)

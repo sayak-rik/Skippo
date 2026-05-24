@@ -12,6 +12,18 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+def get_app_link() -> str:
+    """Fetch the parent app download link from the sms-service /config endpoint."""
+    url = getattr(settings, "SMS_SERVICE_URL", "http://sms-service:8090") + "/config"
+    try:
+        resp = httpx.get(url, timeout=5.0)
+        resp.raise_for_status()
+        return resp.json().get("app_link", "")
+    except Exception as exc:
+        logger.warning("Could not fetch app link from sms-service: %s", exc)
+        return ""
+
+
 def send_sms(to: str, message: str) -> bool:
     """Send an SMS via the sms-service microservice.
 

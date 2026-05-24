@@ -1,7 +1,5 @@
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
-from common.demo_state import get_dismissal_queue
-
 
 class DismissalConsumer(AsyncJsonWebsocketConsumer):
     """WebSocket channel: dismissal:{school_id}
@@ -17,7 +15,28 @@ class DismissalConsumer(AsyncJsonWebsocketConsumer):
         await self.accept()
         # Send the current queue snapshot on connect so the dashboard is
         # immediately populated without waiting for the next mutation.
-        await self.send_json(get_dismissal_queue())
+        from asgiref.sync import sync_to_async
+        payload = await sync_to_async(self._get_queue)()
+        await self.send_json(payload)
+
+    def _get_queue(self):
+        from apps.dismissal.models import DismissalIntent
+        intents = DismissalIntent.objects.filter(
+            school_id=self.school_id, status__in=["pending", "notified"]
+        ).select_related("student").order_by("created_at")
+        return {
+            "queue": [
+                {
+                    "id": i.id,
+                    "studentId": i.student.id,
+                    "studentName": i.student.full_name,
+                    "etaMinutes": i.eta_minutes,
+                    "status": i.status,
+                }
+                for i in intents
+            ],
+            "count": intents.count(),
+        }
 
     async def receive_json(self, content, **kwargs):
         # Clients don't send messages — this channel is server → client only.
