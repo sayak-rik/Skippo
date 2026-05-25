@@ -1,5 +1,8 @@
+import * as Google from "expo-auth-session/providers/google";
+import Constants from "expo-constants";
+import * as WebBrowser from "expo-web-browser";
 import { KeyRound, LogIn, User } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -19,11 +22,15 @@ import { useSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
 
-// Three phases this screen moves through:
+WebBrowser.maybeCompleteAuthSession();
+
+// Phases this screen moves through:
 //   "phone"         – enter number and run lookup (login vs signup decision)
 //   "otp"           – enter OTP sent for an existing parent (login path)
 //   "complete_name" – existing parent logged in but has no display name yet
 type Phase = "phone" | "otp" | "complete_name";
+
+const extra = Constants.expoConfig?.extra ?? {};
 
 export function LoginScreen({ navigation }: { navigation?: any }) {
   const login = useSessionStore((s) => s.login);
@@ -36,6 +43,68 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
   const [parentName, setParentName]     = useState("");
   const [verifiedData, setVerifiedData] = useState<any>(null);
   const [loading, setLoading]           = useState(false);
+  // Stored Google ID token — set when Google auth needs phone verification.
+  // After phone OTP succeeds, this triggers the link-account call.
+  const [pendingGoogleIdToken, setPendingGoogleIdToken] = useState<string | null>(null);
+
+  // ── Google OAuth setup ─────────────────────────────────────────────────────
+
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    clientId:        extra.googleWebClientId     || undefined,
+    iosClientId:     extra.googleIosClientId     || undefined,
+    androidClientId: extra.googleAndroidClientId || undefined,
+    scopes: ["openid", "profile", "email"],
+  });
+
+  useEffect(() => {
+    if (googleResponse?.type === "success") {
+      const idToken = googleResponse.authentication?.idToken;
+      if (idToken) {
+        handleGoogleToken(idToken);
+      } else {
+        Alert.alert("Google Sign-In", "Could not retrieve identity token from Google.");
+      }
+    } else if (googleResponse?.type === "error") {
+      Alert.alert("Google Sign-In", "Sign-in was cancelled or failed.");
+    }
+  }, [googleResponse]);
+
+  // ── Google: exchange token with backend ────────────────────────────────────
+
+  async function handleGoogleToken(idToken: string) {
+    setLoading(true);
+    try {
+      const { data } = await api.post("/api/auth/parent/google/", { id_token: idToken });
+
+      if (data.needs_phone) {
+        // Google account is new — collect phone to complete setup
+        setPendingGoogleIdToken(idToken);
+        // Pre-fill name from Google if available
+        if (data.google_data?.name) {
+          setParentName(data.google_data.name);
+        }
+        setPhase("phone");
+        Alert.alert(
+          "One more step",
+          "We couldn't find an account linked to your Google email. Please enter your registered phone number to continue.",
+        );
+      } else {
+        // Direct login — Google account already known
+        if (data.needs_profile_completion) {
+          setVerifiedData(data);
+          setAuthToken(data.access);
+          setPhase("complete_name");
+        } else {
+          login({ name: data.user.name, school_slug: data.school_slug, token: data.access });
+        }
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail ?? "Google Sign-In failed. Please try again.";
+      Alert.alert("Error", msg);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // ── Phase 1: look up the phone number ─────────────────────────────────────
 
@@ -101,8 +170,20 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
         school_slug: schoolSlug,
       });
 
+      // If we have a pending Google token, link it now before completing login
+      if (pendingGoogleIdToken) {
+        setAuthToken(data.access);
+        try {
+          await api.post("/api/auth/parent/google/link-account/", {
+            id_token: pendingGoogleIdToken,
+          });
+        } catch {
+          // Non-fatal: user is logged in, Google link can be retried from profile
+        }
+        setPendingGoogleIdToken(null);
+      }
+
       if (data.needs_profile_completion) {
-        // Authenticated but name is missing — collect it before logging in
         setVerifiedData(data);
         setAuthToken(data.access);
         setPhase("complete_name");
@@ -185,6 +266,8 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
     phase === "complete_name" ? User    :
     phase === "otp"           ? KeyRound :
                                 LogIn;
+
+  const googleConfigured = !!(extra.googleWebClientId || extra.googleIosClientId || extra.googleAndroidClientId);
 
   return (
     <Screen style={styles.screen}>
@@ -296,6 +379,25 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Google Sign-In — only on phone phase */}
+          {phase === "phone" && googleConfigured && (
+            <>
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or</Text>
+                <View style={styles.dividerLine} />
+              </View>
+              <TouchableOpacity
+                style={[styles.googleBtn, (loading || !googleRequest) && styles.btnDisabled]}
+                onPress={() => promptGoogleAsync()}
+                disabled={loading || !googleRequest}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.googleBtnText}>Continue with Google</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* ── Signup link — only on phone phase ───────────────────────── */}
@@ -381,7 +483,7 @@ const styles = StyleSheet.create({
   inputError: { borderColor: palette.danger, backgroundColor: "#fff5f5" },
   errorText: { fontSize: 12, color: palette.danger, fontWeight: "600", marginTop: 2 },
 
-  // Button
+  // Primary button
   btn: {
     backgroundColor: palette.brand, borderRadius: 12,
     alignItems: "center", paddingVertical: 16, marginTop: spacing.xs,
@@ -394,6 +496,19 @@ const styles = StyleSheet.create({
   // OTP secondary row
   secondaryRow: { flexDirection: "row", justifyContent: "space-between" },
   resendText:   { fontSize: 13, color: palette.inkSoft },
+
+  // Divider
+  dividerRow:  { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  dividerLine: { flex: 1, height: 1, backgroundColor: palette.stroke },
+  dividerText: { fontSize: 12, color: palette.inkSoft, fontWeight: "600" },
+
+  // Google button
+  googleBtn: {
+    backgroundColor: palette.surface, borderRadius: 12,
+    borderWidth: 1.5, borderColor: palette.stroke,
+    alignItems: "center", paddingVertical: 14,
+  },
+  googleBtnText: { color: palette.ink, fontWeight: "700", fontSize: 15 },
 
   // Signup link
   signupLink: { alignItems: "center", paddingVertical: spacing.sm },

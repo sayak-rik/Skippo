@@ -3,16 +3,21 @@
 //
 // Sections:
 //   - Parent avatar + name (editable)
-//   - ACCOUNT: name edit, phone change (OTP)
+//   - ACCOUNT: name, phone, email/Google
 //   - CHILDREN: all linked students + "Add another child" discovery modal
 //   - TRANSPORT: per-student bus enrollment + QR onboarding / delist
 //   - DRIVER: current driver contact
 //   - LINKED SERVICES + LOGOUT
 // ---------------------------------------------------------------------------
 
+import * as Google from "expo-auth-session/providers/google";
+import Constants from "expo-constants";
+import * as WebBrowser from "expo-web-browser";
 import { ActivityIndicator, Alert, FlatList, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useEffect, useState } from "react";
-import { Bus, ChevronRight, LogOut, MapPin, Phone, Smartphone, User, X } from "lucide-react-native";
+import { Bus, ChevronRight, Link, LogOut, Mail, MapPin, Phone, Smartphone, User, X } from "lucide-react-native";
+
+WebBrowser.maybeCompleteAuthSession();
 
 import { Screen } from "../components/Screen";
 import { SectionTitle } from "../components/SectionTitle";
@@ -62,6 +67,36 @@ export function ProfileScreen() {
   const [phoneOtp, setPhoneOtp]               = useState("");
   const [phoneLoading, setPhoneLoading]       = useState(false);
   const [phoneError, setPhoneError]           = useState("");
+
+  // ── Email change modal ────────────────────────────────────────────────────
+  // phase: "input" → enter new email | "otp" → verify code
+  const [emailModalOpen, setEmailModalOpen]   = useState(false);
+  const [emailPhase, setEmailPhase]           = useState<"input" | "otp">("input");
+  const [newEmailInput, setNewEmailInput]     = useState("");
+  const [emailOtp, setEmailOtp]               = useState("");
+  const [emailLoading, setEmailLoading]       = useState(false);
+  const [emailError, setEmailError]           = useState("");
+
+  // ── Google account link ───────────────────────────────────────────────────
+  const extra = Constants.expoConfig?.extra ?? {};
+  const googleConfigured = !!(extra.googleWebClientId || extra.googleIosClientId || extra.googleAndroidClientId);
+  const [googleLinkLoading, setGoogleLinkLoading] = useState(false);
+
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    clientId:        extra.googleWebClientId     || undefined,
+    iosClientId:     extra.googleIosClientId     || undefined,
+    androidClientId: extra.googleAndroidClientId || undefined,
+    scopes: ["openid", "profile", "email"],
+  });
+
+  useEffect(() => {
+    if (googleResponse?.type === "success") {
+      const idToken = googleResponse.authentication?.idToken;
+      if (idToken) handleLinkGoogle(idToken);
+    } else if (googleResponse?.type === "error") {
+      Alert.alert("Google", "Sign-in was cancelled or failed.");
+    }
+  }, [googleResponse]);
 
   // ── Add child modal ───────────────────────────────────────────────────────
   // phase: "class" → pick classroom | "student" → pick student from class
@@ -158,6 +193,56 @@ export function ProfileScreen() {
       setPhoneError(err?.response?.data?.detail ?? "Incorrect code.");
     } finally {
       setPhoneLoading(false);
+    }
+  }
+
+  async function handleRequestEmailChange() {
+    const email = newEmailInput.trim().toLowerCase();
+    if (!email) { setEmailError("Please enter an email address."); return; }
+    setEmailLoading(true);
+    setEmailError("");
+    try {
+      await api.post("/api/auth/parent/change-email/request/", { new_email: email });
+      setEmailPhase("otp");
+    } catch (err: any) {
+      setEmailError(err?.response?.data?.detail ?? "Could not send verification email.");
+    } finally {
+      setEmailLoading(false);
+    }
+  }
+
+  async function handleConfirmEmailChange() {
+    const code = emailOtp.trim();
+    if (!code) { setEmailError("Please enter the code."); return; }
+    setEmailLoading(true);
+    setEmailError("");
+    try {
+      await api.post("/api/auth/parent/change-email/confirm/", {
+        new_email: newEmailInput.trim().toLowerCase(),
+        code,
+      });
+      await refetchProfile();
+      setEmailModalOpen(false);
+      setEmailPhase("input");
+      setNewEmailInput("");
+      setEmailOtp("");
+    } catch (err: any) {
+      setEmailError(err?.response?.data?.detail ?? "Incorrect code.");
+    } finally {
+      setEmailLoading(false);
+    }
+  }
+
+  async function handleLinkGoogle(idToken: string) {
+    setGoogleLinkLoading(true);
+    try {
+      await api.post("/api/auth/parent/google/link-account/", { id_token: idToken });
+      await refetchProfile();
+      Alert.alert("Google linked", "Your Google account has been connected.");
+    } catch (err: any) {
+      Alert.alert("Error", err?.response?.data?.detail ?? "Could not link Google account.");
+    } finally {
+      setGoogleLinkLoading(false);
     }
   }
 
@@ -319,6 +404,46 @@ export function ProfileScreen() {
             setPhoneError(""); setPhoneModalOpen(true);
           }}
         />
+        <RowDivider />
+        <SettingsRow
+          icon={<Mail size={18} color={palette.brand} strokeWidth={2} />}
+          label="Email address"
+          value={
+            profile.email
+              ? profile.is_email_verified
+                ? profile.email
+                : `${profile.email} (unverified)`
+              : "Not set — tap to add"
+          }
+          onPress={() => {
+            setEmailPhase("input");
+            setNewEmailInput(profile.email ?? "");
+            setEmailOtp("");
+            setEmailError("");
+            setEmailModalOpen(true);
+          }}
+        />
+        {googleConfigured && (
+          <>
+            <RowDivider />
+            <SettingsRow
+              icon={<Link size={18} color={profile.has_google_linked ? palette.brand : palette.inkSoft} strokeWidth={2} />}
+              label="Google account"
+              value={
+                googleLinkLoading
+                  ? "Connecting…"
+                  : profile.has_google_linked
+                    ? "Connected"
+                    : "Not linked — tap to connect"
+              }
+              onPress={() => {
+                if (!profile.has_google_linked) {
+                  promptGoogleAsync();
+                }
+              }}
+            />
+          </>
+        )}
       </View>
 
       {/* ── CHILDREN ─────────────────────────────────────────────────────── */}
@@ -544,6 +669,69 @@ export function ProfileScreen() {
                   onConfirm={handleConfirmPhoneChange}
                   confirmLabel={phoneLoading ? "Verifying…" : "Confirm"}
                   disabled={phoneLoading}
+                />
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Email change ─────────────────────────────────────────────────── */}
+      <Modal visible={emailModalOpen} animationType="slide" transparent presentationStyle="overFullScreen">
+        <View style={styles.overlay}>
+          <View style={styles.sheet}>
+            <SheetHeader
+              title={emailPhase === "input" ? "Change email address" : "Verify new email"}
+              onClose={() => setEmailModalOpen(false)}
+            />
+            {emailPhase === "input" ? (
+              <>
+                <Text style={styles.sheetSub}>
+                  Enter your new email address. We'll send a verification code to confirm it's yours.
+                </Text>
+                <TextInput
+                  style={[styles.input, emailError ? styles.inputError : null]}
+                  placeholder="your@email.com"
+                  placeholderTextColor={palette.inkSoft}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={newEmailInput}
+                  onChangeText={(v) => { setNewEmailInput(v); setEmailError(""); }}
+                  autoFocus
+                />
+                {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+                <SheetButtons
+                  onCancel={() => setEmailModalOpen(false)}
+                  onConfirm={handleRequestEmailChange}
+                  confirmLabel={emailLoading ? "Sending…" : "Send code"}
+                  disabled={emailLoading}
+                />
+              </>
+            ) : (
+              <>
+                <Text style={styles.sheetSub}>
+                  Enter the 6-digit code sent to{" "}
+                  <Text style={{ fontWeight: "700", color: palette.ink }}>{newEmailInput}</Text>.
+                </Text>
+                <TextInput
+                  style={[styles.input, emailError ? styles.inputError : null]}
+                  placeholder="Enter 6-digit code"
+                  placeholderTextColor={palette.inkSoft}
+                  keyboardType="number-pad"
+                  secureTextEntry
+                  maxLength={6}
+                  value={emailOtp}
+                  onChangeText={(v) => { setEmailOtp(v); setEmailError(""); }}
+                  autoFocus
+                />
+                {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
+                <SheetButtons
+                  onCancel={() => setEmailPhase("input")}
+                  cancelLabel="← Back"
+                  onConfirm={handleConfirmEmailChange}
+                  confirmLabel={emailLoading ? "Verifying…" : "Confirm"}
+                  disabled={emailLoading}
                 />
               </>
             )}

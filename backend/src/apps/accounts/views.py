@@ -334,7 +334,7 @@ class OTPRequestView(APIView):
         purpose = request.data.get("purpose", OTPRequest.Purpose.LOGIN)
         context = request.data.get("context", {})
 
-        if not contact or role not in ("parent", "driver", "admin") or not school_slug:
+        if not contact or role not in ("parent", "driver", "teacher", "admin") or not school_slug:
             return Response(
                 {"detail": "contact, role, and school_slug are required."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -375,6 +375,14 @@ class OTPRequestView(APIView):
                     )
             else:
                 fallback_email = profile.user.email or None
+        elif role == "teacher":
+            profile = TeacherProfile.objects.filter(school=school, user__phone=contact).select_related("user").first()
+            if profile is None:
+                return Response(
+                    {"detail": "No account found for this contact at the given school."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            fallback_email = profile.user.email or None
         else:  # driver
             profile = DriverProfile.objects.filter(school=school, phone=contact).select_related("user").first()
             if profile is None:
@@ -439,7 +447,7 @@ class OTPVerifyView(APIView):
         school_slug = request.data.get("school_slug", "").strip()
         purpose = request.data.get("purpose", OTPRequest.Purpose.LOGIN)
 
-        if not contact or not code or role not in ("parent", "driver", "admin") or not school_slug:
+        if not contact or not code or role not in ("parent", "driver", "teacher", "admin") or not school_slug:
             return Response(
                 {"detail": "contact, code, role, and school_slug are required."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -486,6 +494,8 @@ class OTPVerifyView(APIView):
             return Response({"confirmed": True, "context": otp.context})
 
         # Login purpose — look up the profile and return JWT tokens
+        email_from_request = (request.data.get("email") or "").strip().lower()
+
         if role == "admin":
             user = User.objects.filter(email__iexact=contact, default_school=school).first()
             if user is None:
@@ -516,6 +526,7 @@ class OTPVerifyView(APIView):
                     first_name=parts[0],
                     last_name=parts[1] if len(parts) > 1 else "",
                     default_school=school,
+                    email=email_from_request,
                 )
                 user.set_unusable_password()
                 user.save()
@@ -534,6 +545,24 @@ class OTPVerifyView(APIView):
                     s.pending_parent_name = ""
                     s.save(update_fields=["pending_parent_phone", "pending_parent_name"])
             user = profile.user
+        elif role == "teacher":
+            profile = (
+                TeacherProfile.objects
+                .filter(school=school, user__phone=contact)
+                .select_related("user")
+                .first()
+            )
+            if profile is None:
+                return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            user = profile.user
+            tokens = _jwt_for_user(user)
+            return Response({
+                **tokens,
+                "role": "teacher",
+                "name": user.get_full_name(),
+                "school_slug": school.slug,
+                "school_name": school.name,
+            })
         else:
             try:
                 profile = DriverProfile.objects.select_related("user").get(school=school, phone=contact)
@@ -940,6 +969,7 @@ class ParentSignupCompleteView(APIView):
         otp_code    = (request.data.get("otp_code")     or "").strip()
         new_phone   = (request.data.get("new_phone")    or "").strip()
         new_name    = (request.data.get("new_name")     or "").strip()
+        new_email   = (request.data.get("email")        or "").strip().lower()
         school_slug = (request.data.get("school_slug")  or "").strip()
         student_ids = request.data.get("student_ids", [])
 
@@ -1011,6 +1041,7 @@ class ParentSignupCompleteView(APIView):
             first_name=parts[0],
             last_name=parts[1] if len(parts) > 1 else "",
             default_school=school,
+            email=new_email,
         )
         user.set_unusable_password()
         user.save()
@@ -1172,6 +1203,9 @@ class ParentProfileView(APIView):
         return Response({
             "name": request.user.get_full_name(),
             "phone": parent.phone,
+            "email": request.user.email or "",
+            "is_email_verified": request.user.is_email_verified,
+            "has_google_linked": bool(parent.google_sub),
             "school_name": parent.school.name,
             "students": students,
         })
@@ -1394,6 +1428,497 @@ class DriverSelfSignupView(APIView):
             {"detail": "Signup submitted. Pending admin approval."},
             status=status.HTTP_201_CREATED,
         )
+
+
+# ── Teacher phone lookup & Google Sign-In ────────────────────────────────────
+
+class TeacherPhoneLookupView(APIView):
+    """Look up a teacher by phone number across all schools.
+
+    POST /api/auth/teacher/lookup/
+    Body: { "phone": "+91..." }
+
+    Returns:
+        { school_slug, school_name } on success
+        404 if the phone is not registered to any teacher
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        phone = (request.data.get("phone") or "").strip()
+        if not phone:
+            return Response({"detail": "phone is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile = (
+            TeacherProfile.objects
+            .filter(user__phone=phone)
+            .select_related("user", "school")
+            .first()
+        )
+        if profile is None:
+            return Response(
+                {"detail": "No teacher account found for this number. Contact your school admin."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response({
+            "school_slug": profile.school.slug,
+            "school_name": profile.school.name,
+            "name": profile.user.get_full_name(),
+        })
+
+
+class TeacherGoogleAuthView(APIView):
+    """Sign in as a teacher using a Google ID token.
+
+    POST /api/auth/teacher/google/
+    Body: { "id_token": "<Google ID token>" }
+
+    Scenarios:
+      A. google_sub already linked to a teacher → return JWT (login)
+      B. email matches an existing teacher → link google_sub → return JWT (login)
+      C. no match → return { "needs_phone": true, "google_data": {...} }
+         so the client can request phone OTP to complete the link.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        id_token_str = (request.data.get("id_token") or "").strip()
+        if not id_token_str:
+            return Response({"detail": "id_token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            idinfo = _verify_google_id_token(id_token_str)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
+
+        google_sub = idinfo["sub"]
+        email = idinfo.get("email", "").strip().lower()
+        name = idinfo.get("name", "")
+        email_verified = idinfo.get("email_verified", False)
+
+        # Case A — google_sub already linked
+        try:
+            profile = TeacherProfile.objects.select_related("user", "school").get(google_sub=google_sub)
+            user = profile.user
+            if email and user.email.lower() != email:
+                user.email = email
+                user.is_email_verified = bool(email_verified)
+                user.save(update_fields=["email", "is_email_verified"])
+            tokens = _jwt_for_user(user)
+            return Response({
+                **tokens,
+                "role": "teacher",
+                "name": user.get_full_name(),
+                "school_slug": profile.school.slug,
+                "school_name": profile.school.name,
+            })
+        except TeacherProfile.DoesNotExist:
+            pass
+
+        # Case B — email matches an existing teacher, link Google now
+        if email:
+            profile = (
+                TeacherProfile.objects
+                .filter(user__email__iexact=email)
+                .select_related("user", "school")
+                .first()
+            )
+            if profile:
+                if profile.google_sub and profile.google_sub != google_sub:
+                    return Response(
+                        {"detail": "This email is already linked to a different Google account."},
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                profile.google_sub = google_sub
+                profile.save(update_fields=["google_sub"])
+                user = profile.user
+                user.is_email_verified = True
+                user.save(update_fields=["is_email_verified"])
+                tokens = _jwt_for_user(user)
+                return Response({
+                    **tokens,
+                    "role": "teacher",
+                    "name": user.get_full_name(),
+                    "school_slug": profile.school.slug,
+                    "school_name": profile.school.name,
+                })
+
+        # Case C — new Google user; client must verify phone first
+        return Response({
+            "needs_phone": True,
+            "google_data": {"sub": google_sub, "email": email, "name": name},
+        })
+
+
+class TeacherGoogleLinkAccountView(APIView):
+    """Link a Google account to the currently authenticated teacher.
+
+    POST /api/auth/teacher/google/link-account/
+    Body: { "id_token": "<Google ID token>" }
+    Requires: Authorization: Bearer <access_token>
+
+    Used after the teacher has logged in via phone OTP and wants to connect
+    their Google account.
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        id_token_str = (request.data.get("id_token") or "").strip()
+        if not id_token_str:
+            return Response({"detail": "id_token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            idinfo = _verify_google_id_token(id_token_str)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
+
+        google_sub = idinfo["sub"]
+        email = idinfo.get("email", "").strip().lower()
+        email_verified = idinfo.get("email_verified", False)
+
+        # Guard: google_sub already used by a different teacher
+        if TeacherProfile.objects.filter(google_sub=google_sub).exclude(user=request.user).exists():
+            return Response(
+                {"detail": "This Google account is already linked to another teacher account."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Guard: email already on a different teacher account
+        if email and (
+            TeacherProfile.objects
+            .filter(user__email__iexact=email)
+            .exclude(user=request.user)
+            .exists()
+        ):
+            return Response(
+                {"detail": "This Google email is already registered to another teacher account."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        try:
+            profile = TeacherProfile.objects.get(user=request.user)
+        except TeacherProfile.DoesNotExist:
+            return Response({"detail": "Teacher profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        profile.google_sub = google_sub
+        profile.save(update_fields=["google_sub"])
+
+        user = request.user
+        if email and not user.email:
+            user.email = email
+            user.is_email_verified = bool(email_verified)
+            user.save(update_fields=["email", "is_email_verified"])
+        elif email and user.email.lower() == email and not user.is_email_verified:
+            user.is_email_verified = True
+            user.save(update_fields=["is_email_verified"])
+
+        return Response({"detail": "Google account linked successfully.", "email": user.email})
+
+
+# ── Google Sign-In & email management for parents ────────────────────────────
+
+def _verify_google_id_token(id_token_str: str):
+    """Verify a Google ID token and return idinfo dict, or raise ValueError."""
+    from django.conf import settings
+    from google.auth.transport import requests as google_requests
+    from google.oauth2 import id_token as google_id_token
+
+    client_ids = getattr(settings, "GOOGLE_CLIENT_IDS", [])
+    if not client_ids:
+        raise ValueError("No GOOGLE_CLIENT_IDS configured on the server.")
+
+    last_exc = None
+    for cid in client_ids:
+        try:
+            idinfo = google_id_token.verify_oauth2_token(
+                id_token_str, google_requests.Request(), cid
+            )
+            return idinfo
+        except Exception as exc:
+            last_exc = exc
+    raise ValueError(f"Google token verification failed: {last_exc}")
+
+
+class ParentGoogleAuthView(APIView):
+    """Sign in (or begin sign-up) using a Google ID token.
+
+    POST /api/auth/parent/google/
+    Body: { "id_token": "<Google ID token>" }
+
+    Scenarios:
+      A. google_sub already linked to a parent → return JWT (login)
+      B. email matches an existing parent → link google_sub → return JWT (login)
+      C. no matching account → return { "needs_phone": true, "google_data": {...} }
+         so the client can collect & verify a phone number before completing setup.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        id_token_str = (request.data.get("id_token") or "").strip()
+        if not id_token_str:
+            return Response({"detail": "id_token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            idinfo = _verify_google_id_token(id_token_str)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
+
+        google_sub = idinfo["sub"]
+        email = idinfo.get("email", "").strip().lower()
+        name = idinfo.get("name", "")
+        email_verified = idinfo.get("email_verified", False)
+
+        # Case A — google_sub already linked
+        try:
+            parent = ParentProfile.objects.select_related("user", "school").get(google_sub=google_sub)
+            user = parent.user
+            if email and user.email.lower() != email:
+                user.email = email
+                user.is_email_verified = bool(email_verified)
+                user.save(update_fields=["email", "is_email_verified"])
+            tokens = _jwt_for_user(user)
+            return Response({
+                **tokens,
+                "role": "parent",
+                "user": {"id": user.id, "name": user.get_full_name()},
+                "school_slug": parent.school.slug,
+                "needs_profile_completion": not user.get_full_name().strip(),
+            })
+        except ParentProfile.DoesNotExist:
+            pass
+
+        # Case B — email matches an existing parent, link Google now
+        if email:
+            parent = (
+                ParentProfile.objects
+                .filter(user__email__iexact=email)
+                .select_related("user", "school")
+                .first()
+            )
+            if parent:
+                if parent.google_sub and parent.google_sub != google_sub:
+                    return Response(
+                        {"detail": "This email is already linked to a different Google account."},
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                parent.google_sub = google_sub
+                parent.save(update_fields=["google_sub"])
+                user = parent.user
+                user.is_email_verified = True
+                user.save(update_fields=["is_email_verified"])
+                tokens = _jwt_for_user(user)
+                return Response({
+                    **tokens,
+                    "role": "parent",
+                    "user": {"id": user.id, "name": user.get_full_name()},
+                    "school_slug": parent.school.slug,
+                    "needs_profile_completion": not user.get_full_name().strip(),
+                })
+
+        # Case C — new Google user; client must collect and verify phone
+        return Response({
+            "needs_phone": True,
+            "google_data": {"sub": google_sub, "email": email, "name": name},
+        })
+
+
+class ParentGoogleLinkAccountView(APIView):
+    """Link a Google account to the currently authenticated parent.
+
+    POST /api/auth/parent/google/link-account/
+    Body: { "id_token": "<Google ID token>" }
+    Requires: Authorization: Bearer <access_token>
+
+    Used after the parent has logged in via phone OTP and wants to connect their
+    Google account, or after a new Google-initiated sign-up where phone OTP was
+    required to complete account creation.
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        id_token_str = (request.data.get("id_token") or "").strip()
+        if not id_token_str:
+            return Response({"detail": "id_token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            idinfo = _verify_google_id_token(id_token_str)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
+
+        google_sub = idinfo["sub"]
+        email = idinfo.get("email", "").strip().lower()
+        email_verified = idinfo.get("email_verified", False)
+
+        # Guard: google_sub already used by a different parent
+        existing = ParentProfile.objects.filter(google_sub=google_sub).exclude(user=request.user).first()
+        if existing:
+            return Response(
+                {"detail": "This Google account is already linked to another parent account."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Guard: email already on a different parent account
+        if email:
+            email_conflict = (
+                ParentProfile.objects
+                .filter(user__email__iexact=email)
+                .exclude(user=request.user)
+                .first()
+            )
+            if email_conflict:
+                return Response(
+                    {"detail": "This Google email is already registered to another account."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+        try:
+            parent = ParentProfile.objects.get(user=request.user)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        parent.google_sub = google_sub
+        parent.save(update_fields=["google_sub"])
+
+        user = request.user
+        if email and not user.email:
+            user.email = email
+            user.is_email_verified = bool(email_verified)
+            user.save(update_fields=["email", "is_email_verified"])
+        elif email and user.email.lower() == email and not user.is_email_verified:
+            user.is_email_verified = True
+            user.save(update_fields=["is_email_verified"])
+
+        return Response({"detail": "Google account linked successfully.", "email": user.email})
+
+
+class ParentChangeEmailRequestView(APIView):
+    """Send a verification OTP to a new email address (first step of email change).
+
+    POST /api/auth/parent/change-email/request/
+    Body: { "new_email": "parent@example.com" }
+    Requires: Authorization: Bearer <access_token>
+
+    Mirrors the phone-change flow: OTP goes to the new address to prove ownership.
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        new_email = (request.data.get("new_email") or "").strip().lower()
+        if not new_email:
+            return Response({"detail": "new_email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            parent = ParentProfile.objects.select_related("school").get(user=request.user)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Guard: email already used by another parent
+        if (
+            ParentProfile.objects
+            .filter(user__email__iexact=new_email)
+            .exclude(user=request.user)
+            .exists()
+        ):
+            return Response(
+                {"detail": "This email is already registered to another account."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        code = _generate_otp()
+        OTPRequest.objects.create(
+            school=parent.school,
+            contact=new_email,
+            channel=OTPRequest.Channel.EMAIL,
+            role=OTPRequest.Role.PARENT,
+            purpose=OTPRequest.Purpose.CONFIRM_ACTION,
+            code_hash=_hash_code(code),
+            expires_at=timezone.now() + timedelta(minutes=_OTP_TTL_MINUTES),
+            context={"action": "change_email", "parent_id": parent.id, "new_email": new_email},
+        )
+        send_otp_email(to=new_email, code=code, ttl_minutes=_OTP_TTL_MINUTES, school_name=parent.school.name)
+        return Response({"detail": "Verification code sent to your new email address."})
+
+
+class ParentChangeEmailConfirmView(APIView):
+    """Confirm a parent's email change using the OTP sent to the new address.
+
+    POST /api/auth/parent/change-email/confirm/
+    Body: { "new_email": "parent@example.com", "code": "123456" }
+    Requires: Authorization: Bearer <access_token>
+
+    On success: updates PlatformUser.email, sets is_email_verified=True, and clears
+    any existing google_sub so the parent must re-link their Google account if they
+    want Google Sign-In with the new email.
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        new_email = (request.data.get("new_email") or "").strip().lower()
+        code = (request.data.get("code") or "").strip()
+
+        if not new_email or not code:
+            return Response({"detail": "new_email and code are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            parent = ParentProfile.objects.get(user=request.user)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        otp = (
+            OTPRequest.objects.filter(
+                contact=new_email,
+                role=OTPRequest.Role.PARENT,
+                purpose=OTPRequest.Purpose.CONFIRM_ACTION,
+                is_used=False,
+                expires_at__gt=timezone.now(),
+                attempts__lt=_OTP_MAX_ATTEMPTS,
+                context__action="change_email",
+                context__parent_id=parent.id,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if otp is None:
+            return Response(
+                {"detail": "No valid OTP found. Please request a new one."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if otp.code_hash != _hash_code(code):
+            otp.attempts += 1
+            otp.save(update_fields=["attempts"])
+            remaining = _OTP_MAX_ATTEMPTS - otp.attempts
+            return Response(
+                {"detail": f"Incorrect code. {remaining} attempt(s) remaining."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        otp.is_used = True
+        otp.save(update_fields=["is_used"])
+
+        user = request.user
+        user.email = new_email
+        user.is_email_verified = True
+        user.save(update_fields=["email", "is_email_verified"])
+
+        # Clear Google link — new email must be re-linked to a Google account
+        if parent.google_sub:
+            parent.google_sub = None
+            parent.save(update_fields=["google_sub"])
+
+        return Response({"detail": "Email updated successfully.", "new_email": new_email})
 
 
 class AdminTeacherListView(APIView):

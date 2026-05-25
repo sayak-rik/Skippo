@@ -203,8 +203,9 @@ export function NewParentScreen({ navigation, route }: { navigation?: any; route
   const [qrDriverConfirmed, setQrDriverConfirmed] = useState(false);
 
   // ── OTP ────────────────────────────────────────────────────────────────────
-  const [otp, setOtp]           = useState("");
-  const [otpError, setOtpError] = useState("");
+  const [otp, setOtp]               = useState("");
+  const [otpError, setOtpError]     = useState("");
+  const [parentEmail, setParentEmail] = useState("");
 
   // ── Profile completion ─────────────────────────────────────────────────────
   const [parentName, setParentName]   = useState("");
@@ -338,6 +339,7 @@ export function NewParentScreen({ navigation, route }: { navigation?: any; route
         otp_code:    otp.trim(),
         new_phone:   newPhone,
         new_name:    parentName.trim() || "",
+        email:       parentEmail.trim().toLowerCase() || "",
         school_slug: selectedSchool!.slug,
         student_ids: [...migrateIds],
       });
@@ -723,6 +725,22 @@ export function NewParentScreen({ navigation, route }: { navigation?: any; route
               />
               {otpError ? <Text style={styles.otpErrorText}>{otpError}</Text> : null}
             </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>Email address (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="your@email.com"
+                placeholderTextColor={palette.inkSoft}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                value={parentEmail}
+                onChangeText={setParentEmail}
+              />
+              <Text style={styles.inputHint}>
+                Used for Google Sign-In and email notifications. You can add this later.
+              </Text>
+            </View>
             <TouchableOpacity
               style={[styles.btn, loading && styles.btnDisabled]}
               onPress={handleVerifyOtp}
@@ -958,6 +976,7 @@ const styles = StyleSheet.create({
   btnDisabled:  { opacity: 0.4 },
   btnText:      { color: "#fff", fontWeight: "800", fontSize: 14 },
   inputError:   { borderColor: palette.danger, backgroundColor: "#fff5f5" },
+  inputHint:    { fontSize: 11, color: palette.inkSoft, lineHeight: 16 },
   otpErrorText: { fontSize: 12, color: palette.danger, fontWeight: "600", marginTop: 2 },
   infoBox: {
     flexDirection: "row", gap: 10, alignItems: "flex-start",

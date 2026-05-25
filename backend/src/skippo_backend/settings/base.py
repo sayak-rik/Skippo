@@ -16,6 +16,7 @@ env = environ.Env(
     CELERY_BROKER_URL=(str, "redis://localhost:6379/1"),
     CELERY_RESULT_BACKEND=(str, "redis://localhost:6379/2"),
     GOOGLE_MAPS_API_KEY=(str, ""),
+    GOOGLE_CLIENT_IDS=(list, []),
     SMS_SERVICE_URL=(str, "http://sms-service:8090"),
     MSG91_AUTH_KEY=(str, ""),
     MSG91_SENDER_ID=(str, "SKIPPO"),
@@ -208,6 +209,7 @@ PLATFORM_COMMISSION_PCT = env("PLATFORM_COMMISSION_PCT")
 
 TENANT_HEADER = "HTTP_X_SCHOOL_SLUG"
 GOOGLE_MAPS_API_KEY = env("GOOGLE_MAPS_API_KEY")
+GOOGLE_CLIENT_IDS = env("GOOGLE_CLIENT_IDS")
 
 SMS_SERVICE_URL = env("SMS_SERVICE_URL")
 MSG91_AUTH_KEY = env("MSG91_AUTH_KEY")

@@ -5,6 +5,9 @@ from apps.accounts.views import (
     AcceptDriverInviteView,
     AcceptInviteView,
     AccountsRootView,
+    TeacherGoogleAuthView,
+    TeacherGoogleLinkAccountView,
+    TeacherPhoneLookupView,
     AdminDriverDetailView,
     AdminDriverListView,
     AdminDriverSignupRequestListView,
@@ -28,10 +31,14 @@ from apps.accounts.views import (
     OTPRequestView,
     OTPVerifyView,
     ParentAddStudentView,
+    ParentChangeEmailConfirmView,
+    ParentChangeEmailRequestView,
     ParentChangePhoneConfirmView,
     ParentChangePhoneRequestView,
     ParentClassroomListView,
     ParentCompleteProfileView,
+    ParentGoogleAuthView,
+    ParentGoogleLinkAccountView,
     ParentPhoneLookupView,
     ParentProfileView,
     ParentSchoolListView,
@@ -59,6 +66,11 @@ urlpatterns = [
     path("teacher/invite/<str:token>/", ValidateInviteView.as_view(), name="accounts-validate-invite"),
     path("teacher/accept-invite/",      AcceptInviteView.as_view(),   name="accounts-accept-invite"),
 
+    # Teacher phone lookup + Google Sign-In
+    path("teacher/lookup/",              TeacherPhoneLookupView.as_view(),       name="accounts-teacher-lookup"),
+    path("teacher/google/",              TeacherGoogleAuthView.as_view(),        name="accounts-teacher-google-auth"),
+    path("teacher/google/link-account/", TeacherGoogleLinkAccountView.as_view(), name="accounts-teacher-google-link"),
+
     # Driver invite flow (req 6) — invited drivers bypass approval queue
     path("driver/invite/<str:token>/", ValidateDriverInviteView.as_view(), name="accounts-validate-driver-invite"),
     path("driver/accept-invite/",      AcceptDriverInviteView.as_view(),   name="accounts-accept-driver-invite"),
@@ -80,6 +92,12 @@ urlpatterns = [
     path("parent/add-student/",             ParentAddStudentView.as_view(),          name="accounts-parent-add-student"),
     path("parent/change-phone/request/",    ParentChangePhoneRequestView.as_view(),  name="accounts-parent-change-phone-request"),
     path("parent/change-phone/confirm/",    ParentChangePhoneConfirmView.as_view(),  name="accounts-parent-change-phone-confirm"),
+    path("parent/change-email/request/",    ParentChangeEmailRequestView.as_view(),  name="accounts-parent-change-email-request"),
+    path("parent/change-email/confirm/",    ParentChangeEmailConfirmView.as_view(),  name="accounts-parent-change-email-confirm"),
+
+    # Google Sign-In for parents
+    path("parent/google/",              ParentGoogleAuthView.as_view(),        name="accounts-parent-google-auth"),
+    path("parent/google/link-account/", ParentGoogleLinkAccountView.as_view(), name="accounts-parent-google-link"),
 
     # New-parent discovery signup flow (cascading dropdowns → student claim / migration)
     path("parent/schools/",              ParentSchoolListView.as_view(),        name="accounts-parent-schools"),

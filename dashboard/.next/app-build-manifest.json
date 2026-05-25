@@ -100,6 +100,42 @@
       "static/chunks/main-app.js",
       "static/css/app/dashboard/live-fleet/page.css",
       "static/chunks/app/dashboard/live-fleet/page.js"
+    ],
+    "/dashboard/dismissal/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/dismissal/page.css",
+      "static/chunks/app/dashboard/dismissal/page.js"
+    ],
+    "/dashboard/routes/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/routes/page.css",
+      "static/chunks/app/dashboard/routes/page.js"
+    ],
+    "/dashboard/drivers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/drivers/page.css",
+      "static/chunks/app/dashboard/drivers/page.js"
+    ],
+    "/dashboard/vehicles/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/vehicles/page.css",
+      "static/chunks/app/dashboard/vehicles/page.js"
+    ],
+    "/dashboard/staff/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/staff/page.css",
+      "static/chunks/app/dashboard/staff/page.js"
+    ],
+    "/dashboard/roles/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/roles/page.css",
+      "static/chunks/app/dashboard/roles/page.js"
     ]
   }
 }

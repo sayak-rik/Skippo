@@ -6,6 +6,9 @@ import { api } from "../lib/api";
 export interface ParentProfileData {
   name: string;
   phone: string;
+  email: string;
+  is_email_verified: boolean;
+  has_google_linked: boolean;
   school_name: string;
   students: { id: number; name: string; grade: string }[];
 }

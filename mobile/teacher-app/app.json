@@ -24,8 +24,12 @@
       "bundler": "metro",
       "favicon": "./assets/favicon.png"
     },
+    "scheme": "skippo-teacher",
     "extra": {
-      "apiUrl": "https://api.skippo.app"
+      "apiUrl": "https://api.skippo.app",
+      "googleWebClientId": "",
+      "googleIosClientId": "",
+      "googleAndroidClientId": ""
     },
     "plugins": []
   }

@@ -8,6 +8,7 @@ from common.models import SchoolScopedModel, TimestampedModel
 class PlatformUser(AbstractUser):
     phone = models.CharField(max_length=20, blank=True)
     is_phone_verified = models.BooleanField(default=False)
+    is_email_verified = models.BooleanField(default=False)
     default_school = models.ForeignKey(
         "tenancy.School",
         null=True,
@@ -28,11 +29,13 @@ class DeviceSession(TimestampedModel):
 class ParentProfile(SchoolScopedModel):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     phone = models.CharField(max_length=20)
+    google_sub = models.CharField(max_length=128, unique=True, null=True, blank=True)
 
 
 class TeacherProfile(SchoolScopedModel):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     employee_code = models.CharField(max_length=64, blank=True)
+    google_sub = models.CharField(max_length=128, unique=True, null=True, blank=True)
     # JSON blob saved during first-week class-selection onboarding.
     # Schema: {"classroomIds": [1, 2], "setupCompleted": true, "setupCompletedAt": "2026-04-17"}
     # Once setupCompleted is true, the backend auto-generates ClassSession records
@@ -113,9 +116,10 @@ class OTPRequest(TimestampedModel):
         EMAIL = "email", "Email"
 
     class Role(models.TextChoices):
-        PARENT = "parent", "Parent"
-        DRIVER = "driver", "Driver"
-        ADMIN  = "admin",  "Admin"
+        PARENT  = "parent",  "Parent"
+        DRIVER  = "driver",  "Driver"
+        TEACHER = "teacher", "Teacher"
+        ADMIN   = "admin",   "Admin"
 
     class Purpose(models.TextChoices):
         LOGIN = "login", "Login"

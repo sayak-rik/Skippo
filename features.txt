@@ -396,6 +396,109 @@ Payments / Billing
   - Subscription plan management
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADMIN DASHBOARD — OPERATIONS PAGES (Built)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Call Management (/calls) — pre-existing, already fully implemented
+  - Inbound parent call request queue: Approve & queue, Decline with optional note
+  - AI mass-call campaign builder: name, objective, target audience, script context, rate limit
+  - Campaign lifecycle: Draft → Approved → Queued → Running → Paused / Completed
+  - Progress bar per campaign with calls completed/failed counts
+  - Call token gauge with Low/Critical alerts and "get more tokens" CTA
+  - Recent activity sidebar
+  - Stat cards: Pending requests, Token balance, Active campaigns, Completed calls
+
+Communications (/communications)
+  - School-wide broadcast composer: title, message body (160-char limit), audience, channel
+  - Audience options: All parents, Classroom, Bus route, Custom list
+  - Channel options: Push notification only, SMS only, Push + SMS
+  - Character count indicator in composer
+  - Broadcast history cards with delivery rate progress bar and percentage
+  - Stat cards: Total broadcasts, Parents reached, Average delivery rate
+
+Compliance (/compliance)
+  - Renewal reminder list from GET /api/compliance/driver/renewals/
+  - Urgency tiers: Overdue (red), Urgent ≤7 days (amber), Due soon ≤30 days (blue), OK (green)
+  - Sorted by nearest expiry date
+  - "Reminder sent" badge per item when automated reminder has fired
+  - Stat cards: Total items, Overdue, Urgent, All OK
+  - Filter tabs: All / Overdue / Urgent / Due soon
+
+Reports (/reports)
+  - School overview stat cards: Students, Teachers, Drivers, Published exams
+  - This week's attendance bar chart (animated, color-coded by attendance %)
+  - Export cards for 6 report types: Student Roster, Teacher Directory, Trip Summary, Exam Results, Attendance Log, Report Cards (CSV export via backend)
+  - "More analytics coming soon" section for future roadmap features
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADMIN DASHBOARD — ADMINISTRATION PAGES (Built)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Staff (/staff)
+  - Non-teaching staff roster with expandable detail rows (phone, email, joined date)
+  - Status badges: Active / On Leave / Inactive
+  - Add/edit drawer: name, role (Librarian/Accountant/Clerk etc.), department, employee code, phone, email, status
+  - Filter tabs: All / Active / On Leave; search by name or role
+  - Stat cards: Total, Active, On Leave
+
+Roles & Permissions (/roles)
+  - System roles (read-only) and custom roles shown in separate sections
+  - Expandable permission badge list per role (e.g. "Manage Students", "Enter Marks")
+  - System roles cannot be edited or deleted (locked)
+  - Create/edit role drawer with permission checkboxes grouped into 7 categories:
+    Students, Staff, Finance, Attendance, Academics & Exams, Communications & Reports, Settings
+  - Group-level toggle (select/deselect all in a category at once)
+  - "Select all / Deselect all" global toggle
+  - Stat cards: Total roles, Custom roles, Permissions available
+  - Superuser wildcard ["*"] shown as "all access" in expanded view
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADMIN DASHBOARD — TRANSPORT PAGES (Built)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Live Fleet (/live-fleet)
+  - List of all trips from GET /api/tracking/fleet/live/
+  - Trip cards: route name, bus registration, driver, shift, boarded/total progress bar
+  - Status badge: Active (green) / Scheduled (blue) / Completed / Cancelled
+  - Live GPS coordinates shown for active trips; "No GPS data" shown when unavailable
+  - Green pulse dot on active trip bus icon
+  - Auto-refresh every 30 seconds; manual Refresh button
+  - Stat cards: Total trips, Active now, Scheduled
+  - Info banner explaining GPS transmission behavior
+
+Routes (/routes)
+  - Route cards with expandable stop sequence visualization
+  - Stop sequence shown as a numbered vertical timeline with connector lines
+  - Add/edit route drawer: name, vehicle assignment (dropdown), stop list builder
+  - Stop list: add/remove stops inline, numbered with drag handle indicators
+  - Delete route with confirmation
+  - Stat cards: Total routes, With vehicle, Total stops
+  - Shows warning when no vehicle is assigned to a route
+
+Drivers (/drivers)
+  - Driver rows with expandable detail panel (Aadhaar, added date, vehicle, route)
+  - Status badge: Active (approved) / Pending (not approved)
+  - Pending signup requests shown as a distinct section with Approve/Reject buttons
+  - Add driver drawer: name, phone, optional Aadhaar → generates invite token on save
+  - Invite token shown in drawer after creation with copy button
+  - SMS automatically sent to driver's phone with invite code (via backend)
+  - Edit driver: update name and phone
+  - Delete driver with confirmation
+  - Search by name or phone number
+  - Stat cards: Total, Active, Pending review
+  - Cross-action: route and vehicle info sourced from DriverVehicleAssignment
+
+Vehicles (/vehicles)
+  - Vehicle cards: registration number (monospace), type badge, seat count, route and driver info
+  - Type badges color-coded: Bus (blue), Minibus (purple), Van (teal), Tempo (amber), Other (slate)
+  - Warning shown when vehicle has no route assigned
+  - Add/edit vehicle drawer: registration number (auto-uppercased), vehicle type pill selector, capacity
+  - Delete vehicle with confirmation
+  - Stat cards: Total vehicles, On a route, Total seats
+
+Car Pickup (/dismissal) — pre-existing, already implemented
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ADMIN DASHBOARD — ACADEMICS PAGES (Built)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
