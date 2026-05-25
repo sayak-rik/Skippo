@@ -9,7 +9,7 @@ import {
   MapPin, Zap, Shield, Users, Bus, Phone, AlertTriangle,
   ClipboardList, LayoutDashboard, GraduationCap, ArrowRight,
   CheckCircle2, Menu, X, Star, Brain,
-  TrendingUp, MessageSquare, Route, Activity, School, ChevronRight,
+  TrendingUp, MessageSquare, Route, Activity, School, ChevronRight, ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
@@ -38,9 +38,18 @@ const NAV_LINKS = [
   { label: "Contact",      href: "/contact"      },
 ];
 
+const PLATFORM_LINKS = [
+  { label: "Parent App",  href: "/app/parent"  },
+  { label: "Driver App",  href: "/app/driver"  },
+  { label: "Teacher App", href: "/app/teacher" },
+];
+
 function Navbar() {
-  const [scrolled,    setScrolled]    = useState(false);
-  const [mobileOpen,  setMobileOpen]  = useState(false);
+  const [scrolled,      setScrolled]      = useState(false);
+  const [mobileOpen,    setMobileOpen]    = useState(false);
+  const [platformOpen,  setPlatformOpen]  = useState(false);
+  const [mobilePlatformOpen, setMobilePlatformOpen] = useState(false);
+  const platformRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 200, damping: 30 });
 
@@ -48,6 +57,16 @@ function Navbar() {
     const fn = () => setScrolled(window.scrollY > 12);
     window.addEventListener("scroll", fn, { passive: true });
     return () => window.removeEventListener("scroll", fn);
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (platformRef.current && !platformRef.current.contains(e.target as Node)) {
+        setPlatformOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   return (
@@ -74,6 +93,40 @@ function Navbar() {
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-10">
+            {/* Platform dropdown */}
+            <div ref={platformRef} className="relative">
+              <button
+                onClick={() => setPlatformOpen((o) => !o)}
+                className="flex items-center gap-1 text-sm font-bold text-ink/70 hover:text-ink transition-colors tracking-wide"
+              >
+                Platform
+                <ChevronDown size={14} className={`transition-transform duration-200 ${platformOpen ? "rotate-180" : ""}`} />
+              </button>
+              <AnimatePresence>
+                {platformOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.97 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-48 bg-white rounded-2xl border border-surface-border shadow-lift overflow-hidden"
+                  >
+                    {PLATFORM_LINKS.map((l) => (
+                      <Link
+                        key={l.label}
+                        href={l.href}
+                        onClick={() => setPlatformOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-3 text-sm font-semibold text-ink/70 hover:text-ink hover:bg-surface-soft transition-colors"
+                      >
+                        <ChevronRight size={12} className="text-brand-400 flex-shrink-0" />
+                        {l.label}
+                      </Link>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {NAV_LINKS.map((l) => (
               <a key={l.label} href={l.href}
                 className="text-sm font-bold text-ink/70 hover:text-ink transition-colors tracking-wide">
@@ -112,6 +165,41 @@ function Navbar() {
             transition={{ duration: 0.18 }}
             className="fixed inset-x-0 top-[68px] z-40 bg-white border-b border-surface-border px-6 py-6 flex flex-col gap-4 md:hidden shadow-lift"
           >
+            {/* Platform accordion */}
+            <div>
+              <button
+                onClick={() => setMobilePlatformOpen((o) => !o)}
+                className="flex items-center justify-between w-full text-base font-bold text-ink hover:text-brand-600 transition-colors py-1"
+              >
+                Platform
+                <ChevronDown size={16} className={`transition-transform duration-200 ${mobilePlatformOpen ? "rotate-180" : ""}`} />
+              </button>
+              <AnimatePresence>
+                {mobilePlatformOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="pl-3 pt-2 flex flex-col gap-2 border-l-2 border-brand-100 ml-1 mt-2">
+                      {PLATFORM_LINKS.map((l) => (
+                        <Link
+                          key={l.label}
+                          href={l.href}
+                          onClick={() => { setMobileOpen(false); setMobilePlatformOpen(false); }}
+                          className="text-sm font-semibold text-ink/70 hover:text-brand-600 transition-colors py-0.5"
+                        >
+                          {l.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {NAV_LINKS.map((l, i) => (
               <motion.a key={l.label} href={l.href}
                 initial={{ opacity: 0, x: -10 }}

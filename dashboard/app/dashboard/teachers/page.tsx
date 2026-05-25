@@ -1,21 +1,87 @@
 "use client";
 
-import { Users, CheckCircle2, Clock } from "lucide-react";
+import { Users, CheckCircle2, Clock, CalendarOff, Building2, UserCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import { DashboardShell } from "../../../components/DashboardShell";
 import { apiFetch } from "../../../lib/api";
 
-type TeacherStatus = "active" | "invited";
+type LeaveStatus = "active" | "on_leave";
+
+interface ActiveLeave {
+  id: number;
+  start_date: string;
+  end_date: string;
+  leave_type: string;
+  status: string;
+}
 
 interface Teacher {
-  id: number | string;
+  id: number;
   name: string;
-  code: string;
-  phone: string;
+  employee_code: string;
   email: string;
-  status: TeacherStatus;
-  join_date: string;
+  classroom_id: number | null;
+  classroom_name: string | null;
+  leave_status: LeaveStatus;
+  active_leave: ActiveLeave | null;
+}
+
+interface LeaveItem {
+  id: number;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  admin_note?: string;
+}
+
+const fade   = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
+const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
+
+const STATUS_STYLE: Record<LeaveStatus, { color: string; bg: string; border: string; label: string }> = {
+  active:   { color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0", label: "Active" },
+  on_leave: { color: "#dc2626", bg: "#fef2f2", border: "#fecaca", label: "On Leave" },
+};
+
+const LEAVE_STATUS_STYLE: Record<string, { color: string; bg: string }> = {
+  pending:  { color: "#d97706", bg: "#fffbeb" },
+  approved: { color: "#16a34a", bg: "#f0fdf4" },
+  rejected: { color: "#dc2626", bg: "#fef2f2" },
+};
+
+function initials(n: string) {
+  return n.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function Avatar({ name, size = 40 }: { name: string; size?: number }) {
+  const cols = ["#4f46e5", "#0891b2", "#059669", "#d97706", "#7c3aed"];
+  const c = cols[name.charCodeAt(0) % cols.length];
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: size * 0.28,
+      background: c + "18", border: `1.5px solid ${c}33`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      flexShrink: 0, fontWeight: 700, fontSize: size * 0.33, color: c,
+    }}>
+      {initials(name)}
+    </div>
+  );
+}
+
+function StatusPill({ status }: { status: LeaveStatus }) {
+  const s = STATUS_STYLE[status];
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      background: s.bg, color: s.color, border: `1px solid ${s.border}`,
+      borderRadius: 999, padding: "3px 10px", fontSize: 11, fontWeight: 600,
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: s.color, display: "inline-block" }} />
+      {s.label}
+    </span>
+  );
 }
 
 function StatCard({ label, value, sub, accent, icon: Icon }: {
@@ -23,7 +89,7 @@ function StatCard({ label, value, sub, accent, icon: Icon }: {
   accent: string; icon: React.ElementType;
 }) {
   return (
-    <motion.div variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }} style={{
+    <motion.div variants={fade} style={{
       background: "var(--surface)", border: "1px solid var(--stroke)",
       borderTop: `3px solid ${accent}`, borderRadius: 16,
       padding: "18px 20px", boxShadow: "var(--shadow-sm)",
@@ -47,56 +113,49 @@ function StatCard({ label, value, sub, accent, icon: Icon }: {
   );
 }
 
-const fade   = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
-const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
-
-const STATUS_STYLE: Record<TeacherStatus, { color: string; bg: string; border: string }> = {
-  active:  { color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
-  invited: { color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
-};
-
-function initials(n: string) {
-  return n.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-}
-
-function Avatar({ name, size = 40 }: { name: string; size?: number }) {
-  const cols = ["#4f46e5", "#0891b2", "#059669", "#d97706", "#7c3aed"];
-  const c = cols[name.charCodeAt(0) % cols.length];
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: size * 0.28,
-      background: c + "18", border: `1.5px solid ${c}33`,
-      display: "flex", alignItems: "center", justifyContent: "center",
-      flexShrink: 0, fontWeight: 700, fontSize: size * 0.33, color: c,
-    }}>
-      {initials(name)}
-    </div>
-  );
-}
-
-function StatusPill({ status }: { status: TeacherStatus }) {
-  const s = STATUS_STYLE[status];
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-      borderRadius: 999, padding: "3px 10px", fontSize: 11, fontWeight: 600, textTransform: "capitalize",
-    }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: s.color, display: "inline-block" }} />
-      {status}
-    </span>
-  );
-}
-
-function TeacherRow({ t, onResend }: { t: Teacher; onResend: (id: number | string) => void }) {
+function TeacherRow({ t, onResend }: { t: Teacher; onResend: (id: number) => void }) {
   const [open, setOpen] = useState(false);
+  const [leaves, setLeaves] = useState<LeaveItem[]>([]);
+  const [leavesLoaded, setLeavesLoaded] = useState(false);
+  const [approvingId, setApprovingId] = useState<number | null>(null);
+
+  async function loadLeaves() {
+    if (leavesLoaded) return;
+    try {
+      const data = await apiFetch<LeaveItem[]>(`/api/auth/admin/teachers/${t.id}/leaves`);
+      setLeaves(data);
+      setLeavesLoaded(true);
+    } catch {
+      setLeavesLoaded(true);
+    }
+  }
+
+  async function approveLeave(leaveId: number, action: "approved" | "rejected") {
+    setApprovingId(leaveId);
+    try {
+      const updated = await apiFetch<LeaveItem>(`/api/auth/admin/teachers/${t.id}/leaves/${leaveId}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: action }),
+      });
+      setLeaves((prev) => prev.map((l) => l.id === leaveId ? updated : l));
+    } finally {
+      setApprovingId(null);
+    }
+  }
+
+  function handleExpand() {
+    setOpen((v) => !v);
+    if (!open) loadLeaves();
+  }
+
   return (
     <motion.div variants={fade} transition={{ duration: 0.25 }} layout>
       <div
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleExpand}
         style={{
           background: "var(--surface)", border: "1px solid var(--stroke)",
-          borderRadius: "var(--radius-md)", padding: "14px 20px", cursor: "pointer",
+          borderRadius: open ? "var(--radius-md) var(--radius-md) 0 0" : "var(--radius-md)",
+          padding: "14px 20px", cursor: "pointer",
           display: "flex", alignItems: "center", gap: 16,
           transition: "border-color 0.15s, box-shadow 0.15s",
           boxShadow: open ? "var(--shadow-md)" : "var(--shadow-sm)",
@@ -109,19 +168,26 @@ function TeacherRow({ t, onResend }: { t: Teacher; onResend: (id: number | strin
           <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 2 }}>{t.name}</div>
           <div style={{ fontSize: 12, color: "var(--ink-soft)" }}>{t.email || "—"}</div>
         </div>
-        {t.code && (
+        {t.classroom_name && (
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            fontSize: 11, color: "var(--ink-soft)", background: "var(--surface-raised)",
+            border: "1px solid var(--stroke)", borderRadius: 6, padding: "2px 8px",
+          }}>
+            <Building2 size={11} />
+            {t.classroom_name}
+          </span>
+        )}
+        {t.employee_code && (
           <span style={{
             fontFamily: "monospace", fontSize: 11, color: "var(--ink-soft)",
             background: "var(--surface-raised)", border: "1px solid var(--stroke)",
             borderRadius: 6, padding: "2px 8px",
           }}>
-            {t.code}
+            {t.employee_code}
           </span>
         )}
-        <div style={{ textAlign: "right", minWidth: 90 }}>
-          <StatusPill status={t.status} />
-          {t.phone && <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 4 }}>{t.phone}</div>}
-        </div>
+        <StatusPill status={t.leave_status} />
         <span style={{ color: "var(--ink-dim)", fontSize: 13, marginLeft: 4 }}>{open ? "▲" : "▼"}</span>
       </div>
 
@@ -136,31 +202,81 @@ function TeacherRow({ t, onResend }: { t: Teacher; onResend: (id: number | strin
             <div style={{
               background: "var(--surface-raised)", border: "1px solid var(--stroke)",
               borderTop: "none", borderRadius: "0 0 var(--radius-md) var(--radius-md)",
-              padding: "16px 20px", display: "flex", gap: 24, alignItems: "flex-start",
+              padding: "16px 20px",
             }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 10, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Contact</p>
-                {t.phone && <p style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 2 }}>📱 {t.phone}</p>}
-                {t.email && <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>✉️ {t.email}</p>}
-                {t.join_date && (
-                  <p style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 6 }}>
-                    Joined {new Date(t.join_date).toLocaleDateString("en-IN", { dateStyle: "medium" })}
-                  </p>
-                )}
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                {t.status === "invited" && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onResend(t.id); }}
-                    style={{
-                      background: "var(--warning-soft)", color: "var(--warning)",
-                      border: "1px solid var(--warning-border)", borderRadius: 8,
-                      padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer",
-                    }}
-                  >
-                    Resend invite
-                  </button>
-                )}
+              {/* Active leave banner */}
+              {t.active_leave && (
+                <div style={{
+                  background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8,
+                  padding: "10px 14px", marginBottom: 16,
+                  display: "flex", alignItems: "center", gap: 8,
+                }}>
+                  <CalendarOff size={14} color="#dc2626" />
+                  <span style={{ fontSize: 13, color: "#dc2626", fontWeight: 600 }}>
+                    On {t.active_leave.leave_type} leave until {new Date(t.active_leave.end_date).toLocaleDateString("en-IN", { dateStyle: "medium" })}
+                  </span>
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+                {/* Contact */}
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 10, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, fontWeight: 600 }}>Contact</p>
+                  {t.email && <p style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 2 }}>✉️ {t.email}</p>}
+                  {t.classroom_name && <p style={{ fontSize: 13, color: "var(--ink-soft)" }}>🏫 Class Teacher — {t.classroom_name}</p>}
+                </div>
+
+                {/* Leave history */}
+                <div style={{ flex: 2, minWidth: 0 }}>
+                  <p style={{ fontSize: 10, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8, fontWeight: 600 }}>Leave History</p>
+                  {!leavesLoaded ? (
+                    <p style={{ fontSize: 12, color: "var(--ink-dim)" }}>Loading…</p>
+                  ) : leaves.length === 0 ? (
+                    <p style={{ fontSize: 12, color: "var(--ink-dim)" }}>No leave records.</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {leaves.map((lv) => (
+                        <div key={lv.id} style={{
+                          display: "flex", alignItems: "center", gap: 10,
+                          background: "var(--surface)", border: "1px solid var(--stroke)",
+                          borderRadius: 8, padding: "8px 12px",
+                        }}>
+                          <div style={{ flex: 1 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink)", textTransform: "capitalize" }}>
+                              {lv.leave_type}
+                            </span>
+                            <span style={{ fontSize: 11, color: "var(--ink-soft)", marginLeft: 8 }}>
+                              {new Date(lv.start_date).toLocaleDateString("en-IN", { dateStyle: "short" })} – {new Date(lv.end_date).toLocaleDateString("en-IN", { dateStyle: "short" })}
+                            </span>
+                            {lv.reason && <p style={{ fontSize: 11, color: "var(--ink-soft)", marginTop: 2, marginBottom: 0 }}>{lv.reason}</p>}
+                          </div>
+                          <span style={{
+                            fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
+                            background: LEAVE_STATUS_STYLE[lv.status]?.bg ?? "#f1f5f9",
+                            color: LEAVE_STATUS_STYLE[lv.status]?.color ?? "#64748b",
+                            textTransform: "capitalize",
+                          }}>
+                            {lv.status}
+                          </span>
+                          {lv.status === "pending" && (
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button
+                                disabled={approvingId === lv.id}
+                                onClick={(e) => { e.stopPropagation(); approveLeave(lv.id, "approved"); }}
+                                style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 6, border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#16a34a", cursor: "pointer" }}
+                              >Approve</button>
+                              <button
+                                disabled={approvingId === lv.id}
+                                onClick={(e) => { e.stopPropagation(); approveLeave(lv.id, "rejected"); }}
+                                style={{ fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 6, border: "1px solid #fecaca", background: "#fef2f2", color: "#dc2626", cursor: "pointer" }}
+                              >Reject</button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
@@ -181,7 +297,7 @@ function InvitePanel({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     setLoading(true);
     setError("");
     try {
-      const data = await apiFetch<{ signup_url: string; email: string }>("/api/auth/admin/teachers/invite", {
+      const data = await apiFetch<{ signup_url: string; email: string }>("/api/auth/admin/teachers/invite/", {
         method: "POST",
         body: JSON.stringify({ email: form.email, phone: form.phone, name: form.name }),
       });
@@ -292,25 +408,25 @@ export default function TeachersPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | TeacherStatus>("all");
+  const [filter, setFilter] = useState<"all" | LeaveStatus>("all");
   const [showInvite, setShowInvite] = useState(false);
 
   function load() {
     setLoading(true);
-    apiFetch<{ results: Teacher[] }>("/api/auth/admin/teachers")
-      .then((d) => setTeachers(d.results))
+    apiFetch<Teacher[]>("/api/auth/admin/teachers/")
+      .then((d) => setTeachers(Array.isArray(d) ? d : []))
       .catch(() => setTeachers([]))
       .finally(() => setLoading(false));
   }
 
   useEffect(() => { load(); }, []);
 
-  const active  = teachers.filter((t) => t.status === "active").length;
-  const invited = teachers.filter((t) => t.status === "invited").length;
+  const active   = teachers.filter((t) => t.leave_status === "active").length;
+  const onLeave  = teachers.filter((t) => t.leave_status === "on_leave").length;
 
   const filtered = teachers
-    .filter((t) => filter === "all" || t.status === filter)
-    .filter((t) => !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.email.toLowerCase().includes(search.toLowerCase()));
+    .filter((t) => filter === "all" || t.leave_status === filter)
+    .filter((t) => !search || t.name.toLowerCase().includes(search.toLowerCase()) || (t.email ?? "").toLowerCase().includes(search.toLowerCase()));
 
   return (
     <DashboardShell>
@@ -331,7 +447,7 @@ export default function TeachersPage() {
         >
           <div>
             <p style={{ fontSize: 11, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: 600, marginBottom: 6 }}>
-              School Management
+              Academics
             </p>
             <h1 style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--ink)", lineHeight: 1 }}>Teachers</h1>
           </div>
@@ -349,9 +465,9 @@ export default function TeachersPage() {
           transition={{ delay: 0.1 }}
           style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 28 }}
         >
-          <StatCard label="Total Teachers"  value={loading ? "—" : teachers.length} sub={loading ? undefined : `${active} active`} accent="#2563eb" icon={Users} />
-          <StatCard label="Active"          value={loading ? "—" : active}                                                          accent="#16a34a" icon={CheckCircle2} />
-          <StatCard label="Invites Pending" value={loading ? "—" : invited}          sub={invited > 0 ? "Action needed" : undefined} accent={invited > 0 ? "#f59e0b" : "#94a3b8"} icon={Clock} />
+          <StatCard label="Total Teachers" value={loading ? "—" : teachers.length} sub={loading ? undefined : `${active} active`} accent="#2563eb" icon={Users} />
+          <StatCard label="Active"          value={loading ? "—" : active}                                                            accent="#16a34a" icon={UserCheck} />
+          <StatCard label="On Leave"        value={loading ? "—" : onLeave}           sub={onLeave > 0 ? "Today" : undefined}        accent={onLeave > 0 ? "#dc2626" : "#94a3b8"} icon={CalendarOff} />
         </motion.div>
 
         <motion.div
@@ -369,19 +485,23 @@ export default function TeachersPage() {
               style={{ width: "100%", background: "var(--surface)", border: "1px solid var(--stroke)", borderRadius: 10, padding: "10px 14px 10px 36px", fontSize: 13, color: "var(--ink)", outline: "none" }}
             />
           </div>
-          {(["all", "active", "invited"] as const).map((f) => (
+          {([
+            { key: "all", label: "All" },
+            { key: "active", label: "Active" },
+            { key: "on_leave", label: "On Leave" },
+          ] as const).map((f) => (
             <button
-              key={f}
-              onClick={() => setFilter(f)}
+              key={f.key}
+              onClick={() => setFilter(f.key)}
               style={{
                 padding: "10px 16px", borderRadius: 10,
-                border: `1px solid ${filter === f ? "var(--primary)" : "var(--stroke)"}`,
-                background: filter === f ? "var(--primary-soft)" : "var(--surface)",
-                color: filter === f ? "var(--primary)" : "var(--ink-soft)",
-                fontSize: 13, fontWeight: filter === f ? 700 : 400, cursor: "pointer", textTransform: "capitalize",
+                border: `1px solid ${filter === f.key ? "var(--primary)" : "var(--stroke)"}`,
+                background: filter === f.key ? "var(--primary-soft)" : "var(--surface)",
+                color: filter === f.key ? "var(--primary)" : "var(--ink-soft)",
+                fontSize: 13, fontWeight: filter === f.key ? 700 : 400, cursor: "pointer",
               }}
             >
-              {f}
+              {f.label}
             </button>
           ))}
         </motion.div>
@@ -405,9 +525,9 @@ export default function TeachersPage() {
             ) : (
               filtered.map((t) => (
                 <TeacherRow
-                  key={String(t.id)}
+                  key={t.id}
                   t={t}
-                  onResend={(id) => alert(`Invite resent for teacher #${id}`)}
+                  onResend={(id) => console.log("Resend for", id)}
                 />
               ))
             )}

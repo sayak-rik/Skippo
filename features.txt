@@ -359,11 +359,14 @@ ADMIN DASHBOARD — NAVIGATION & SHELL
 
 Sidebar Navigation (Permission-Aware)
   - Overview: Dashboard
-  - Academics: Students, Teachers, Exams, Report Cards
-  - Administration: School Setup, Staff, Finance, Reports, Roles & Perms, UDISE+
-  - Transport: Drivers, Live Fleet, Car Pickup, Routes
-  - Operations: Call Mgmt, Communications, Compliance
+  - Academics: Students, Teachers, Timetable, Homework, Exams, Report Cards
+  - School Setup: Academic Years, Subjects, Houses, Calendar, UDISE+
+  - Transport: Live Fleet, Car Pickup, Routes, Drivers, Vehicles
+  - Administration: Staff, Roles & Permissions
+  - Finance: Payments
+  - Operations: Call Mgmt, Communications, Compliance, Reports
   - Settings: Settings
+  - Grouped navigation with labeled sections
   - Groups with no accessible items hidden entirely
 
 Top Bar
@@ -391,6 +394,110 @@ Compliance
 Payments / Billing
   - School subscription billing via Razorpay
   - Subscription plan management
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADMIN DASHBOARD — ACADEMICS PAGES (Built)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Timetable (/academics/timetable)
+  - Class + academic year selector to load the right timetable
+  - Week grid: Mon–Fri (or Mon–Sat toggle) columns × period rows
+  - 8 default periods from 08:00–15:00; each row shows editable start/end time
+  - Click any cell → popover: slot type (Lesson / Break / Free), subject dropdown, teacher dropdown
+  - Slot types color-coded: Lesson (blue), Break (amber), Free (slate)
+  - Add / delete period rows from the header column
+  - "Save timetable" bulk-replaces all slots atomically via POST
+  - Auto-creates timetable record if one doesn't exist for the classroom + year pair
+  - Dirty indicator: unsaved changes badge on the save button
+  - Cross-action: teacher dropdown populated from the teachers roster
+
+Homework (/academics/homework)
+  - Card list of all homework assignments with subject color accent border
+  - Due date badge: Overdue (red), Due today (amber), Upcoming (green)
+  - Search across title + description; filter by classroom and subject
+  - Status tabs: All / Active / Inactive
+  - Stat cards: Total, Active, Overdue count
+  - Add/edit drawer: classroom, subject, title, description, assigned date, due date
+  - Delete with confirmation dialog
+  - Cross-action: subject and classroom dropdowns sourced from live data
+
+Exams (/academics/exams)
+  - Exam list with type badge (Unit Test / Midterm / Final / Practical / Other) and date range
+  - Publish / Unpublish toggle per exam (POST …/publish/)
+  - Stat cards: Total, Published, Draft
+  - 3-level drill-down: Exam → Schedules panel → Marks entry slide panel
+  - Schedules panel: add subject + classroom + date + time + max/passing marks
+  - Marks panel (MarksPanel): full student list for the classroom with marks input + absent checkbox
+  - Real-time grade preview (A+/A/B/C/D/F) computed client-side as marks are typed
+  - Bulk marks save (upsert) via POST …/results/
+  - Cross-action: subject and classroom dropdowns from live data; teacher assignment from teachers module
+
+Report Cards (/academics/report-cards)
+  - Exam + classroom selector to scope the report
+  - "Generate" button → POST …/report-cards/generate/ (regenerates on every run)
+  - Auto-loads existing report cards when classroom is changed
+  - Ranked table: 🥇🥈🥉 medals for top 3; suffix ranks (4th, 5th…) for rest
+  - Per-row: student name, admission number, marks (obtained/total), percentage progress bar, grade badge
+  - Grade badge colors: A+=green, A=teal, B=blue, C=amber, D=orange, F=red
+  - Dense ranking footnote reminder
+  - Grade distribution breakdown row (A+ N (%), A N (%), …)
+  - Summary stat cards: Students, Class average %, Top score %, Pass rate (with pass count)
+  - Pass rate color: green ≥75%, amber ≥50%, red <50%
+  - "Publish to parents" button → POST …/report-cards/publish/ (marks all is_published=true)
+  - Published status shown per-row (sent checkmark) and as a "Published" pill replacing the publish button
+  - Empty state with direct Generate CTA when no cards exist for selection
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADMIN DASHBOARD — SCHOOL SETUP PAGES (Built)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Academic Years Dashboard (/academics/years)
+  - List of all academic years with date ranges and session counts
+  - Current year highlighted with a primary-color border
+  - "Set as current" button on any non-current year
+  - Expandable sessions panel per year with inline session management
+  - Add sessions inline (name + date range) without leaving the page
+  - Set a session as current from the inline panel
+  - Edit year drawer: name, start/end dates, current flag
+  - Create / delete academic years
+  - Stat cards: total years, current year name, total sessions
+
+Subjects Dashboard (/academics/subjects)
+  - Color-coded subject cards in a responsive grid
+  - Color deterministically computed from subject name (no manual selection)
+  - Active/inactive toggle per subject card (persisted to backend)
+  - Add/edit subject drawer: name + optional subject code
+  - Color preview bar animates in the drawer as name is typed
+  - Filter by All / Active / Inactive
+  - Search by name or code
+  - Stat cards: total, active, inactive
+
+Houses Dashboard (/academics/houses)
+  - Visual house cards with colored header band and house icon
+  - Color picker: 8 preset swatches + full custom color input
+  - Live preview of house name and color in the drawer
+  - Create / edit / delete houses with description field
+  - "Add house" ghost card inline in the grid for quick creation
+  - Info banner: reminder to create houses before student admission
+
+Academic Calendar (/academics/calendar)
+  - Year selector synced to the current academic year
+  - Two tabs: Holidays and Events with live counts
+  - Stat row per tab showing counts by type (national/regional/school or exam/sports/cultural/parent_meeting/other)
+  - Holidays: name, date, type badge, edit/delete
+  - Events: title, date range, type badge, description, edit/delete
+  - Add Holiday drawer: name, date, type selector (pill buttons)
+  - Add Event drawer: type selector, title, start/end dates, description
+  - All data filtered by selected academic year
+
+UDISE+ Dashboard (/udise)
+  - List of annual UDISE reports per school
+  - Each report card shows: academic year, UDISE code, Draft/Submitted badge, section status icons
+  - Section guide card explaining what's auto-filled vs manual
+  - Create report drawer: year selector + 12-digit UDISE code
+  - Deduplication: creating a report for an existing year opens the existing one
+  - Section status icons: Students (auto), Teachers (auto), Infrastructure (manual), Academics (auto)
+  - Submitted reports shown with green border and FileCheck icon
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 INTEGRATIONS

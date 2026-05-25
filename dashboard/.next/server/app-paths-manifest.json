@@ -1,9 +1,9 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
+  "/dashboard/academics/exams/page": "app/dashboard/academics/exams/page.js",
+  "/dashboard/academics/timetable/page": "app/dashboard/academics/timetable/page.js",
+  "/page": "app/page.js",
+  "/dashboard/academics/homework/page": "app/dashboard/academics/homework/page.js",
+  "/dashboard/academics/calendar/page": "app/dashboard/academics/calendar/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/dashboard/drivers/page": "app/dashboard/drivers/page.js",
-  "/dashboard/calls/page": "app/dashboard/calls/page.js",
-  "/dashboard/communications/page": "app/dashboard/communications/page.js",
-  "/dashboard/students/page": "app/dashboard/students/page.js",
-  "/dashboard/payments/page": "app/dashboard/payments/page.js"
+  "/dashboard/academics/report-cards/page": "app/dashboard/academics/report-cards/page.js"
 }

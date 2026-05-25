@@ -5,6 +5,36 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import styles from "./dashboard.module.css";
+import {
+  LayoutDashboard,
+  GraduationCap,
+  Users,
+  BookOpen,
+  ClipboardList,
+  FileText,
+  Award,
+  CalendarDays,
+  Clock3,
+  PencilLine,
+  Bus,
+  Radar,
+  CarFront,
+  Route,
+  Truck,
+  Phone,
+  Radio,
+  ShieldCheck,
+  BarChart3,
+  Building2,
+  Layers,
+  CalendarRange,
+  BookMarked,
+  CreditCard,
+  UserCog,
+  Lock,
+  Landmark,
+  Settings,
+} from "lucide-react";
 
 function SchoolAvatar({ name, logoUrl }: { name: string; logoUrl?: string }) {
   const initials = name
@@ -28,91 +58,93 @@ function SchoolAvatar({ name, logoUrl }: { name: string; logoUrl?: string }) {
   );
 }
 
-import {
-  LayoutDashboard,
-  GraduationCap,
-  Users,
-  Bus,
-  Radar,
-  CarFront,
-  Route,
-  Phone,
-  Radio,
-  ShieldCheck,
-  BarChart3,
-} from "lucide-react";
-
-
 const getAcademicYear = () => {
   const now = new Date();
   const year = now.getFullYear();
-  const month = now.getMonth(); // 0 = Jan
-
-  // Academic year starts from April
-  if (month >= 3) {
-    return `${year} – ${String(year + 1).slice(-2)}`;
-  }
-
+  const month = now.getMonth();
+  if (month >= 3) return `${year} – ${String(year + 1).slice(-2)}`;
   return `${year - 1} – ${String(year).slice(-2)}`;
 };
 
-const NAV_ITEMS = [
+interface NavItem {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
   {
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    label: "Dashboard",
+    label: "Overview",
+    items: [
+      { href: "/dashboard",          icon: LayoutDashboard, label: "Dashboard" },
+    ],
   },
   {
-    href: "/dashboard/students",
-    icon: GraduationCap,
-    label: "Students",
+    label: "Academics",
+    items: [
+      { href: "/dashboard/students",                    icon: GraduationCap, label: "Students" },
+      { href: "/dashboard/teachers",                    icon: Users,         label: "Teachers" },
+      { href: "/dashboard/academics/timetable",         icon: Clock3,        label: "Timetable" },
+      { href: "/dashboard/academics/homework",          icon: PencilLine,    label: "Homework" },
+      { href: "/dashboard/academics/exams",             icon: ClipboardList, label: "Exams" },
+      { href: "/dashboard/academics/report-cards",      icon: Award,         label: "Report Cards" },
+    ],
   },
   {
-    href: "/dashboard/teachers",
-    icon: Users,
-    label: "Teachers",
+    label: "School Setup",
+    items: [
+      { href: "/dashboard/academics/years",    icon: CalendarRange, label: "Academic Years" },
+      { href: "/dashboard/academics/subjects", icon: BookOpen,      label: "Subjects" },
+      { href: "/dashboard/academics/houses",   icon: Layers,        label: "Houses" },
+      { href: "/dashboard/academics/calendar", icon: CalendarDays,  label: "Calendar" },
+      { href: "/dashboard/udise",              icon: Landmark,      label: "UDISE+" },
+    ],
   },
   {
-    href: "/dashboard/drivers",
-    icon: Bus,
-    label: "Drivers",
+    label: "Transport",
+    items: [
+      { href: "/dashboard/live-fleet", icon: Radar,    label: "Live Fleet" },
+      { href: "/dashboard/dismissal",  icon: CarFront, label: "Car Pickup" },
+      { href: "/dashboard/routes",     icon: Route,    label: "Routes" },
+      { href: "/dashboard/drivers",    icon: Bus,      label: "Drivers" },
+      { href: "/dashboard/vehicles",   icon: Truck,    label: "Vehicles" },
+    ],
   },
   {
-    href: "/dashboard/live-fleet",
-    icon: Radar,
-    label: "Live Fleet",
+    label: "Administration",
+    items: [
+      { href: "/dashboard/staff",  icon: UserCog,    label: "Staff" },
+      { href: "/dashboard/roles",  icon: Lock,       label: "Roles & Permissions" },
+    ],
   },
   {
-    href: "/dashboard/dismissal",
-    icon: CarFront,
-    label: "Car Pickup",
+    label: "Finance",
+    items: [
+      { href: "/dashboard/payments", icon: CreditCard, label: "Payments" },
+    ],
   },
   {
-    href: "/dashboard/routes",
-    icon: Route,
-    label: "Routes",
+    label: "Operations",
+    items: [
+      { href: "/dashboard/calls",           icon: Phone,       label: "Call Mgmt" },
+      { href: "/dashboard/communications",  icon: Radio,       label: "Communications" },
+      { href: "/dashboard/compliance",      icon: ShieldCheck, label: "Compliance" },
+      { href: "/dashboard/reports",         icon: BarChart3,   label: "Reports" },
+    ],
   },
   {
-    href: "/dashboard/calls",
-    icon: Phone,
-    label: "Call Mgmt",
-  },
-  {
-    href: "/dashboard/communications",
-    icon: Radio,
-    label: "Communications",
-  },
-  {
-    href: "/dashboard/compliance",
-    icon: ShieldCheck,
-    label: "Compliance",
-  },
-  {
-    href: "/dashboard/reports",
-    icon: BarChart3,
-    label: "Reports",
+    label: "Settings",
+    items: [
+      { href: "/dashboard/settings", icon: Settings, label: "Settings" },
+    ],
   },
 ];
+
 export function Sidebar() {
   const pathname = usePathname();
   const [schoolName, setSchoolName] = useState("");
@@ -149,27 +181,31 @@ export function Sidebar() {
       <div className={styles.schoolBlock}>
         <SchoolAvatar name={schoolName} logoUrl={schoolLogoUrl || undefined} />
         <div className={styles.schoolInfo}>
-          <div className={styles.schoolName}>{schoolName}</div>
+          <div className={styles.schoolName}>{schoolName || "School"}</div>
           <div className={styles.schoolRole}>Admin</div>
         </div>
         <span className={styles.schoolChevron}>▾</span>
       </div>
 
-      {/* Nav */}
+      {/* Nav groups */}
       <nav className={styles.navSection}>
-        <p className={styles.navLabel}>Navigation</p>
-        <div className={styles.navList}>
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`${styles.navLink} ${isActive(item.href) ? styles.navLinkActive : ""}`}
-            >
-              <span className={styles.navIcon}><item.icon size={18} /></span>
-              {item.label}
-            </Link>
-          ))}
-        </div>
+        {NAV_GROUPS.map((group, gi) => (
+          <div key={group.label}>
+            <p className={styles.navLabel} style={{ marginTop: gi === 0 ? 4 : 16 }}>{group.label}</p>
+            <div className={styles.navList}>
+              {group.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${styles.navLink} ${isActive(item.href) ? styles.navLinkActive : ""}`}
+                >
+                  <span className={styles.navIcon}><item.icon size={16} /></span>
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}

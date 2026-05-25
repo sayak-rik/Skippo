@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { LayoutDashboard, Smartphone, GraduationCap, ArrowRight } from "lucide-react";
+import { LayoutDashboard, Smartphone, GraduationCap, ArrowRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -60,6 +60,17 @@ export default function SignInPage() {
       iconColor: "text-emerald-600",
       tag: "Mobile app",
       noLink: true,
+    },
+    {
+      icon: ShieldCheck,
+      title: "Root Admin",
+      desc: "Internal Skippo admin access. For authorised team members only.",
+      href: "/admin/login",
+      color: "bg-zinc-700",
+      hoverBorder: "hover:border-zinc-200",
+      iconBg: "bg-zinc-50",
+      iconColor: "text-zinc-600",
+      tag: "Internal",
     },
   ];
 
