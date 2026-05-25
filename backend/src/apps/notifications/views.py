@@ -1,8 +1,9 @@
 from rest_framework import permissions, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.notifications.models import EmergencyEvent
+from apps.notifications.models import DeviceToken, EmergencyEvent
 
 
 class NotificationsRootView(APIView):
@@ -60,6 +61,44 @@ class TriggerSOSView(APIView):
 
         event = EmergencyEvent.objects.create(school=trip.school, trip=trip, status="open")
         return Response({"id": event.id, "status": event.status, "createdAt": str(event.created_at)}, status=status.HTTP_201_CREATED)
+
+
+class RegisterDeviceView(APIView):
+    """Register or remove a parent's Expo push token.
+
+    POST /api/notifications/parent/register-device/
+    Body: { "token": "ExponentPushToken[...]", "platform": "ios" }
+
+    DELETE /api/notifications/parent/register-device/
+    Body: { "token": "ExponentPushToken[...]" }
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from apps.accounts.models import ParentProfile
+
+        try:
+            parent = ParentProfile.objects.get(user=request.user)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=404)
+
+        token = request.data.get("token", "").strip()
+        platform = request.data.get("platform", "")
+        if not token:
+            return Response({"detail": "token is required."}, status=400)
+
+        DeviceToken.objects.update_or_create(
+            token=token,
+            defaults={"parent": parent, "platform": platform},
+        )
+        return Response({"detail": "Device registered."})
+
+    def delete(self, request):
+        token = request.data.get("token", "").strip()
+        if token:
+            DeviceToken.objects.filter(token=token).delete()
+        return Response(status=204)
 
 
 class TriggerBreakdownView(APIView):

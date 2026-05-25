@@ -481,6 +481,137 @@ class ParentStudentReportView(APIView):
         })
 
 
+class ParentAcademicsView(APIView):
+    """Return classroom info, timetable, published report cards, and exam marks for the
+    authenticated parent's linked students.
+
+    GET /api/academics/parent/academics/
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.academics.models import (
+            ExamResult,
+            ExamSchedule,
+            ReportCard,
+            Student,
+            StudentParentLink,
+            Timetable,
+            TimetableSlot,
+        )
+        from apps.accounts.models import ParentProfile
+
+        try:
+            parent = ParentProfile.objects.get(user=request.user)
+        except ParentProfile.DoesNotExist:
+            return Response({"detail": "Parent profile not found."}, status=404)
+
+        student_ids = list(
+            StudentParentLink.objects.filter(parent=parent).values_list("student_id", flat=True)
+        )
+        students = Student.objects.filter(id__in=student_ids).select_related("classroom__teacher__user")
+
+        result = []
+        for student in students:
+            classroom = student.classroom
+            classroom_info = None
+            timetable_slots = []
+
+            if classroom:
+                teacher_name = ""
+                if classroom.teacher and classroom.teacher.user:
+                    teacher_name = classroom.teacher.user.get_full_name() or classroom.teacher.user.email
+
+                classroom_info = {
+                    "id": classroom.id,
+                    "name": classroom.name,
+                    "section": classroom.section,
+                    "teacherName": teacher_name,
+                }
+
+                timetable = (
+                    Timetable.objects.filter(classroom=classroom).order_by("-id").first()
+                )
+                if timetable:
+                    slots = TimetableSlot.objects.filter(timetable=timetable).select_related("subject").order_by(
+                        "weekday", "period_number"
+                    )
+                    timetable_slots = [
+                        {
+                            "day": s.weekday,
+                            "period": s.period_number,
+                            "subject": s.subject.name if s.subject else s.slot_type,
+                            "startTime": str(s.starts_at),
+                            "endTime": str(s.ends_at),
+                            "slotType": s.slot_type,
+                        }
+                        for s in slots
+                    ]
+
+            # Published report cards for this student
+            report_cards = []
+            for rc in ReportCard.objects.filter(student=student, is_published=True).select_related("exam").order_by("-id"):
+                subject_marks = []
+                schedules = ExamSchedule.objects.filter(exam=rc.exam, classroom=student.classroom).select_related("subject")
+                for sched in schedules:
+                    try:
+                        er = ExamResult.objects.get(exam_schedule=sched, student=student)
+                        subject_marks.append({
+                            "subject": sched.subject.name if sched.subject else "",
+                            "marksObtained": None if er.is_absent else float(er.marks_obtained) if er.marks_obtained is not None else None,
+                            "maxMarks": float(sched.max_marks),
+                            "isAbsent": er.is_absent,
+                            "grade": er.grade,
+                        })
+                    except ExamResult.DoesNotExist:
+                        pass
+
+                report_cards.append({
+                    "id": rc.id,
+                    "examName": rc.exam.name,
+                    "examType": rc.exam.exam_type,
+                    "totalMarks": float(rc.total_marks) if rc.total_marks else None,
+                    "obtainedMarks": float(rc.obtained_marks) if rc.obtained_marks else None,
+                    "percentage": float(rc.percentage) if rc.percentage else None,
+                    "grade": rc.grade,
+                    "rank": rc.rank,
+                    "subjectMarks": subject_marks,
+                })
+
+            # Individual exam results (all, including unpublished report card exams)
+            exam_results = []
+            for er in (
+                ExamResult.objects.filter(student=student)
+                .select_related("exam_schedule__exam", "exam_schedule__subject")
+                .order_by("-id")[:50]
+            ):
+                sched = er.exam_schedule
+                exam_results.append({
+                    "id": er.id,
+                    "examName": sched.exam.name if sched.exam else "",
+                    "subject": sched.subject.name if sched.subject else "",
+                    "marksObtained": None if er.is_absent else float(er.marks_obtained) if er.marks_obtained is not None else None,
+                    "maxMarks": float(sched.max_marks),
+                    "passingMarks": float(sched.passing_marks) if sched.passing_marks else None,
+                    "isAbsent": er.is_absent,
+                    "grade": er.grade,
+                    "examDate": str(sched.date) if sched.date else None,
+                })
+
+            result.append({
+                "studentId": student.id,
+                "studentName": student.full_name,
+                "admissionNumber": student.admission_number,
+                "classroom": classroom_info,
+                "timetable": timetable_slots,
+                "reportCards": report_cards,
+                "examResults": exam_results,
+            })
+
+        return Response({"students": result})
+
+
 # ── AI Teaching Assistant ─────────────────────────────────────────────────────
 
 def _resolve_teacher(request):
@@ -625,10 +756,29 @@ class AIVoiceObservationView(APIView):
 
 # ── Admin: classroom + student management ─────────────────────────────────────
 
-class AdminClassroomListView(APIView):
-    """Admin: list all classrooms with student counts.
+def _classroom_data(cls, school):
+    """Serialize a Classroom instance to a dict."""
+    teacher_name = ""
+    teacher_id = None
+    if cls.teacher and cls.teacher.user:
+        teacher_name = cls.teacher.user.get_full_name() or cls.teacher.user.email
+        teacher_id = cls.teacher_id
+    student_count = Student.objects.filter(school=school, classroom=cls).count()
+    return {
+        "id":            cls.id,
+        "name":          cls.name,
+        "section":       cls.section,
+        "teacher":       teacher_name,
+        "teacher_id":    teacher_id,
+        "student_count": student_count,
+    }
 
-    GET /api/academics/admin/classrooms/
+
+class AdminClassroomListView(APIView):
+    """Admin: list all classrooms or create a new one.
+
+    GET  /api/academics/admin/classrooms/
+    POST /api/academics/admin/classrooms/  Body: {name, section, teacher_id}
     """
 
     permission_classes = [IsAuthenticated]
@@ -645,22 +795,231 @@ class AdminClassroomListView(APIView):
             .select_related("teacher__user")
             .order_by("name", "section")
         )
+        return Response({"results": [_classroom_data(c, school) for c in classrooms]})
 
-        results = []
-        for cls in classrooms:
-            teacher_name = ""
-            if cls.teacher and cls.teacher.user:
-                teacher_name = cls.teacher.user.get_full_name() or cls.teacher.user.email
-            student_count = Student.objects.filter(school=school, classroom=cls).count()
-            results.append({
-                "id":            cls.id,
-                "name":          cls.name,
-                "section":       cls.section,
-                "teacher":       teacher_name,
-                "student_count": student_count,
+    def post(self, request):
+        try:
+            school = _school(request)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        name    = (request.data.get("name") or "").strip()
+        section = (request.data.get("section") or "").strip()
+        teacher_id = request.data.get("teacher_id")
+
+        if not name:
+            return Response({"detail": "name is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if Classroom.objects.filter(school=school, name=name, section=section).exists():
+            return Response({"detail": "A classroom with this name and section already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        teacher = None
+        if teacher_id:
+            from apps.accounts.models import TeacherProfile
+            try:
+                teacher = TeacherProfile.objects.get(id=teacher_id, school=school)
+            except TeacherProfile.DoesNotExist:
+                return Response({"detail": "Teacher not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        cls = Classroom.objects.create(school=school, name=name, section=section, teacher=teacher)
+        return Response(_classroom_data(cls, school), status=status.HTTP_201_CREATED)
+
+
+class AdminClassroomDetailView(APIView):
+    """Admin: update or delete a classroom.
+
+    PATCH  /api/academics/admin/classrooms/{id}/  Body: {name, section, teacher_id}
+    DELETE /api/academics/admin/classrooms/{id}/
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def _fetch(self, request, classroom_id):
+        try:
+            school = _school(request)
+        except School.DoesNotExist:
+            return None, None, Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            return school, Classroom.objects.select_related("teacher__user").get(id=classroom_id, school=school), None
+        except Classroom.DoesNotExist:
+            return school, None, Response({"detail": "Classroom not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request, classroom_id):
+        school, cls, err = self._fetch(request, classroom_id)
+        if err:
+            return err
+
+        if "name" in request.data:
+            cls.name = (request.data["name"] or "").strip()
+        if "section" in request.data:
+            cls.section = (request.data["section"] or "").strip()
+        if "teacher_id" in request.data:
+            tid = request.data["teacher_id"]
+            if tid is None or tid == "":
+                cls.teacher = None
+            else:
+                from apps.accounts.models import TeacherProfile
+                try:
+                    cls.teacher = TeacherProfile.objects.get(id=tid, school=school)
+                except TeacherProfile.DoesNotExist:
+                    return Response({"detail": "Teacher not found."}, status=status.HTTP_404_NOT_FOUND)
+        cls.save()
+        return Response(_classroom_data(cls, school))
+
+    def delete(self, request, classroom_id):
+        school, cls, err = self._fetch(request, classroom_id)
+        if err:
+            return err
+        cls.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminAutoSubstituteView(APIView):
+    """Suggest the best available substitute teacher for an absent teacher's class.
+
+    POST /api/academics/admin/substitute/suggest/
+    Body: {classroom_id, absent_teacher_id, date (YYYY-MM-DD, optional)}
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        import json as _json
+        from apps.accounts.models import TeacherProfile
+        from apps.academics.models import TimetableSlot
+        from integrations.gemini import ask_gemini
+
+        try:
+            school = _school(request)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        classroom_id     = request.data.get("classroom_id")
+        absent_teacher_id = request.data.get("absent_teacher_id")
+
+        try:
+            classroom = Classroom.objects.get(id=classroom_id, school=school)
+        except Classroom.DoesNotExist:
+            return Response({"detail": "Classroom not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Determine absent teacher
+        absent_teacher = None
+        absent_subjects: list[str] = []
+        if absent_teacher_id:
+            try:
+                absent_teacher = TeacherProfile.objects.select_related("user").get(id=absent_teacher_id, school=school)
+                absent_subjects = list(
+                    TimetableSlot.objects
+                    .filter(teacher=absent_teacher)
+                    .select_related("subject")
+                    .values_list("subject__name", flat=True)
+                    .distinct()[:5]
+                )
+            except TeacherProfile.DoesNotExist:
+                pass
+
+        # Find teachers on approved leave today
+        from django.utils import timezone
+        today = timezone.now().date()
+        try:
+            from apps.accounts.models import TeacherLeave
+            on_leave_ids = set(
+                TeacherLeave.objects.filter(
+                    school=school, status="approved",
+                    start_date__lte=today, end_date__gte=today,
+                ).values_list("teacher_id", flat=True)
+            )
+        except Exception:
+            on_leave_ids = set()
+
+        if absent_teacher_id:
+            on_leave_ids.add(int(absent_teacher_id))
+
+        available = (
+            TeacherProfile.objects
+            .filter(school=school)
+            .exclude(id__in=on_leave_ids)
+            .select_related("user", "classroom")
+        )
+
+        teacher_profiles = []
+        for t in available:
+            t_subjects = list(
+                TimetableSlot.objects
+                .filter(teacher=t)
+                .select_related("subject")
+                .values_list("subject__name", flat=True)
+                .distinct()[:5]
+            )
+            teacher_profiles.append({
+                "id":              t.id,
+                "name":            t.user.get_full_name() or t.user.email,
+                "subjects":        t_subjects,
+                "class_teacher_of": (t.classroom.name + (f" {t.classroom.section}" if t.classroom.section else "")) if t.classroom else None,
             })
 
-        return Response({"results": results})
+        if not teacher_profiles:
+            return Response({"suggestion": None, "available_count": 0, "detail": "No available teachers found."})
+
+        absent_info = ""
+        if absent_teacher:
+            absent_info = (
+                f"Absent teacher: {absent_teacher.user.get_full_name()}, "
+                f"usually teaches: {', '.join(absent_subjects) or 'unspecified subjects'}."
+            )
+
+        classroom_label = classroom.name + (f" {classroom.section}" if classroom.section else "")
+
+        system = (
+            "You are a school scheduling assistant. "
+            "Given a vacant classroom and a list of available teachers, "
+            "pick the SINGLE best substitute. Prefer teachers who teach the same or related subjects. "
+            "Respond ONLY with valid JSON (no markdown): "
+            "{\"teacher_id\": <integer>, \"reason\": \"<one concise sentence>\"}"
+        )
+        user = (
+            f"Vacant classroom: {classroom_label}\n"
+            f"{absent_info}\n"
+            f"Available teachers:\n" +
+            "\n".join(
+                f"- ID {t['id']}: {t['name']}, "
+                f"subjects: {', '.join(t['subjects']) or 'general'}, "
+                f"class teacher of: {t['class_teacher_of'] or 'none'}"
+                for t in teacher_profiles
+            )
+        )
+
+        try:
+            raw = asyncio.run(ask_gemini(system=system, user=user, temperature=0.2))
+            # Strip markdown code fences if present
+            raw = raw.strip().strip("`").strip()
+            if raw.startswith("json"):
+                raw = raw[4:].strip()
+            parsed = _json.loads(raw)
+            suggested_id = int(parsed.get("teacher_id", 0))
+            reason = str(parsed.get("reason", ""))
+        except Exception as exc:
+            log.warning("Auto-substitute Gemini call failed: %s", exc)
+            suggested_id = teacher_profiles[0]["id"]
+            reason = "Fallback: first available teacher (AI unavailable)."
+
+        suggested = next((t for t in teacher_profiles if t["id"] == suggested_id), None)
+        if not suggested:
+            suggested = teacher_profiles[0]
+            reason = "Fallback: first available teacher."
+
+        return Response({
+            "suggestion": {
+                "teacher_id":   suggested["id"],
+                "teacher_name": suggested["name"],
+                "subjects":     suggested["subjects"],
+                "reason":       reason,
+            },
+            "available_count": len(teacher_profiles),
+            "all_available": [
+                {"id": t["id"], "name": t["name"], "subjects": t["subjects"]}
+                for t in teacher_profiles
+            ],
+        })
 
 
 class AdminStudentListView(APIView):
@@ -1421,10 +1780,29 @@ class AdminStudentDetailView(APIView):
         student, err = self._get(request, student_id)
         if err:
             return err
+        old_classroom_id = student.classroom_id
         ser = StudentAdmissionSerializer(student, data=request.data, partial=True)
         if not ser.is_valid():
             return Response(ser.errors, status=400)
-        return Response(StudentDetailSerializer(ser.save()).data)
+        updated = ser.save()
+
+        # Notify parents when the student's classroom assignment changes
+        new_classroom_id = updated.classroom_id
+        if new_classroom_id and new_classroom_id != old_classroom_id:
+            try:
+                from apps.notifications.push import notify_parents_of_students
+                cls = updated.classroom
+                cls_label = f"{cls.name}{' ' + cls.section if cls.section else ''}"
+                notify_parents_of_students(
+                    [student_id],
+                    title="Class Assigned",
+                    body=f"{updated.full_name} has been assigned to {cls_label}.",
+                    data={"type": "class_setup", "classroomId": new_classroom_id},
+                )
+            except Exception:
+                pass
+
+        return Response(StudentDetailSerializer(updated).data)
 
     def delete(self, request, student_id):
         student, err = self._get(request, student_id)
@@ -1718,6 +2096,20 @@ class AdminTimetableSlotBulkView(APIView):
         for ser in serializers:
             slot = ser.save(timetable=timetable, school=school)
             created.append(slot)
+
+        # Notify parents of students in this classroom about the updated schedule
+        try:
+            from apps.notifications.push import notify_classroom_parents
+            cls = timetable.classroom
+            cls_label = f"{cls.name}{' ' + cls.section if cls.section else ''}"
+            notify_classroom_parents(
+                cls.id,
+                title="Class Schedule Updated",
+                body=f"The timetable for {cls_label} has been set up.",
+                data={"type": "timetable", "classroomId": cls.id},
+            )
+        except Exception:
+            pass
 
         return Response(TimetableSlotSerializer(created, many=True).data, status=201)
 
@@ -2049,6 +2441,21 @@ class AdminExamResultsView(APIView):
             )
             upserted.append(result)
 
+        # Notify each student's parents about their marks
+        try:
+            from apps.notifications.push import notify_parents_of_students
+            exam_name = schedule.exam.name if schedule.exam else "Exam"
+            subject_name = schedule.subject.name if schedule.subject else "a subject"
+            student_ids = [r.student_id for r in upserted]
+            notify_parents_of_students(
+                student_ids,
+                title="Exam Marks Available",
+                body=f"Marks for {subject_name} ({exam_name}) have been entered.",
+                data={"type": "exam_result", "scheduleId": schedule_id},
+            )
+        except Exception:
+            pass
+
         return Response(ExamResultSerializer(upserted, many=True).data, status=status.HTTP_200_OK)
 
 
@@ -2227,6 +2634,18 @@ class AdminReportCardPublishView(APIView):
             exam=exam,
             student__classroom_id=classroom_id,
         ).update(is_published=True)
+
+        # Notify parents of affected students
+        try:
+            from apps.notifications.push import notify_classroom_parents
+            notify_classroom_parents(
+                classroom_id,
+                title="Report Card Published",
+                body=f"Your child's report card for {exam.name} is now available.",
+                data={"type": "report_card", "examId": exam_id},
+            )
+        except Exception:
+            pass
 
         return Response({"detail": f"Published {updated} report card(s).", "count": updated})
 

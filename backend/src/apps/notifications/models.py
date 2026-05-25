@@ -3,6 +3,21 @@ from django.db import models
 from common.models import SchoolScopedModel, TimestampedModel
 
 
+class DeviceToken(TimestampedModel):
+    """Expo push token registered by a parent's device."""
+
+    parent = models.ForeignKey(
+        "accounts.ParentProfile",
+        on_delete=models.CASCADE,
+        related_name="device_tokens",
+    )
+    token = models.CharField(max_length=512, unique=True)
+    platform = models.CharField(max_length=16, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["parent"])]
+
+
 class NotificationLog(SchoolScopedModel):
     channel = models.CharField(max_length=32)
     recipient = models.CharField(max_length=255)

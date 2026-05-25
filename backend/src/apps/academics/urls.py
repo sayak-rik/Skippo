@@ -12,6 +12,8 @@ from apps.academics.views import (
     AdminAcademicYearDetailView,
     AdminAcademicYearListView,
     AdminAcademicYearSetCurrentView,
+    AdminAutoSubstituteView,
+    AdminClassroomDetailView,
     AdminClassroomListView,
     AdminExamDetailView,
     AdminExamListView,
@@ -51,6 +53,7 @@ from apps.academics.views import (
     ClassRosterView,
     ClassroomListView,
     MarkAttendanceView,
+    ParentAcademicsView,
     ParentStudentReportView,
     ResolveAssistRequestView,
     SchedulePreferencesView,
@@ -112,6 +115,9 @@ urlpatterns = [
         name="academics-resolve-assist-request",
     ),
 
+    # Parent-facing academics (classroom, timetable, report cards, exam marks)
+    path("parent/academics/", ParentAcademicsView.as_view(), name="academics-parent-academics"),
+
     # Parent-facing report
     path(
         "parent/students/<int:student_id>/report/",
@@ -120,7 +126,9 @@ urlpatterns = [
     ),
 
     # Admin — classroom + student management
-    path("admin/classrooms/",              AdminClassroomListView.as_view(),  name="academics-admin-classrooms"),
+    path("admin/classrooms/",                    AdminClassroomListView.as_view(),   name="academics-admin-classrooms"),
+    path("admin/classrooms/<int:classroom_id>/", AdminClassroomDetailView.as_view(), name="academics-admin-classroom-detail"),
+    path("admin/substitute/suggest/",            AdminAutoSubstituteView.as_view(),  name="academics-admin-substitute-suggest"),
     path("admin/students/",                AdminStudentListView.as_view(),    name="academics-admin-students"),
     path("admin/students/new/",            AdminStudentCreateView.as_view(),  name="academics-admin-students-create"),
     path("admin/students/import/",         AdminStudentImportView.as_view(),  name="academics-admin-students-import"),

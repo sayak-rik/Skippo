@@ -9,10 +9,10 @@
 
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Bus, CreditCard, GraduationCap, Home, User } from "lucide-react-native";
+import { BookOpen, Bus, GraduationCap, Home, User } from "lucide-react-native";
 import { StyleSheet, View } from "react-native";
 
-import { FeesScreen } from "../screens/FeesScreen";
+import { AcademicsScreen } from "../screens/AcademicsScreen";
 import { HomeScreen } from "../screens/HomeScreen";
 import { LiveTrackScreen } from "../screens/LiveTrackScreen";
 import { LoginScreen } from "../screens/LoginScreen";
@@ -31,11 +31,11 @@ const Tab   = createBottomTabNavigator();
 type LucideIcon = typeof Home;
 
 const TABS: { name: string; component: unknown; Icon: LucideIcon }[] = [
-  { name: "Home",     component: HomeScreen,      Icon: Home          },
-  { name: "Track",    component: LiveTrackScreen,  Icon: Bus           },
-  { name: "Fees",     component: FeesScreen,       Icon: CreditCard    },
-  { name: "Progress", component: ProgressScreen,   Icon: GraduationCap },
-  { name: "Profile",  component: ProfileScreen,    Icon: User          },
+  { name: "Home",      component: HomeScreen,       Icon: Home          },
+  { name: "Track",     component: LiveTrackScreen,  Icon: Bus           },
+  { name: "Academics", component: AcademicsScreen,  Icon: BookOpen      },
+  { name: "Progress",  component: ProgressScreen,   Icon: GraduationCap },
+  { name: "Profile",   component: ProfileScreen,    Icon: User          },
 ];
 
 // ── TabIcon ───────────────────────────────────────────────────────────────────

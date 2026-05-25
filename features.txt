@@ -1,6 +1,6 @@
 SKIPPO — COMPLETE FEATURE LIST
 ================================
-Last updated: 2026-05-23
+Last updated: 2026-05-25
 Source: features.txt, README.md, Skippo_Development_Document.docx
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -502,7 +502,35 @@ Car Pickup (/dismissal) — pre-existing, already implemented
 ADMIN DASHBOARD — ACADEMICS PAGES (Built)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+Classrooms (/classrooms)
+  - Grid of classroom cards grouped by class name (e.g., Class 6, Class 7)
+  - Color-coded accent per class: nursery=pink, primary=blue, middle=purple, secondary=teal, senior=red
+  - Each card shows: classroom name + section, assigned class teacher name, student count
+  - Stat cards: Total Classrooms, Total Students across all rooms, Class Teachers assigned vs unassigned
+  - Add/Edit classroom drawer (right-slide, spring animation):
+      - Cascading dropdowns: first pick class name (Nursery/LKG/UKG/Class 1–12 or custom), then section (A/B/C/D/E or custom) appears
+      - Live preview badge updates as name/section are selected
+      - Optional class teacher assignment (select from teachers list)
+  - "Add section" ghost button inside each group for quick sibling-section creation
+  - Delete classroom with confirmation modal showing affected student count
+  - Backend: GET/POST /api/academics/admin/classrooms/, PATCH/DELETE /api/academics/admin/classrooms/{id}/
+
+Teachers (/teachers) — Enhanced
+  - Classroom assignment section in each expanded teacher row:
+      - Cascading dropdowns: select class name then section (sourced from classrooms list)
+      - "Assign Classroom" button PATCHes the classroom's teacher_id
+      - Green "Assigned!" confirmation flash on success
+  - AI Substitute Finder button on any teacher row with leave_status = "on_leave":
+      - Opens AutoSubstitutePanel (right-slide drawer)
+      - Shows absent teacher info and active leave details
+      - Cascading classroom selector to identify the vacant class
+      - "Find Best Substitute" calls POST /api/academics/admin/substitute/suggest/
+      - Displays AI recommendation card with gradient: teacher name, subjects, one-sentence reasoning
+      - Lists all available teachers (not on leave today) ranked by suitability
+      - "Recommended" tag highlights the AI pick among the full list
+
 Timetable (/academics/timetable)
+  - Cascading class selector: first pick class name, then section dropdown appears (filtered from classrooms list)
   - Class + academic year selector to load the right timetable
   - Week grid: Mon–Fri (or Mon–Sat toggle) columns × period rows
   - 8 default periods from 08:00–15:00; each row shows editable start/end time
@@ -611,7 +639,7 @@ INTEGRATIONS
   - Google Maps          — Live tracking map + route builder (parent app + dashboard)
   - Razorpay             — School subscription payments and billing
   - Cloudflare R2 / AWS S3 — Student photos, KYC documents, file storage
-  - Google Gemini (AI)   — AI Teaching Assistant (lesson plans, class summaries, voice observations)
+  - Google Gemini (AI)   — AI Teaching Assistant (lesson plans, class summaries, voice observations, auto-substitute suggestions)
   - DigiLocker API       — Conductor license and ID verification (Phase 2)
   - VAHAN REST API       — Vehicle registration verification (Phase 2)
   - Django Channels + Redis — WebSocket real-time GPS and fleet updates

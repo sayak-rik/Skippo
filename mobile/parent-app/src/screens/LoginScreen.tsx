@@ -1,8 +1,5 @@
-import * as Google from "expo-auth-session/providers/google";
-import Constants from "expo-constants";
-import * as WebBrowser from "expo-web-browser";
 import { KeyRound, LogIn, User } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -14,6 +11,7 @@ import {
   View,
 } from "react-native";
 
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { PhoneInput } from "../components/PhoneInput";
 import { Screen } from "../components/Screen";
 import { SkippoLogo } from "../components/SkippoLogo";
@@ -22,15 +20,11 @@ import { useSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
 
-WebBrowser.maybeCompleteAuthSession();
-
 // Phases this screen moves through:
 //   "phone"         – enter number and run lookup (login vs signup decision)
 //   "otp"           – enter OTP sent for an existing parent (login path)
 //   "complete_name" – existing parent logged in but has no display name yet
 type Phase = "phone" | "otp" | "complete_name";
-
-const extra = Constants.expoConfig?.extra ?? {};
 
 export function LoginScreen({ navigation }: { navigation?: any }) {
   const login = useSessionStore((s) => s.login);
@@ -43,31 +37,7 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
   const [parentName, setParentName]     = useState("");
   const [verifiedData, setVerifiedData] = useState<any>(null);
   const [loading, setLoading]           = useState(false);
-  // Stored Google ID token — set when Google auth needs phone verification.
-  // After phone OTP succeeds, this triggers the link-account call.
   const [pendingGoogleIdToken, setPendingGoogleIdToken] = useState<string | null>(null);
-
-  // ── Google OAuth setup ─────────────────────────────────────────────────────
-
-  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-    clientId:        extra.googleWebClientId     || undefined,
-    iosClientId:     extra.googleIosClientId     || undefined,
-    androidClientId: extra.googleAndroidClientId || undefined,
-    scopes: ["openid", "profile", "email"],
-  });
-
-  useEffect(() => {
-    if (googleResponse?.type === "success") {
-      const idToken = googleResponse.authentication?.idToken;
-      if (idToken) {
-        handleGoogleToken(idToken);
-      } else {
-        Alert.alert("Google Sign-In", "Could not retrieve identity token from Google.");
-      }
-    } else if (googleResponse?.type === "error") {
-      Alert.alert("Google Sign-In", "Sign-in was cancelled or failed.");
-    }
-  }, [googleResponse]);
 
   // ── Google: exchange token with backend ────────────────────────────────────
 
@@ -267,8 +237,6 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
     phase === "otp"           ? KeyRound :
                                 LogIn;
 
-  const googleConfigured = !!(extra.googleWebClientId || extra.googleIosClientId || extra.googleAndroidClientId);
-
   return (
     <Screen style={styles.screen}>
       <KeyboardAvoidingView
@@ -381,22 +349,12 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
           )}
 
           {/* Google Sign-In — only on phone phase */}
-          {phase === "phone" && googleConfigured && (
-            <>
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>or</Text>
-                <View style={styles.dividerLine} />
-              </View>
-              <TouchableOpacity
-                style={[styles.googleBtn, (loading || !googleRequest) && styles.btnDisabled]}
-                onPress={() => promptGoogleAsync()}
-                disabled={loading || !googleRequest}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.googleBtnText}>Continue with Google</Text>
-              </TouchableOpacity>
-            </>
+          {phase === "phone" && (
+            <GoogleSignInButton
+              loading={loading}
+              onToken={handleGoogleToken}
+              onError={(msg) => Alert.alert("Google Sign-In", msg)}
+            />
           )}
         </View>
 
@@ -496,19 +454,6 @@ const styles = StyleSheet.create({
   // OTP secondary row
   secondaryRow: { flexDirection: "row", justifyContent: "space-between" },
   resendText:   { fontSize: 13, color: palette.inkSoft },
-
-  // Divider
-  dividerRow:  { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  dividerLine: { flex: 1, height: 1, backgroundColor: palette.stroke },
-  dividerText: { fontSize: 12, color: palette.inkSoft, fontWeight: "600" },
-
-  // Google button
-  googleBtn: {
-    backgroundColor: palette.surface, borderRadius: 12,
-    borderWidth: 1.5, borderColor: palette.stroke,
-    alignItems: "center", paddingVertical: 14,
-  },
-  googleBtnText: { color: palette.ink, fontWeight: "700", fontSize: 15 },
 
   // Signup link
   signupLink: { alignItems: "center", paddingVertical: spacing.sm },

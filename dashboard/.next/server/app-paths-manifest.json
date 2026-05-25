@@ -1,17 +1,8 @@
 {
-  "/dashboard/academics/calendar/page": "app/dashboard/academics/calendar/page.js",
-  "/dashboard/academics/timetable/page": "app/dashboard/academics/timetable/page.js",
-  "/dashboard/academics/exams/page": "app/dashboard/academics/exams/page.js",
-  "/dashboard/academics/homework/page": "app/dashboard/academics/homework/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/dashboard/academics/houses/page": "app/dashboard/academics/houses/page.js",
-  "/dashboard/academics/subjects/page": "app/dashboard/academics/subjects/page.js",
-  "/dashboard/live-fleet/page": "app/dashboard/live-fleet/page.js",
-  "/dashboard/academics/years/page": "app/dashboard/academics/years/page.js",
-  "/dashboard/dismissal/page": "app/dashboard/dismissal/page.js",
-  "/dashboard/drivers/page": "app/dashboard/drivers/page.js",
-  "/dashboard/routes/page": "app/dashboard/routes/page.js",
-  "/dashboard/vehicles/page": "app/dashboard/vehicles/page.js",
-  "/dashboard/staff/page": "app/dashboard/staff/page.js",
-  "/dashboard/roles/page": "app/dashboard/roles/page.js"
+  "/dashboard/compliance/page": "app/dashboard/compliance/page.js",
+  "/dashboard/classrooms/page": "app/dashboard/classrooms/page.js",
+  "/dashboard/teachers/page": "app/dashboard/teachers/page.js",
+  "/dashboard/academics/homework/page": "app/dashboard/academics/homework/page.js",
+  "/dashboard/students/page": "app/dashboard/students/page.js"
 }

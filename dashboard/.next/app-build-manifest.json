@@ -1,22 +1,16 @@
 {
   "pages": {
-    "/login/page": [
+    "/dashboard/academics/report-cards/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/login/page.css",
-      "static/chunks/app/login/page.js"
+      "static/css/app/dashboard/academics/report-cards/page.css",
+      "static/chunks/app/dashboard/academics/report-cards/page.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
-    ],
-    "/dashboard/compliance/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/compliance/page.css",
-      "static/chunks/app/dashboard/compliance/page.js"
     ],
     "/dashboard/page": [
       "static/chunks/webpack.js",
@@ -36,10 +30,17 @@
       "static/css/app/dashboard/teachers/page.css",
       "static/chunks/app/dashboard/teachers/page.js"
     ],
-    "/page": [
+    "/dashboard/classrooms/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
+      "static/css/app/dashboard/classrooms/page.css",
+      "static/chunks/app/dashboard/classrooms/page.js"
+    ],
+    "/dashboard/payments/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/payments/page.css",
+      "static/chunks/app/dashboard/payments/page.js"
     ],
     "/dashboard/academics/timetable/page": [
       "static/chunks/webpack.js",
@@ -47,95 +48,17 @@
       "static/css/app/dashboard/academics/timetable/page.css",
       "static/chunks/app/dashboard/academics/timetable/page.js"
     ],
+    "/dashboard/compliance/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/compliance/page.css",
+      "static/chunks/app/dashboard/compliance/page.js"
+    ],
     "/dashboard/academics/homework/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/css/app/dashboard/academics/homework/page.css",
       "static/chunks/app/dashboard/academics/homework/page.js"
-    ],
-    "/dashboard/academics/exams/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/academics/exams/page.css",
-      "static/chunks/app/dashboard/academics/exams/page.js"
-    ],
-    "/dashboard/academics/report-cards/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/academics/report-cards/page.css",
-      "static/chunks/app/dashboard/academics/report-cards/page.js"
-    ],
-    "/dashboard/academics/years/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/academics/years/page.css",
-      "static/chunks/app/dashboard/academics/years/page.js"
-    ],
-    "/dashboard/academics/subjects/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/academics/subjects/page.css",
-      "static/chunks/app/dashboard/academics/subjects/page.js"
-    ],
-    "/dashboard/academics/houses/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/academics/houses/page.css",
-      "static/chunks/app/dashboard/academics/houses/page.js"
-    ],
-    "/dashboard/academics/calendar/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/academics/calendar/page.css",
-      "static/chunks/app/dashboard/academics/calendar/page.js"
-    ],
-    "/dashboard/udise/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/udise/page.css",
-      "static/chunks/app/dashboard/udise/page.js"
-    ],
-    "/dashboard/live-fleet/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/live-fleet/page.css",
-      "static/chunks/app/dashboard/live-fleet/page.js"
-    ],
-    "/dashboard/dismissal/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/dismissal/page.css",
-      "static/chunks/app/dashboard/dismissal/page.js"
-    ],
-    "/dashboard/routes/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/routes/page.css",
-      "static/chunks/app/dashboard/routes/page.js"
-    ],
-    "/dashboard/drivers/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/drivers/page.css",
-      "static/chunks/app/dashboard/drivers/page.js"
-    ],
-    "/dashboard/vehicles/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/vehicles/page.css",
-      "static/chunks/app/dashboard/vehicles/page.js"
-    ],
-    "/dashboard/staff/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/staff/page.css",
-      "static/chunks/app/dashboard/staff/page.js"
-    ],
-    "/dashboard/roles/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/roles/page.css",
-      "static/chunks/app/dashboard/roles/page.js"
     ]
   }
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import styles from "./dashboard.module.css";
 import {
@@ -34,6 +35,7 @@ import {
   Lock,
   Landmark,
   Settings,
+  School,
 } from "lucide-react";
 
 function SchoolAvatar({ name, logoUrl }: { name: string; logoUrl?: string }) {
@@ -89,6 +91,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/dashboard/students",                    icon: GraduationCap, label: "Students" },
       { href: "/dashboard/teachers",                    icon: Users,         label: "Teachers" },
+      { href: "/dashboard/classrooms",                  icon: School,        label: "Classrooms" },
       { href: "/dashboard/academics/timetable",         icon: Clock3,        label: "Timetable" },
       { href: "/dashboard/academics/homework",          icon: PencilLine,    label: "Homework" },
       { href: "/dashboard/academics/exams",             icon: ClipboardList, label: "Exams" },
@@ -145,7 +148,12 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [schoolName, setSchoolName] = useState("");
   const [schoolLogoUrl, setSchoolLogoUrl] = useState("");
@@ -159,65 +167,91 @@ export function Sidebar() {
       .catch(() => {});
   }, []);
 
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    onClose?.();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   const isActive = (href: string) =>
     href === "/dashboard"
       ? pathname === "/dashboard"
       : pathname === href || pathname.startsWith(href + "/");
 
   return (
-    <aside className={styles.sidebar}>
-      {/* Skippo brand mark */}
-      <div className={styles.brandBlock}>
-        <div className={styles.logoRow}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Skippo" className={styles.logoMark} />
-          <div>
-            <div className={styles.brandName}>Skippo</div>
-          </div>
-        </div>
-      </div>
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className={styles.sidebarBackdrop}
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
 
-      {/* School identity */}
-      <div className={styles.schoolBlock}>
-        <SchoolAvatar name={schoolName} logoUrl={schoolLogoUrl || undefined} />
-        <div className={styles.schoolInfo}>
-          <div className={styles.schoolName}>{schoolName || "School"}</div>
-          <div className={styles.schoolRole}>Admin</div>
-        </div>
-        <span className={styles.schoolChevron}>▾</span>
-      </div>
+      <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarMobileOpen : ""}`}>
+        {/* Mobile close button */}
+        <button
+          className={styles.sidebarCloseBtn}
+          onClick={onClose}
+          aria-label="Close menu"
+        >
+          <X size={18} />
+        </button>
 
-      {/* Nav groups */}
-      <nav className={styles.navSection}>
-        {NAV_GROUPS.map((group, gi) => (
-          <div key={group.label}>
-            <p className={styles.navLabel} style={{ marginTop: gi === 0 ? 4 : 16 }}>{group.label}</p>
-            <div className={styles.navList}>
-              {group.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`${styles.navLink} ${isActive(item.href) ? styles.navLinkActive : ""}`}
-                >
-                  <span className={styles.navIcon}><item.icon size={16} /></span>
-                  {item.label}
-                </Link>
-              ))}
+        {/* Skippo brand mark */}
+        <div className={styles.brandBlock}>
+          <div className={styles.logoRow}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="Skippo" className={styles.logoMark} />
+            <div>
+              <div className={styles.brandName}>Skippo</div>
             </div>
           </div>
-        ))}
-      </nav>
-
-      {/* Footer */}
-      <div className={styles.sidebarFooter}>
-        <div className={styles.academicYearPicker}>
-          <div className={styles.academicYearIcon}>🎓</div>
-          <div className={styles.academicYearValue}>
-            {getAcademicYear()}
-          </div>
-          <span style={{ marginLeft: "auto", color: "var(--ink-dim)", fontSize: 12 }}>▾</span>
         </div>
-      </div>
-    </aside>
+
+        {/* School identity */}
+        <div className={styles.schoolBlock}>
+          <SchoolAvatar name={schoolName} logoUrl={schoolLogoUrl || undefined} />
+          <div className={styles.schoolInfo}>
+            <div className={styles.schoolName}>{schoolName || "School"}</div>
+            <div className={styles.schoolRole}>Admin</div>
+          </div>
+          <span className={styles.schoolChevron}>▾</span>
+        </div>
+
+        {/* Nav groups */}
+        <nav className={styles.navSection}>
+          {NAV_GROUPS.map((group, gi) => (
+            <div key={group.label}>
+              <p className={styles.navLabel} style={{ marginTop: gi === 0 ? 4 : 16 }}>{group.label}</p>
+              <div className={styles.navList}>
+                {group.items.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`${styles.navLink} ${isActive(item.href) ? styles.navLinkActive : ""}`}
+                  >
+                    <span className={styles.navIcon}><item.icon size={16} /></span>
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div className={styles.sidebarFooter}>
+          <div className={styles.academicYearPicker}>
+            <div className={styles.academicYearIcon}>🎓</div>
+            <div className={styles.academicYearValue}>
+              {getAcademicYear()}
+            </div>
+            <span style={{ marginLeft: "auto", color: "var(--ink-dim)", fontSize: 12 }}>▾</span>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }

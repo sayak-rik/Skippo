@@ -1500,6 +1500,40 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
+   SIDEBAR MOBILE DRAWER
+═══════════════════════════════════════════════════════════ */
+.sidebarBackdrop {
+  display: none;
+}
+
+.sidebarCloseBtn {
+  display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER MENU BUTTON (hamburger)
+═══════════════════════════════════════════════════════════ */
+.menuBtn {
+  display: none;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  border: 1px solid var(--stroke);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.menuBtn:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* ═══════════════════════════════════════════════════════════
    RESPONSIVE
 ═══════════════════════════════════════════════════════════ */
 @media (max-width: 1280px) {
@@ -1515,9 +1549,124 @@
 }
 
 @media (max-width: 768px) {
+  /* Shell: single column, sidebar overlays */
   .shell { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
+
+  /* Sidebar becomes a fixed left drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100dvh;
+    width: 270px;
+    z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.25, 0.4, 0.25, 1);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+  }
+
+  .sidebarMobileOpen {
+    transform: translateX(0) !important;
+  }
+
+  /* Backdrop */
+  .sidebarBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 299;
+    animation: overlayIn 0.2s ease;
+  }
+
+  /* Close button inside drawer */
+  .sidebarCloseBtn {
+    display: flex;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--stroke);
+    background: var(--surface-raised);
+    color: var(--ink-soft);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .sidebarCloseBtn:hover {
+    background: var(--danger-soft);
+    color: var(--danger);
+    border-color: var(--danger-border);
+  }
+
+  /* Hamburger visible */
+  .menuBtn { display: flex; }
+
+  /* Top bar: tighter on mobile */
+  .topBar {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+
+  /* Hide search text on small screens, keep as icon-only */
+  .searchBar {
+    flex: 1;
+    max-width: none;
+  }
+
+  .searchInput {
+    font-size: 13px;
+    padding: 8px 12px 8px 34px;
+  }
+
+  /* Profile: avatar only, hide text */
+  .profileText { display: none; }
+  .profileChevron { display: none; }
+  .profileBtn {
+    padding: 4px;
+    gap: 0;
+  }
+
+  /* Grids */
   .kpiStrip { grid-template-columns: repeat(2, 1fr); }
   .moduleGrid { grid-template-columns: repeat(2, 1fr); }
   .insightRow { grid-template-columns: 1fr; }
+  .quickActionsGrid { grid-template-columns: repeat(2, 1fr); }
+  .bottomRow { grid-template-columns: 1fr; }
+
+  /* Inner padding */
+  .inner { padding: 16px 14px 40px; }
+
+  /* Welcome banner */
+  .welcomeBanner { flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px 20px; }
+  .welcomeDateChip { align-self: flex-start; }
+}
+
+@media (max-width: 480px) {
+  .kpiStrip { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .moduleGrid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .quickActionsGrid { grid-template-columns: 1fr; }
+  .insightRow { grid-template-columns: 1fr; }
+
+  .topBar { padding: 8px 12px; gap: 8px; }
+
+  /* Make search collapsible on very small screens */
+  .searchBar { max-width: 160px; }
+
+  .inner { padding: 12px 12px 32px; }
+
+  .kpiValue { font-size: 22px; }
+  .greeting { font-size: 20px; }
+
+  /* Notification dropdown full-width on mobile */
+  .notifDropdown {
+    width: calc(100vw - 24px);
+    right: -50px;
+  }
 }
