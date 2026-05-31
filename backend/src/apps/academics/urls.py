@@ -13,6 +13,8 @@ from apps.academics.views import (
     AdminAcademicYearListView,
     AdminAcademicYearSetCurrentView,
     AdminAutoSubstituteView,
+    AdminTeacherAIScheduleApplyView,
+    AdminTeacherAIScheduleView,
     AdminClassroomDetailView,
     AdminClassroomListView,
     AdminExamDetailView,
@@ -48,9 +50,11 @@ from apps.academics.views import (
     AILessonPlanView,
     AITokenStatusView,
     AIVoiceObservationView,
+    AllAssistRequestsView,
     AssistRequestListView,
     ClassBroadcastView,
     ClassRosterView,
+    ClassroomBroadcastView,
     ClassroomListView,
     MarkAttendanceView,
     ParentAcademicsView,
@@ -103,6 +107,13 @@ urlpatterns = [
         name="academics-class-broadcast",
     ),
 
+    # Classroom-level broadcasts (GET history / POST send — for dedicated Broadcast tab)
+    path(
+        "teacher/classrooms/<int:classroom_id>/broadcasts/",
+        ClassroomBroadcastView.as_view(),
+        name="academics-classroom-broadcast",
+    ),
+
     # Assist requests raised by parents
     path(
         "teacher/sessions/<int:class_session_id>/assist-requests/",
@@ -113,6 +124,13 @@ urlpatterns = [
         "teacher/assist-requests/<int:request_id>/resolve/",
         ResolveAssistRequestView.as_view(),
         name="academics-resolve-assist-request",
+    ),
+
+    # All assist requests across all sessions (for dedicated Requests tab)
+    path(
+        "teacher/assist-requests/",
+        AllAssistRequestsView.as_view(),
+        name="academics-all-assist-requests",
     ),
 
     # Parent-facing academics (classroom, timetable, report cards, exam marks)
@@ -129,6 +147,8 @@ urlpatterns = [
     path("admin/classrooms/",                    AdminClassroomListView.as_view(),   name="academics-admin-classrooms"),
     path("admin/classrooms/<int:classroom_id>/", AdminClassroomDetailView.as_view(), name="academics-admin-classroom-detail"),
     path("admin/substitute/suggest/",            AdminAutoSubstituteView.as_view(),  name="academics-admin-substitute-suggest"),
+    path("admin/teachers/<int:teacher_id>/ai-schedule/",        AdminTeacherAIScheduleView.as_view(),      name="academics-admin-teacher-ai-schedule"),
+    path("admin/teachers/<int:teacher_id>/ai-schedule/apply/",  AdminTeacherAIScheduleApplyView.as_view(), name="academics-admin-teacher-ai-schedule-apply"),
     path("admin/students/",                AdminStudentListView.as_view(),    name="academics-admin-students"),
     path("admin/students/new/",            AdminStudentCreateView.as_view(),  name="academics-admin-students-create"),
     path("admin/students/import/",         AdminStudentImportView.as_view(),  name="academics-admin-students-import"),

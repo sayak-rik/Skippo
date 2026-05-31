@@ -1,15 +1,3 @@
-// ---------------------------------------------------------------------------
-// ScheduleScreen – shows the teacher's day schedule and class management tools.
-//
-// Features:
-//   1. Today's schedule with current class pinned to the top.
-//   2. Summary strip: classes today / present so far / unmarked count.
-//   3. First-week setup banner – prompts the teacher to pick their classes when
-//      they have never saved schedule preferences (is_first_week flag from login).
-//   4. Class picker modal – teacher can manually select any classroom when
-//      verbally assigned to a different class outside their schedule.
-// ---------------------------------------------------------------------------
-
 import { useState } from "react";
 import {
   FlatList,
@@ -20,10 +8,8 @@ import {
   View,
 } from "react-native";
 import { Avatar } from "../components/Avatar";
-import { Card } from "../components/Card";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Screen } from "../components/Screen";
-import { SectionTitle } from "../components/SectionTitle";
 import { useClassrooms, useSaveSchedulePreferences } from "../hooks/useTeacherDashboard";
 import { useTeacherDashboard } from "../hooks/useTeacherDashboard";
 import { useTeacherSessionStore } from "../store/session";
@@ -31,29 +17,39 @@ import { palette } from "../theme/palette";
 import { radius, spacing } from "../theme/spacing";
 import { Classroom } from "../types";
 
-// Metadata for each attendance boundary type shown on session cards
-const BOUNDARY_META: Record<string, { label: string; color: string; bg: string }> = {
-  school_entry: { label: "Marks school active",     color: palette.brand,   bg: palette.brandSoft },
-  school_exit:  { label: "Marks school concluded",  color: palette.warning, bg: palette.warningSoft },
-  none:         { label: "Standard attendance",     color: palette.inkSoft, bg: palette.surfaceMuted },
-};
+// ── Subject colour map ────────────────────────────────────────────────────────
+// Each session card picks a colour based on a hash of its title string.
+
+const SUBJECT_COLORS = [
+  { bg: "#fff7ed", accent: "#fb923c", text: "#9a3412" },
+  { bg: "#eff6ff", accent: "#60a5fa", text: "#1e40af" },
+  { bg: "#f0fdf4", accent: "#4ade80", text: "#166534" },
+  { bg: "#fdf4ff", accent: "#c084fc", text: "#7e22ce" },
+  { bg: "#fdf2f8", accent: "#f472b6", text: "#9d174d" },
+  { bg: "#fefce8", accent: "#facc15", text: "#854d0e" },
+  { bg: "#ecfeff", accent: "#22d3ee", text: "#155e75" },
+  { bg: "#f0fdfa", accent: "#2dd4bf", text: "#134e4a" },
+];
+
+function getSubjectColor(title: string) {
+  let h = 0;
+  for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) & 0xffff;
+  return SUBJECT_COLORS[h % SUBJECT_COLORS.length];
+}
 
 // ── ScheduleScreen ────────────────────────────────────────────────────────────
 
 export function ScheduleScreen() {
   const { data, isLoading } = useTeacherDashboard();
-  const teacherName   = useTeacherSessionStore((s) => s.teacherName);
-  const schoolName    = useTeacherSessionStore((s) => s.schoolName);
-  const activeSessionId = useTeacherSessionStore((s) => s.activeSessionId);
-  const selectSession   = useTeacherSessionStore((s) => s.selectSession);
-  const isFirstWeek     = useTeacherSessionStore((s) => s.isFirstWeek);
-  const completeSetup   = useTeacherSessionStore((s) => s.completeFirstWeekSetup);
+  const teacherName       = useTeacherSessionStore((s) => s.teacherName);
+  const schoolName        = useTeacherSessionStore((s) => s.schoolName);
+  const activeSessionId   = useTeacherSessionStore((s) => s.activeSessionId);
+  const selectSession     = useTeacherSessionStore((s) => s.selectSession);
+  const isFirstWeek       = useTeacherSessionStore((s) => s.isFirstWeek);
+  const completeSetup     = useTeacherSessionStore((s) => s.completeFirstWeekSetup);
   const setManualOverride = useTeacherSessionStore((s) => s.setManualClassOverride);
 
-  // ── Class picker state ─────────────────────────────────────────────────
-  const [pickerVisible, setPickerVisible]   = useState(false);
-
-  // ── First-week setup state ─────────────────────────────────────────────
+  const [pickerVisible, setPickerVisible]       = useState(false);
   const [setupVisible, setSetupVisible]         = useState(false);
   const [selectedClassIds, setSelectedClassIds] = useState<number[]>([]);
   const [savingSetup, setSavingSetup]           = useState(false);
@@ -74,22 +70,24 @@ export function ScheduleScreen() {
   const presentCount = data.roster?.filter((s: any) => s.isPresent).length ?? 0;
   const totalCount   = data.roster?.length ?? 0;
 
-  // ── Handlers ──────────────────────────────────────────────────────────
+  // Time-of-day greeting
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  /** Called when the teacher picks a classroom via the class-picker modal. */
+  const dateLabel = new Date().toLocaleDateString("en-IN", {
+    weekday: "long", day: "numeric", month: "long",
+  });
+
   const handlePickClass = (classroom: Classroom) => {
-    // Store the override label so SessionScreen shows the correct classroom name.
     setManualOverride(classroom.label);
     setPickerVisible(false);
   };
 
-  /** Toggle a classroom selection during first-week setup. */
   const toggleClassSelection = (id: number) =>
     setSelectedClassIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
 
-  /** Save the first-week classroom selections to the backend. */
   const handleSaveSetup = async () => {
     if (selectedClassIds.length === 0) return;
     setSavingSetup(true);
@@ -104,43 +102,41 @@ export function ScheduleScreen() {
 
   return (
     <Screen>
-      {/* ── Greeting block ───────────────────────────────────────────────── */}
-      <View style={styles.greeting}>
-        <Avatar name={teacherName} size={44} />
-        <View style={styles.greetingText}>
-          <Text style={styles.greetingName}>{teacherName}</Text>
-          <Text style={styles.greetingSchool}>{schoolName}</Text>
+      {/* ── Header banner (breaks out of padding for full-width effect) ──── */}
+      <View style={styles.headerBanner}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerDateLabel}>{dateLabel.toUpperCase()}</Text>
+          <Text style={styles.headerGreeting}>{greeting},</Text>
+          <Text style={styles.headerName}>{teacherName.split(" ")[0]}</Text>
+          <Text style={styles.headerSchool}>{schoolName}</Text>
+        </View>
+        <Avatar name={teacherName} size={56} style={styles.headerAvatar} />
+      </View>
+
+      {/* ── Stats strip ───────────────────────────────────────────────────── */}
+      <View style={styles.statsRow}>
+        <View style={[styles.statsCard, { backgroundColor: "#eff6ff" }]}>
+          <Text style={[styles.statsValue, { color: "#1e40af" }]}>{data.schedule?.length ?? 0}</Text>
+          <Text style={[styles.statsLabel, { color: "#1e40af" }]}>Classes</Text>
+        </View>
+        <View style={[styles.statsCard, { backgroundColor: "#f0fdf4" }]}>
+          <Text style={[styles.statsValue, { color: "#166534" }]}>{presentCount}</Text>
+          <Text style={[styles.statsLabel, { color: "#166534" }]}>Present</Text>
+        </View>
+        <View style={[styles.statsCard, { backgroundColor: "#fefce8" }]}>
+          <Text style={[styles.statsValue, { color: "#854d0e" }]}>{totalCount - presentCount}</Text>
+          <Text style={[styles.statsLabel, { color: "#854d0e" }]}>Unmarked</Text>
         </View>
       </View>
 
-      {/* ── Today's summary strip ────────────────────────────────────────── */}
-      <View style={styles.summaryRow}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryValue}>{data.schedule?.length ?? 0}</Text>
-          <Text style={styles.summaryLabel}>Classes today</Text>
-        </View>
-        <View style={styles.summaryCard}>
-          <Text style={[styles.summaryValue, { color: palette.success }]}>{presentCount}</Text>
-          <Text style={styles.summaryLabel}>Present so far</Text>
-        </View>
-        <View style={styles.summaryCard}>
-          <Text style={[styles.summaryValue, { color: palette.warning }]}>
-            {totalCount - presentCount}
-          </Text>
-          <Text style={styles.summaryLabel}>Unmarked</Text>
-        </View>
-      </View>
-
-      {/* ── First-week setup banner ──────────────────────────────────────── */}
-      {/* Shown only when the teacher hasn't set schedule preferences yet.   */}
+      {/* ── First-week setup banner ───────────────────────────────────────── */}
       {isFirstWeek && (
         <TouchableOpacity activeOpacity={0.88} onPress={() => setSetupVisible(true)}>
           <View style={styles.firstWeekBanner}>
             <View style={{ flex: 1 }}>
               <Text style={styles.firstWeekTitle}>👋 Set up your weekly schedule</Text>
               <Text style={styles.firstWeekSub}>
-                Select the classes you teach this week. The system will remember
-                these and auto-fill your schedule from next week onwards.
+                Select the classes you teach this week. Skippo will auto-fill your schedule from next week.
               </Text>
             </View>
             <Text style={styles.firstWeekArrow}>→</Text>
@@ -148,70 +144,82 @@ export function ScheduleScreen() {
         </TouchableOpacity>
       )}
 
-      {/* ── Schedule section header + class-picker trigger ───────────────── */}
+      {/* ── Schedule section header ───────────────────────────────────────── */}
       <View style={styles.scheduleHeader}>
         <View>
-          <Text style={styles.scheduleSectionTitle}>Today's Schedule</Text>
-          <Text style={styles.scheduleSectionSub}>Current class is pinned to the top</Text>
+          <Text style={styles.sectionTitle}>Today's Schedule</Text>
+          <Text style={styles.sectionSub}>Tap a session to open attendance</Text>
         </View>
-        {/* Button lets teacher override with a verbally assigned class */}
         <TouchableOpacity style={styles.pickClassBtn} onPress={() => setPickerVisible(true)}>
           <Text style={styles.pickClassBtnText}>+ Pick a class</Text>
         </TouchableOpacity>
       </View>
 
-      {/* ── Session cards ────────────────────────────────────────────────── */}
-      {data.schedule?.map((session: any) => {
-        const meta       = BOUNDARY_META[session.attendanceBoundary] ?? BOUNDARY_META.none;
-        const isSelected = activeSessionId === session.id;
-        return (
-          <TouchableOpacity
-            key={session.id}
-            activeOpacity={0.84}
-            onPress={() => {
-              // Selecting a scheduled session clears any manual override
-              setManualOverride(null);
-              selectSession(session.id);
-            }}
-          >
-            <Card
-              accentColor={session.isCurrent ? palette.brand : undefined}
-              style={[styles.sessionCard, isSelected && styles.sessionCardSelected]}
-            >
-              <View style={styles.sessionHeader}>
-                <View style={styles.sessionLeft}>
-                  <View style={styles.sessionTitleRow}>
-                    <Text style={styles.sessionTitle}>{session.title}</Text>
-                    {session.isCurrent && (
-                      <View style={styles.liveChip}>
-                        <View style={styles.liveDot} />
-                        <Text style={styles.liveText}>Now</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.sessionClassroom}>{session.classroomLabel}</Text>
-                </View>
-                <View style={styles.timeBlock}>
-                  <Text style={styles.timeText}>{session.startsAt}</Text>
-                  <Text style={styles.timeSep}>–</Text>
-                  <Text style={styles.timeText}>{session.endsAt}</Text>
-                </View>
+      {/* ── Timeline sessions ─────────────────────────────────────────────── */}
+      {(data.schedule ?? []).length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyIcon}>📅</Text>
+          <Text style={styles.emptyTitle}>No sessions today</Text>
+          <Text style={styles.emptySub}>Your schedule for today is clear.</Text>
+        </View>
+      ) : (
+        (data.schedule ?? []).map((session: any, index: number) => {
+          const col        = getSubjectColor(session.title);
+          const isSelected = activeSessionId === session.id;
+          const isLast     = index === (data.schedule?.length ?? 0) - 1;
+          return (
+            <View key={session.id} style={styles.timelineRow}>
+              {/* Time marker + connecting line */}
+              <View style={styles.timelineLeft}>
+                <Text style={styles.timelineTime}>{session.startsAt}</Text>
+                <View style={[styles.timelineDot, { backgroundColor: session.isCurrent ? col.accent : palette.strokeStrong }]} />
+                {!isLast && <View style={[styles.timelineConnector, { backgroundColor: col.accent + "30" }]} />}
               </View>
 
-              <View style={styles.sessionFooter}>
-                <View style={[styles.boundaryBadge, { backgroundColor: meta.bg }]}>
-                  <Text style={[styles.boundaryText, { color: meta.color }]}>{meta.label}</Text>
+              {/* Session card */}
+              <TouchableOpacity
+                activeOpacity={0.84}
+                style={[
+                  styles.timelineCard,
+                  { backgroundColor: col.bg, borderColor: isSelected ? col.accent : col.accent + "50" },
+                  isSelected && styles.timelineCardSelected,
+                ]}
+                onPress={() => {
+                  setManualOverride(null);
+                  selectSession(session.id);
+                }}
+              >
+                <View style={styles.timelineCardTop}>
+                  <Text style={[styles.timelineCardSubject, { color: col.text }]} numberOfLines={1}>
+                    {session.title}
+                  </Text>
+                  {session.isCurrent && (
+                    <View style={[styles.liveChip, { backgroundColor: col.accent + "25" }]}>
+                      <View style={[styles.liveDot, { backgroundColor: col.accent }]} />
+                      <Text style={[styles.liveText, { color: col.text }]}>Now</Text>
+                    </View>
+                  )}
                 </View>
-                <Text style={styles.tapHint}>
-                  {isSelected ? "✓ Selected for attendance" : "Tap to open"}
+                <Text style={[styles.timelineCardRoom, { color: col.text + "aa" }]}>
+                  {session.classroomLabel}
                 </Text>
-              </View>
-            </Card>
-          </TouchableOpacity>
-        );
-      })}
+                <View style={styles.timelineCardFooter}>
+                  <View style={[styles.timePill, { backgroundColor: col.accent + "25" }]}>
+                    <Text style={[styles.timePillText, { color: col.text }]}>
+                      {session.startsAt} – {session.endsAt}
+                    </Text>
+                  </View>
+                  {isSelected && (
+                    <Text style={[styles.selectedTag, { color: col.text }]}>✓ Selected</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            </View>
+          );
+        })
+      )}
 
-      {/* ── Class picker modal ───────────────────────────────────────────── */}
+      {/* ── Class picker modal ────────────────────────────────────────────── */}
       <ClassPickerModal
         visible={pickerVisible}
         classrooms={classrooms}
@@ -245,24 +253,17 @@ type ClassPickerProps = {
 function ClassPickerModal({ visible, classrooms, onPick, onClose }: ClassPickerProps) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      {/* Backdrop */}
       <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
-
       <View style={styles.pickerSheet}>
-        {/* Header */}
         <View style={styles.pickerHeader}>
           <View>
             <Text style={styles.pickerTitle}>Pick a Different Class</Text>
-            <Text style={styles.pickerSubtitle}>
-              Overrides your scheduled class for this session.
-            </Text>
+            <Text style={styles.pickerSubtitle}>Overrides your scheduled class for this session.</Text>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.modalClose}>
             <Text style={styles.modalCloseText}>✕</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Classroom list */}
         <FlatList
           data={classrooms}
           keyExtractor={(item) => String(item.id)}
@@ -302,25 +303,19 @@ function FirstWeekSetupModal({
 }: FirstWeekSetupProps) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      {/* Backdrop */}
       <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose} />
-
       <View style={[styles.pickerSheet, { paddingBottom: 40 }]}>
-        {/* Header */}
         <View style={styles.pickerHeader}>
           <View style={{ flex: 1 }}>
             <Text style={styles.pickerTitle}>Your Classes This Week</Text>
             <Text style={styles.pickerSubtitle}>
-              Select every class you teach. Skippo will remember these and
-              auto-populate your schedule from next week onwards.
+              Select every class you teach. Skippo will remember these and auto-populate your schedule.
             </Text>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.modalClose}>
             <Text style={styles.modalCloseText}>✕</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Classroom multi-select list */}
         <FlatList
           data={classrooms}
           keyExtractor={(item) => String(item.id)}
@@ -338,7 +333,6 @@ function FirstWeekSetupModal({
                   <Text style={styles.classroomLabel}>{item.label}</Text>
                   <Text style={styles.classroomSection}>Section {item.section}</Text>
                 </View>
-                {/* Checkmark when selected */}
                 {selected && (
                   <View style={styles.checkmark}>
                     <Text style={styles.checkmarkText}>✓</Text>
@@ -349,8 +343,6 @@ function FirstWeekSetupModal({
           }}
           style={{ maxHeight: 320 }}
         />
-
-        {/* Save action */}
         <View style={styles.setupActions}>
           <Text style={styles.setupCount}>
             {selectedIds.length} class{selectedIds.length !== 1 ? "es" : ""} selected
@@ -376,28 +368,65 @@ const styles = StyleSheet.create({
   loading:     { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80 },
   loadingText: { color: palette.inkSoft, fontSize: 15 },
 
-  // Greeting
-  greeting:       { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  greetingText:   { gap: 2 },
-  greetingName:   { fontSize: 18, fontWeight: "800", color: palette.ink },
-  greetingSchool: { fontSize: 12, color: palette.inkSoft, fontWeight: "500" },
-
-  // Summary strip
-  summaryRow: { flexDirection: "row", gap: spacing.sm },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: palette.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: palette.stroke,
-    padding: spacing.md,
+  // Header banner — negative margins break it out to full width
+  headerBanner: {
+    marginHorizontal: -spacing.md,
+    marginTop: -spacing.md,
+    backgroundColor: palette.brand,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md + 4,
+    paddingBottom: spacing.lg + 8,
+    flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: spacing.md,
+    borderBottomLeftRadius: radius.xl,
+    borderBottomRightRadius: radius.xl,
   },
-  summaryValue: { fontSize: 26, fontWeight: "900", color: palette.ink, letterSpacing: -0.5 },
-  summaryLabel: {
-    fontSize: 10, fontWeight: "600", color: palette.inkSoft,
-    textTransform: "uppercase", letterSpacing: 0.4, textAlign: "center",
+  headerDateLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "rgba(255,255,255,0.65)",
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  headerGreeting: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.8)",
+  },
+  headerName: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: -0.5,
+  },
+  headerSchool: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.6)",
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  headerAvatar: {
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+
+  // Stats strip
+  statsRow: { flexDirection: "row", gap: spacing.sm },
+  statsCard: {
+    flex: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: 2,
+    alignItems: "center",
+  },
+  statsValue: { fontSize: 26, fontWeight: "900", letterSpacing: -0.5 },
+  statsLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    textAlign: "center",
   },
 
   // First-week banner
@@ -406,7 +435,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: palette.brandSoft,
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: palette.brand,
     padding: spacing.md,
     gap: spacing.sm,
@@ -420,49 +449,117 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: spacing.sm,
   },
-  scheduleSectionTitle: { fontSize: 14, fontWeight: "800", color: palette.ink },
-  scheduleSectionSub:   { fontSize: 11, color: palette.inkSoft, marginTop: 1 },
+  sectionTitle: { fontSize: 16, fontWeight: "900", color: palette.ink },
+  sectionSub:   { fontSize: 11, color: palette.inkSoft, marginTop: 1 },
   pickClassBtn: {
     backgroundColor: palette.surfaceMuted,
-    borderRadius: radius.md,
+    borderRadius: radius.full,
     borderWidth: 1,
     borderColor: palette.stroke,
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
   },
-  pickClassBtnText: { fontSize: 13, fontWeight: "700", color: palette.brand },
+  pickClassBtnText: { fontSize: 12, fontWeight: "700", color: palette.brand },
 
-  // Session cards
-  sessionCard:         { paddingLeft: spacing.md + 4 },
-  sessionCardSelected: { borderColor: palette.brand, backgroundColor: "#fafdfb" },
-  sessionHeader:       { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  sessionLeft:         { flex: 1, gap: 3 },
-  sessionTitleRow:     { flexDirection: "row", alignItems: "center", gap: spacing.sm, flexWrap: "wrap" },
-  sessionTitle:        { fontSize: 16, fontWeight: "800", color: palette.ink },
-  liveChip: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: palette.brandSoft,
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.full,
+  // Timeline layout
+  timelineRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    alignItems: "flex-start",
   },
-  liveDot:         { width: 5, height: 5, borderRadius: radius.full, backgroundColor: palette.brand },
-  liveText:        { fontSize: 10, fontWeight: "800", color: palette.brand },
-  sessionClassroom:{ fontSize: 12, color: palette.inkSoft, fontWeight: "500" },
-  timeBlock:       { alignItems: "flex-end", gap: 1 },
-  timeText:        { fontSize: 14, fontWeight: "700", color: palette.ink },
-  timeSep:         { fontSize: 10, color: palette.inkDim },
-  sessionFooter:   { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  boundaryBadge:   { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.full },
-  boundaryText:    { fontSize: 11, fontWeight: "700" },
-  tapHint:         { fontSize: 11, color: palette.inkDim, fontWeight: "500" },
+  timelineLeft: {
+    width: 50,
+    alignItems: "center",
+    paddingTop: 2,
+  },
+  timelineTime: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: palette.inkDim,
+    letterSpacing: 0.3,
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginBottom: 4,
+  },
+  timelineConnector: {
+    width: 2,
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 1,
+  },
+
+  // Session card (right side of timeline)
+  timelineCard: {
+    flex: 1,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    padding: spacing.md,
+    gap: 5,
+    marginBottom: spacing.md,
+  },
+  timelineCardSelected: {
+    borderWidth: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  timelineCardTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  timelineCardSubject: { fontSize: 16, fontWeight: "800", letterSpacing: -0.2, flex: 1 },
+  timelineCardRoom:    { fontSize: 12, fontWeight: "600" },
+  timelineCardFooter:  { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 2 },
+  timePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.full,
+    alignSelf: "flex-start",
+  },
+  timePillText: { fontSize: 11, fontWeight: "700" },
+  selectedTag:  { fontSize: 11, fontWeight: "800" },
+  liveChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+  },
+  liveDot:  { width: 5, height: 5, borderRadius: radius.full },
+  liveText: { fontSize: 10, fontWeight: "800" },
+
+  // Empty state
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: spacing.xl,
+    gap: spacing.sm,
+    backgroundColor: palette.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: palette.stroke,
+    padding: spacing.lg,
+  },
+  emptyIcon:  { fontSize: 40 },
+  emptyTitle: { fontSize: 16, fontWeight: "800", color: palette.ink },
+  emptySub:   { fontSize: 13, color: palette.inkSoft, textAlign: "center" },
 
   // Modal shared
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.4)" },
   modalClose:    { padding: spacing.xs },
   modalCloseText:{ fontSize: 16, color: palette.inkSoft, fontWeight: "700" },
 
-  // Class picker / first-week setup sheet
+  // Bottom sheet
   pickerSheet: {
     position: "absolute",
     bottom: 0, left: 0, right: 0,
@@ -472,11 +569,11 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
-  pickerHeader:    { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  pickerTitle:     { fontSize: 17, fontWeight: "800", color: palette.ink },
-  pickerSubtitle:  { fontSize: 12, color: palette.inkSoft, marginTop: 2 },
+  pickerHeader:   { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  pickerTitle:    { fontSize: 17, fontWeight: "800", color: palette.ink },
+  pickerSubtitle: { fontSize: 12, color: palette.inkSoft, marginTop: 2 },
 
-  // Classroom row inside pickers
+  // Classroom rows in pickers
   classroomRow: {
     flexDirection: "row", alignItems: "center", gap: spacing.md,
     paddingVertical: spacing.md,
@@ -489,18 +586,13 @@ const styles = StyleSheet.create({
   },
   classroomAvatarSelected: { backgroundColor: palette.brand, borderColor: palette.brand },
   classroomAvatarText: { fontSize: 12, fontWeight: "800", color: palette.ink },
-  classroomMeta:       { flex: 1 },
-  classroomLabel:      { fontSize: 15, fontWeight: "700", color: palette.ink },
-  classroomSection:    { fontSize: 12, color: palette.inkSoft, marginTop: 1 },
-  classroomArrow:      { fontSize: 16, color: palette.inkSoft },
-
-  // Checkmark for selected classrooms in first-week setup
-  checkmark:     { width: 24, height: 24, borderRadius: 12, backgroundColor: palette.success, alignItems: "center", justifyContent: "center" },
-  checkmarkText: { fontSize: 12, fontWeight: "900", color: "#fff" },
-
-  separator: { height: 1, backgroundColor: palette.stroke },
-
-  // First-week setup save actions
-  setupActions: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingTop: spacing.sm },
-  setupCount:   { fontSize: 13, fontWeight: "700", color: palette.inkSoft },
+  classroomMeta:   { flex: 1 },
+  classroomLabel:  { fontSize: 15, fontWeight: "700", color: palette.ink },
+  classroomSection:{ fontSize: 12, color: palette.inkSoft, marginTop: 1 },
+  classroomArrow:  { fontSize: 16, color: palette.inkSoft },
+  checkmark:       { width: 24, height: 24, borderRadius: 12, backgroundColor: palette.success, alignItems: "center", justifyContent: "center" },
+  checkmarkText:   { fontSize: 12, fontWeight: "900", color: "#fff" },
+  separator:       { height: 1, backgroundColor: palette.stroke },
+  setupActions:    { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingTop: spacing.sm },
+  setupCount:      { fontSize: 13, fontWeight: "700", color: palette.inkSoft },
 });

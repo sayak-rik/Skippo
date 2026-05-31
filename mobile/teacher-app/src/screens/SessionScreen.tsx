@@ -37,6 +37,25 @@ import { palette } from "../theme/palette";
 import { radius, spacing } from "../theme/spacing";
 import { AssistRequest, RosterStudent } from "../types";
 
+// ── Subject colour map (matches ScheduleScreen) ───────────────────────────────
+
+const SUBJECT_COLORS = [
+  { bg: "#fff7ed", accent: "#fb923c", text: "#9a3412" },
+  { bg: "#eff6ff", accent: "#60a5fa", text: "#1e40af" },
+  { bg: "#f0fdf4", accent: "#4ade80", text: "#166534" },
+  { bg: "#fdf4ff", accent: "#c084fc", text: "#7e22ce" },
+  { bg: "#fdf2f8", accent: "#f472b6", text: "#9d174d" },
+  { bg: "#fefce8", accent: "#facc15", text: "#854d0e" },
+  { bg: "#ecfeff", accent: "#22d3ee", text: "#155e75" },
+  { bg: "#f0fdfa", accent: "#2dd4bf", text: "#134e4a" },
+];
+
+function getSubjectColor(title: string) {
+  let h = 0;
+  for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) & 0xffff;
+  return SUBJECT_COLORS[h % SUBJECT_COLORS.length];
+}
+
 // ── Progress note categories ──────────────────────────────────────────────────
 
 const PROGRESS_CATEGORIES = [
@@ -163,23 +182,27 @@ export function SessionScreen() {
 
   // ── Render the classroom label: manual override takes priority ─────────
   const displayLabel = manualOverride ?? selectedSession.classroomLabel;
+  const col = getSubjectColor(selectedSession.title);
 
   return (
     <Screen>
-      {/* ── Session header card ─────────────────────────────────────────── */}
-      <Card accentColor={palette.brand}>
+      {/* ── Session header banner ───────────────────────────────────────── */}
+      <View style={[styles.sessionBanner, { backgroundColor: col.bg, borderColor: col.accent + "50" }]}>
+        {/* Thick coloured left accent strip */}
+        <View style={[styles.sessionBannerAccent, { backgroundColor: col.accent }]} />
+
         {/* Title row */}
         <View style={styles.sessionInfo}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.sessionTitle}>{selectedSession.title}</Text>
-            <Text style={styles.sessionMeta}>
+            <Text style={[styles.sessionTitle, { color: col.text }]}>{selectedSession.title}</Text>
+            <Text style={[styles.sessionMeta, { color: col.text + "aa" }]}>
               {displayLabel} · {selectedSession.startsAt}–{selectedSession.endsAt}
             </Text>
           </View>
           {selectedSession.isCurrent && (
-            <View style={styles.nowBadge}>
-              <View style={styles.nowDot} />
-              <Text style={styles.nowText}>Live</Text>
+            <View style={[styles.nowBadge, { backgroundColor: col.accent + "25" }]}>
+              <View style={[styles.nowDot, { backgroundColor: col.accent }]} />
+              <Text style={[styles.nowText, { color: col.text }]}>Live</Text>
             </View>
           )}
         </View>
@@ -187,11 +210,11 @@ export function SessionScreen() {
         {/* Attendance progress bar */}
         <View>
           <View style={styles.progressHeader}>
-            <Text style={styles.progressLabel}>Attendance progress</Text>
-            <Text style={styles.progressPct}>{progressPct}%</Text>
+            <Text style={[styles.progressLabel, { color: col.text + "99" }]}>Attendance progress</Text>
+            <Text style={[styles.progressPct, { color: col.text }]}>{progressPct}%</Text>
           </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progressPct}%` as any }]} />
+          <View style={[styles.progressTrack, { backgroundColor: col.accent + "25" }]}>
+            <View style={[styles.progressFill, { width: `${progressPct}%` as any, backgroundColor: col.accent }]} />
           </View>
           <View style={styles.progressStats}>
             <Text style={[styles.stat, { color: palette.success }]}>✓ {presentIds.length} present</Text>
@@ -200,18 +223,18 @@ export function SessionScreen() {
           </View>
         </View>
 
-        {/* Broadcast button – sends a message to all parents in this class */}
+        {/* Broadcast button */}
         <TouchableOpacity
-          style={styles.broadcastBtn}
+          style={[styles.broadcastBtn, { backgroundColor: col.accent + "20", borderColor: col.accent + "40" }]}
           activeOpacity={0.8}
           onPress={() => setBroadcastVisible(true)}
         >
-          <Text style={styles.broadcastBtnText}>📢 Broadcast to class</Text>
+          <Text style={[styles.broadcastBtnText, { color: col.text }]}>📢 Broadcast to class</Text>
           {broadcasts.length > 0 && (
-            <Text style={styles.broadcastCount}>{broadcasts.length} sent today</Text>
+            <Text style={[styles.broadcastCount, { color: col.text + "99" }]}>{broadcasts.length} sent today</Text>
           )}
         </TouchableOpacity>
-      </Card>
+      </View>
 
       {/* ── Unmarked students ────────────────────────────────────────────── */}
       {unmarked.length > 0 && (
@@ -583,38 +606,50 @@ const styles = StyleSheet.create({
   loading:     { flex: 1, alignItems: "center", justifyContent: "center", paddingTop: 80 },
   loadingText: { color: palette.inkSoft, fontSize: 15, textAlign: "center" },
 
-  // Session header
-  sessionInfo:    { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  sessionTitle:   { fontSize: 18, fontWeight: "800", color: palette.ink },
-  sessionMeta:    { fontSize: 12, color: palette.inkSoft, marginTop: 2 },
-  nowBadge:       { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: palette.brandSoft, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.full },
-  nowDot:         { width: 6, height: 6, borderRadius: 3, backgroundColor: palette.brand },
-  nowText:        { fontSize: 11, fontWeight: "800", color: palette.brand },
+  // Session header banner
+  sessionBanner: {
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    padding: spacing.md,
+    gap: spacing.md,
+    overflow: "hidden",
+  },
+  sessionBannerAccent: {
+    position: "absolute",
+    top: 0, left: 0, bottom: 0,
+    width: 5,
+    borderTopLeftRadius: radius.lg,
+    borderBottomLeftRadius: radius.lg,
+  },
+  sessionInfo:    { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingLeft: 8 },
+  sessionTitle:   { fontSize: 20, fontWeight: "900", letterSpacing: -0.3 },
+  sessionMeta:    { fontSize: 12, marginTop: 2, fontWeight: "500" },
+  nowBadge:       { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.full },
+  nowDot:         { width: 6, height: 6, borderRadius: 3 },
+  nowText:        { fontSize: 11, fontWeight: "800" },
 
   // Progress bar
-  progressHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  progressLabel:  { fontSize: 11, fontWeight: "600", color: palette.inkSoft, textTransform: "uppercase", letterSpacing: 0.4 },
-  progressPct:    { fontSize: 11, fontWeight: "800", color: palette.brand },
-  progressTrack:  { height: 6, backgroundColor: palette.surfaceMuted, borderRadius: radius.full, overflow: "hidden" },
-  progressFill:   { height: "100%", backgroundColor: palette.brand, borderRadius: radius.full, minWidth: 4 },
-  progressStats:  { flexDirection: "row", gap: spacing.md, marginTop: 6 },
+  progressHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6, paddingLeft: 8 },
+  progressLabel:  { fontSize: 11, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.4 },
+  progressPct:    { fontSize: 11, fontWeight: "900" },
+  progressTrack:  { height: 7, borderRadius: radius.full, overflow: "hidden" },
+  progressFill:   { height: "100%", borderRadius: radius.full, minWidth: 4 },
+  progressStats:  { flexDirection: "row", gap: spacing.md, marginTop: 6, paddingLeft: 8 },
   stat:           { fontSize: 12, fontWeight: "700" },
 
-  // Broadcast button (inside the session header card)
+  // Broadcast button (inside the banner)
   broadcastBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    backgroundColor: palette.surfaceMuted,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: palette.stroke,
+    marginLeft: 8,
   },
-  broadcastBtnText:  { fontSize: 13, fontWeight: "700", color: palette.ink },
-  broadcastCount:    { fontSize: 11, color: palette.inkSoft, fontWeight: "500" },
+  broadcastBtnText:  { fontSize: 13, fontWeight: "700" },
+  broadcastCount:    { fontSize: 11, fontWeight: "500" },
 
   // Broadcast modal
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.4)" },

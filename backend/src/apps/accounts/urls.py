@@ -21,6 +21,8 @@ from apps.accounts.views import (
     AdminRoleListView,
     AdminSubstituteAssignView,
     AdminTeacherDetailView,
+    AdminTeacherInviteListView,
+    AdminTeacherInviteRevokeView,
     AdminTeacherLeaveDetailView,
     AdminTeacherLeaveListView,
     AdminTeacherListView,
@@ -115,9 +117,11 @@ urlpatterns = [
     path("password/reset-confirm/", PasswordResetConfirmView.as_view(), name="accounts-password-reset-confirm"),
 
     # Admin teacher management
-    path("admin/teachers/",                                          AdminTeacherListView.as_view(),       name="accounts-admin-teachers"),
-    path("admin/teachers/invite/",                                   CreateTeacherInviteView.as_view(),    name="accounts-admin-teacher-invite"),
-    path("admin/teachers/<int:teacher_id>/",                         AdminTeacherDetailView.as_view(),     name="auth-admin-teacher-detail"),
+    path("admin/teachers/",                                          AdminTeacherListView.as_view(),          name="accounts-admin-teachers"),
+    path("admin/teachers/invite/",                                   CreateTeacherInviteView.as_view(),       name="accounts-admin-teacher-invite"),
+    path("admin/teachers/invitations/",                              AdminTeacherInviteListView.as_view(),    name="accounts-admin-teacher-invitations"),
+    path("admin/teachers/invitations/<int:invite_id>/",              AdminTeacherInviteRevokeView.as_view(),  name="accounts-admin-teacher-invite-revoke"),
+    path("admin/teachers/<int:teacher_id>/",                         AdminTeacherDetailView.as_view(),        name="auth-admin-teacher-detail"),
     path("admin/teachers/<int:teacher_id>/leaves/",                  AdminTeacherLeaveListView.as_view(),  name="auth-admin-teacher-leaves"),
     path("admin/teachers/<int:teacher_id>/leaves/<int:leave_id>/",   AdminTeacherLeaveDetailView.as_view(), name="auth-admin-teacher-leave-detail"),
     path("admin/leaves/action-items/",                               AdminLeaveActionItemsView.as_view(),  name="auth-admin-leave-action-items"),

@@ -393,6 +393,160 @@ class ResolveAssistRequestView(APIView):
         return Response({"id": req.id, "status": req.status, "reply": req.teacher_reply})
 
 
+# ── Classroom-level broadcasts (for the dedicated Broadcast tab) ───────────────
+
+class ClassroomBroadcastView(APIView):
+    """GET broadcast history / POST a new broadcast for a classroom (not session-scoped).
+
+    The dedicated Broadcast tab in the teacher app lets teachers pick any classroom
+    and send or review broadcasts independent of the current session.
+
+    GET  /api/academics/teacher/classrooms/<classroom_id>/broadcasts/
+    POST /api/academics/teacher/classrooms/<classroom_id>/broadcasts/
+         body: { message }
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def _get_classroom(self, classroom_id: int):
+        return Classroom.objects.select_related("school").filter(id=classroom_id).first()
+
+    def get(self, request, classroom_id: int):
+        from apps.academics.models import ClassBroadcast
+
+        classroom = self._get_classroom(classroom_id)
+        if not classroom:
+            return Response({"detail": "Classroom not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        broadcasts = (
+            ClassBroadcast.objects
+            .filter(classroom=classroom)
+            .select_related("teacher__user")
+            .order_by("-created_at")[:50]
+        )
+        results = [
+            {
+                "id": b.id,
+                "session_id": b.session_id,
+                "classroom_label": f"{classroom.name}{'-' + classroom.section if classroom.section else ''}",
+                "message": b.message,
+                "sent_at": b.created_at.isoformat(),
+            }
+            for b in broadcasts
+        ]
+        return Response({"results": results})
+
+    def post(self, request, classroom_id: int):
+        from apps.academics.models import ClassBroadcast, ClassSession
+
+        classroom = self._get_classroom(classroom_id)
+        if not classroom:
+            return Response({"detail": "Classroom not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        message = (request.data.get("message") or "").strip()
+        if not message:
+            return Response({"detail": "message is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Resolve teacher profile from JWT (or fallback for AllowAny dev mode)
+        teacher = None
+        if request.user and request.user.is_authenticated:
+            from apps.accounts.models import TeacherProfile
+            try:
+                teacher = TeacherProfile.objects.get(user=request.user)
+            except TeacherProfile.DoesNotExist:
+                pass
+
+        # Use the most recent active session for this classroom as the FK (nullable is fine)
+        latest_session = (
+            ClassSession.objects
+            .filter(classroom=classroom)
+            .order_by("-date", "-created_at")
+            .first()
+        )
+
+        broadcast = ClassBroadcast.objects.create(
+            school=classroom.school,
+            session=latest_session,
+            classroom=classroom,
+            teacher=teacher,
+            message=message,
+        )
+
+        # Fan-out push/SMS to parents of students in this classroom
+        from common.sms import send_sms
+        for student in Student.objects.filter(classroom=classroom):
+            for link in (
+                StudentParentLink.objects
+                .filter(student=student, is_primary=True)
+                .select_related("parent")
+            ):
+                if link.parent.phone:
+                    send_sms(
+                        to=link.parent.phone,
+                        message=f"Skippo message from your child's class: {message[:120]}",
+                    )
+
+        classroom_label = f"{classroom.name}{'-' + classroom.section if classroom.section else ''}"
+        return Response(
+            {
+                "id": broadcast.id,
+                "session_id": broadcast.session_id,
+                "classroom_label": classroom_label,
+                "message": broadcast.message,
+                "sent_at": broadcast.created_at.isoformat(),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# ── All assist requests for the teacher (for the dedicated Requests tab) ───────
+
+class AllAssistRequestsView(APIView):
+    """Return all assist requests relevant to the requesting teacher — both
+    pending and resolved — sorted by time raised (most recent first).
+
+    GET /api/academics/teacher/assist-requests/
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from apps.academics.models import AssistRequest, ClassSession
+        from apps.accounts.models import TeacherProfile
+
+        teacher = None
+        if request.user and request.user.is_authenticated:
+            try:
+                teacher = TeacherProfile.objects.get(user=request.user)
+            except TeacherProfile.DoesNotExist:
+                pass
+
+        qs = AssistRequest.objects.select_related("student", "session", "classroom")
+        if teacher:
+            # Scoped to sessions owned by this teacher, or classrooms they teach
+            qs = qs.filter(session__teacher=teacher)
+        else:
+            qs = qs.none()
+
+        qs = qs.order_by("-created_at")[:100]
+
+        results = [
+            {
+                "id": r.id,
+                "student_id": r.student.id,
+                "student_name": r.student.full_name,
+                "session_id": r.session_id,
+                "question": r.question,
+                "status": r.status,
+                "teacher_reply": r.teacher_reply,
+                "raised_at": r.created_at.isoformat(),
+                "resolved_at": r.resolved_at.isoformat() if r.resolved_at else None,
+            }
+            for r in qs
+        ]
+        return Response({"results": results})
+
+
 # ── Class picker ──────────────────────────────────────────────────────────────
 
 class ClassroomListView(APIView):
@@ -2112,6 +2266,167 @@ class AdminTimetableSlotBulkView(APIView):
             pass
 
         return Response(TimetableSlotSerializer(created, many=True).data, status=201)
+
+
+# ── Admin: AI Schedule Assignment ────────────────────────────────────────────
+
+class AdminTeacherAIScheduleView(APIView):
+    """Generate an AI-suggested weekly schedule for a teacher across school timetables.
+
+    POST /api/academics/admin/teachers/<teacher_id>/ai-schedule/
+    Body: {} (optional: {"max_periods": 25})
+
+    Returns a preview of suggested slot assignments. Does NOT apply them yet.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, teacher_id):
+        import json as _json
+        from apps.accounts.models import TeacherProfile
+        from apps.academics.models import Timetable, TimetableSlot
+        from integrations.gemini import ask_gemini
+
+        try:
+            school = _school(request)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=404)
+
+        try:
+            teacher = TeacherProfile.objects.select_related("user").get(
+                id=teacher_id, school=school, is_active=True
+            )
+        except TeacherProfile.DoesNotExist:
+            return Response({"detail": "Teacher not found."}, status=404)
+
+        teacher_name = teacher.user.get_full_name() or teacher.user.email
+        max_periods = int(request.data.get("max_periods", 25))
+
+        timetables = Timetable.objects.filter(school=school, is_active=True).select_related("classroom")
+        if not timetables.exists():
+            return Response({"detail": "No active timetables found. Create timetables first."}, status=400)
+
+        all_slots = []
+        for timetable in timetables:
+            classroom = timetable.classroom
+            cls_label = classroom.name + (f"-{classroom.section}" if classroom.section else "")
+            slots = TimetableSlot.objects.filter(
+                timetable=timetable, slot_type="regular"
+            ).select_related("subject", "teacher__user")
+            for slot in slots:
+                all_slots.append({
+                    "slot_id": slot.id,
+                    "timetable_id": timetable.id,
+                    "classroom": cls_label,
+                    "classroom_id": classroom.id,
+                    "weekday": slot.weekday,
+                    "period_number": slot.period_number,
+                    "starts_at": slot.starts_at.strftime("%H:%M"),
+                    "ends_at": slot.ends_at.strftime("%H:%M"),
+                    "subject_id": slot.subject_id,
+                    "subject": slot.subject.name if slot.subject else "Free",
+                    "current_teacher": slot.teacher.user.get_full_name() if slot.teacher and slot.teacher.user else None,
+                    "current_teacher_id": slot.teacher_id,
+                })
+
+        if not all_slots:
+            return Response({"detail": "No regular timetable slots found."}, status=400)
+
+        weekday_names = {1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
+        slots_summary = "\n".join(
+            f"SlotID={s['slot_id']} {weekday_names.get(s['weekday'], '?')} P{s['period_number']} "
+            f"{s['starts_at']}-{s['ends_at']} [{s['classroom']}] {s['subject']} "
+            f"(assigned: {s['current_teacher'] or 'none'})"
+            for s in all_slots[:80]
+        )
+
+        system = (
+            "You are a school timetable scheduling assistant. "
+            f"Assign exactly {max_periods} period slots to the given teacher for a balanced weekly schedule. "
+            "Distribute periods across Mon-Fri. Prefer grouping same-classroom slots. "
+            "You may pick slots currently assigned to other teachers. "
+            "Respond ONLY with valid JSON (no markdown, no explanation): "
+            "{\"assignments\": [{\"slot_id\": <int>}, ...]}"
+        )
+        user = (
+            f"Teacher: {teacher_name} (ID: {teacher_id})\n"
+            f"Target periods per week: {max_periods}\n\n"
+            f"Available slots:\n{slots_summary}\n\n"
+            f"Pick {max_periods} slots for {teacher_name}."
+        )
+
+        try:
+            raw = asyncio.run(ask_gemini(system=system, user=user, temperature=0.3))
+            raw = raw.strip().strip("`").strip()
+            if raw.startswith("json"):
+                raw = raw[4:].strip()
+            parsed = _json.loads(raw)
+            suggested_ids = set(int(a["slot_id"]) for a in parsed.get("assignments", []))
+        except Exception as exc:
+            log.warning("AI schedule generation failed: %s", exc)
+            unassigned = [s for s in all_slots if s["current_teacher_id"] is None]
+            fallback = unassigned[:max_periods] if unassigned else all_slots[:max_periods]
+            suggested_ids = set(s["slot_id"] for s in fallback)
+
+        suggested = sorted(
+            [s for s in all_slots if s["slot_id"] in suggested_ids],
+            key=lambda s: (s["weekday"], s["period_number"]),
+        )
+
+        return Response({
+            "teacher_id": teacher_id,
+            "teacher_name": teacher_name,
+            "suggested_assignments": suggested,
+            "total_periods": len(suggested),
+        })
+
+
+class AdminTeacherAIScheduleApplyView(APIView):
+    """Apply a set of slot assignments for a teacher, overwriting their existing schedule.
+
+    POST /api/academics/admin/teachers/<teacher_id>/ai-schedule/apply/
+    Body: {"slot_ids": [1, 2, 3, ...]}
+
+    Removes the teacher from all their current slots, then assigns them to the given slots.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, teacher_id):
+        from apps.accounts.models import TeacherProfile
+        from apps.academics.models import TimetableSlot
+
+        try:
+            school = _school(request)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=404)
+
+        try:
+            teacher = TeacherProfile.objects.select_related("user").get(
+                id=teacher_id, school=school, is_active=True
+            )
+        except TeacherProfile.DoesNotExist:
+            return Response({"detail": "Teacher not found."}, status=404)
+
+        slot_ids = request.data.get("slot_ids", [])
+        if not isinstance(slot_ids, list) or not slot_ids:
+            return Response({"detail": "slot_ids must be a non-empty list."}, status=400)
+
+        valid_slots = TimetableSlot.objects.filter(id__in=slot_ids, school=school)
+        if valid_slots.count() != len(slot_ids):
+            return Response({"detail": "Some slot IDs are invalid or do not belong to this school."}, status=400)
+
+        # Clear teacher from all their current slots first
+        TimetableSlot.objects.filter(school=school, teacher=teacher).update(teacher=None)
+
+        # Assign the teacher to the new slots
+        valid_slots.update(teacher=teacher)
+
+        teacher_name = teacher.user.get_full_name() or teacher.user.email
+        return Response({
+            "detail": f"Schedule applied. {len(slot_ids)} slots assigned to {teacher_name}.",
+            "assigned_count": len(slot_ids),
+        })
 
 
 # ── Admin: Homework ───────────────────────────────────────────────────────────

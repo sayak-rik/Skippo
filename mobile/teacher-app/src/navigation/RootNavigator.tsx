@@ -15,6 +15,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StyleSheet, Text, View } from "react-native";
 
 import { AIAssistantScreen } from "../screens/AIAssistantScreen";
+import { AssistRequestsScreen } from "../screens/AssistRequestsScreen";
+import { BroadcastScreen } from "../screens/BroadcastScreen";
 import { InviteSignupScreen } from "../screens/InviteSignupScreen";
 import { LoginScreen } from "../screens/LoginScreen";
 import { ParentSummaryScreen } from "../screens/ParentSummaryScreen";
@@ -29,10 +31,12 @@ const Tab   = createBottomTabNavigator();
 
 // Bottom tab configuration
 const TABS = [
-  { name: "Schedule",  component: ScheduleScreen,      icon: "📅", label: "Schedule"  },
-  { name: "Class",     component: SessionScreen,        icon: "✏️", label: "Attendance" },
-  { name: "Reports",   component: ParentSummaryScreen,  icon: "📊", label: "Reports"   },
-  { name: "AI",        component: AIAssistantScreen,   icon: "✨", label: "AI"         },
+  { name: "Schedule",  component: ScheduleScreen,        icon: "📅", label: "Schedule"  },
+  { name: "Class",     component: SessionScreen,          icon: "✏️", label: "Attendance" },
+  { name: "Broadcast", component: BroadcastScreen,        icon: "📢", label: "Broadcast"  },
+  { name: "Assist",    component: AssistRequestsScreen,   icon: "🙋", label: "Requests"   },
+  { name: "Reports",   component: ParentSummaryScreen,    icon: "📊", label: "Reports"   },
+  { name: "AI",        component: AIAssistantScreen,      icon: "✨", label: "AI"         },
 ];
 
 // ── TabIcon ───────────────────────────────────────────────────────────────────
@@ -118,8 +122,8 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 5,
     borderRadius: radius.md,
     gap: 2,
   },

@@ -175,9 +175,9 @@ class AcceptInviteView(APIView):
         name = request.data.get("name", "").strip()
         phone = request.data.get("phone", "").strip()
 
-        if not token or not name or not phone:
+        if not token:
             return Response(
-                {"detail": "token, name, and phone are all required."},
+                {"detail": "token is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -192,17 +192,54 @@ class AcceptInviteView(APIView):
                 {"detail": "Invite not found or already used."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        first, *rest = name.split(" ", 1)
-        user = User.objects.create_user(
-            username=f"teacher_{secrets.token_hex(4)}",
-            first_name=first,
-            last_name=rest[0] if rest else "",
-            email=invite.email,
-            password=secrets.token_urlsafe(16),
-        )
-        user.phone = phone
-        user.save()
-        TeacherProfile.objects.create(school=invite.school, user=user)
+
+        # Reuse an existing PlatformUser if this email is already registered.
+        # This covers returning teachers who were removed from one school and are
+        # now joining another — they keep their existing account config.
+        existing_user = User.objects.filter(email__iexact=invite.email).first()
+        if existing_user:
+            user = existing_user
+            # Update name/phone if the teacher provided new values.
+            if name:
+                first, *rest = name.split(" ", 1)
+                user.first_name = first
+                user.last_name = rest[0] if rest else ""
+            if phone:
+                user.phone = phone
+            if not user.is_active:
+                user.is_active = True
+            user.save()
+
+            # Reactivate an existing (soft-deleted) profile at this school,
+            # or create a fresh profile if this is a genuinely new school.
+            existing_profile = TeacherProfile.objects.filter(
+                user=user, school=invite.school
+            ).first()
+            if existing_profile:
+                if not existing_profile.is_active:
+                    existing_profile.is_active = True
+                    existing_profile.save(update_fields=["is_active"])
+            else:
+                TeacherProfile.objects.create(school=invite.school, user=user)
+        else:
+            # Brand-new teacher — name and phone are required.
+            if not name or not phone:
+                return Response(
+                    {"detail": "name and phone are required for new accounts."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            first, *rest = name.split(" ", 1)
+            user = User.objects.create_user(
+                username=f"teacher_{secrets.token_hex(4)}",
+                first_name=first,
+                last_name=rest[0] if rest else "",
+                email=invite.email,
+                password=secrets.token_urlsafe(16),
+            )
+            user.phone = phone
+            user.save()
+            TeacherProfile.objects.create(school=invite.school, user=user)
+
         invite.is_used = True
         invite.used_at = timezone.now()
         invite.save()
@@ -376,7 +413,7 @@ class OTPRequestView(APIView):
             else:
                 fallback_email = profile.user.email or None
         elif role == "teacher":
-            profile = TeacherProfile.objects.filter(school=school, user__phone=contact).select_related("user").first()
+            profile = TeacherProfile.objects.filter(school=school, user__phone=contact, is_active=True).select_related("user").first()
             if profile is None:
                 return Response(
                     {"detail": "No account found for this contact at the given school."},
@@ -548,7 +585,7 @@ class OTPVerifyView(APIView):
         elif role == "teacher":
             profile = (
                 TeacherProfile.objects
-                .filter(school=school, user__phone=contact)
+                .filter(school=school, user__phone=contact, is_active=True)
                 .select_related("user")
                 .first()
             )
@@ -1452,7 +1489,7 @@ class TeacherPhoneLookupView(APIView):
 
         profile = (
             TeacherProfile.objects
-            .filter(user__phone=phone)
+            .filter(user__phone=phone, is_active=True)
             .select_related("user", "school")
             .first()
         )
@@ -1517,11 +1554,11 @@ class TeacherGoogleAuthView(APIView):
         except TeacherProfile.DoesNotExist:
             pass
 
-        # Case B — email matches an existing teacher, link Google now
+        # Case B — email matches an existing active teacher, link Google now
         if email:
             profile = (
                 TeacherProfile.objects
-                .filter(user__email__iexact=email)
+                .filter(user__email__iexact=email, is_active=True)
                 .select_related("user", "school")
                 .first()
             )
@@ -1942,7 +1979,7 @@ class AdminTeacherListView(APIView):
             return Response({"detail": "School not found."}, status=404)
 
         today = date.today()
-        profiles = TeacherProfile.objects.filter(school=school).select_related("user")
+        profiles = TeacherProfile.objects.filter(school=school, is_active=True).select_related("user")
 
         results = []
         for profile in profiles:
@@ -2021,6 +2058,62 @@ class CreateTeacherInviteView(APIView):
 
         signup_url = f"https://app.skippo.co.in/teacher/signup?token={token}"
         return Response({"id": invitation.id, "signup_url": signup_url, "email": email}, status=201)
+
+
+class AdminTeacherInviteListView(APIView):
+    """List unused teacher invitations for the school.
+
+    GET /api/auth/admin/teachers/invitations/
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=404)
+
+        now = timezone.now()
+        invites = TeacherInvitation.objects.filter(school=school, is_used=False).order_by("-created_at")
+        results = []
+        for inv in invites:
+            results.append({
+                "id": inv.id,
+                "email": inv.email,
+                "created_at": inv.created_at.isoformat(),
+                "expires_at": inv.expires_at.isoformat(),
+                "is_expired": inv.expires_at < now,
+                "signup_url": f"https://app.skippo.co.in/teacher/signup?token={inv.token}",
+            })
+        return Response(results)
+
+
+class AdminTeacherInviteRevokeView(APIView):
+    """Revoke (delete) a pending teacher invitation.
+
+    DELETE /api/auth/admin/teachers/invitations/<int:invite_id>/
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, invite_id):
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=404)
+
+        try:
+            invite = TeacherInvitation.objects.get(id=invite_id, school=school, is_used=False)
+        except TeacherInvitation.DoesNotExist:
+            return Response({"detail": "Invitation not found or already used."}, status=404)
+
+        invite.delete()
+        return Response(status=204)
 
 
 # ── Admin driver management ───────────────────────────────────────────────────
@@ -2627,6 +2720,37 @@ class AdminTeacherDetailView(APIView):
             "leaves": leaves_data,
             "leave_status": "on_leave" if active_leave else "active",
         })
+
+    def delete(self, request, teacher_id):
+        """Deactivate (soft-delete) a teacher profile.
+
+        The underlying PlatformUser is preserved so the teacher can join another
+        school later without needing to re-register from scratch.
+        DELETE /api/auth/admin/teachers/<teacher_id>/
+        """
+        slug = request.META.get("HTTP_X_SCHOOL_SLUG", "")
+        try:
+            school = School.objects.get(slug=slug, is_active=True)
+        except School.DoesNotExist:
+            return Response({"detail": "School not found."}, status=404)
+
+        try:
+            profile = TeacherProfile.objects.select_related("user").get(
+                id=teacher_id, school=school
+            )
+        except TeacherProfile.DoesNotExist:
+            return Response({"detail": "Teacher not found."}, status=404)
+
+        # Soft-delete: mark the profile inactive. The PlatformUser is kept so
+        # the teacher can be invited to another school and reuse their account.
+        profile.is_active = False
+        profile.save(update_fields=["is_active"])
+
+        # Unassign as class teacher if they were one.
+        from apps.academics.models import Classroom
+        Classroom.objects.filter(school=school, teacher=profile).update(teacher=None)
+
+        return Response(status=204)
 
 
 class AdminTeacherLeaveListView(APIView):

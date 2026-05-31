@@ -41,6 +41,10 @@ class TeacherProfile(SchoolScopedModel):
     # Once setupCompleted is true, the backend auto-generates ClassSession records
     # from classroomIds and uses them as the teacher's recurring weekly schedule.
     schedule_preferences = models.JSONField(default=dict, blank=True)
+    # Soft-delete flag: admin "removes" a teacher by setting is_active=False.
+    # The underlying PlatformUser is preserved so the teacher can join another
+    # school later and reuse the same account (no duplicate sign-up required).
+    is_active = models.BooleanField(default=True)
 
 
 class TeacherInvitation(TimestampedModel):

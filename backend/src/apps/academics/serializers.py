@@ -215,6 +215,9 @@ class TimetableWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Timetable
         fields = ("classroom", "academic_year", "label", "is_active")
+        extra_kwargs = {
+            "label": {"required": False, "allow_blank": True, "default": "Regular"},
+        }
 
 
 # ── Module C: Homework ─────────────────────────────────────────────────────────

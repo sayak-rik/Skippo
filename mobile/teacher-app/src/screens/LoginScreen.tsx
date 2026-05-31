@@ -45,16 +45,15 @@ export function LoginScreen({ navigation }: { navigation?: any }) {
 
   // ── Google OAuth setup ─────────────────────────────────────────────────────
 
-  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useIdTokenAuthRequest({
     clientId:        extra.googleWebClientId     || undefined,
     iosClientId:     extra.googleIosClientId     || undefined,
     androidClientId: extra.googleAndroidClientId || undefined,
-    scopes: ["openid", "profile", "email"],
   });
 
   useEffect(() => {
     if (googleResponse?.type === "success") {
-      const idToken = googleResponse.authentication?.idToken;
+      const idToken = googleResponse.params?.id_token;
       if (idToken) {
         handleGoogleToken(idToken);
       } else {
