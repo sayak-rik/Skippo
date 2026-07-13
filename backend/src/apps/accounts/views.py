@@ -1454,17 +1454,50 @@ class DriverSelfSignupView(APIView):
         except School.DoesNotExist:
             return Response({"detail": "School not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        DriverSignupRequest.objects.create(
+        signup_request = DriverSignupRequest.objects.create(
             school=school,
             name=name,
             phone=phone,
             aadhar_number=aadhar,
             vehicle_registration=vehicle_reg,
         )
+        # The driver app calls login(data) with this payload — it must carry the
+        # pending flag + request id so the app routes to the Pending Approval
+        # screen and can poll approval-status. No auth token until approved.
         return Response(
-            {"detail": "Signup submitted. Pending admin approval."},
+            {
+                "detail": "Signup submitted. Pending admin approval.",
+                "name": name,
+                "token": "",
+                "is_pending_approval": True,
+                "signup_request_id": signup_request.id,
+                "aadhar_number": aadhar,
+            },
             status=status.HTTP_201_CREATED,
         )
+
+
+class DriverApprovalStatusView(APIView):
+    """Poll the status of a self-signup request.
+
+    GET /api/auth/driver/approval-status/?request_id=<id>
+    Returns { "status": "pending" | "approved" | "rejected" }.
+
+    Pre-auth endpoint (the driver has no token yet); it only ever discloses
+    the status string for a known request id.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        request_id = request.query_params.get("request_id")
+        if not request_id:
+            return Response({"detail": "request_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            signup_request = DriverSignupRequest.objects.get(id=request_id)
+        except (DriverSignupRequest.DoesNotExist, ValueError):
+            return Response({"detail": "Request not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"status": signup_request.status})
 
 
 # ── Teacher phone lookup & Google Sign-In ────────────────────────────────────
@@ -2152,6 +2185,8 @@ def _driver_serialise(driver):
         "phone": driver.phone,
         "aadhar": driver.aadhar_number,
         "is_approved": driver.is_approved,
+        "is_kyc_verified": driver.is_kyc_verified,
+        "kyc_verified_at": driver.kyc_verified_at.isoformat() if driver.kyc_verified_at else None,
         "vehicle": vehicle_data,
         "route": route_data,
         "created_at": driver.created_at.date().isoformat(),

@@ -1,0 +1,11 @@
+.connecting, .reconnecting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.connecting   { background: var(--primary-soft);  color: var(--primary); }
+.reconnecting { background: var(--warning-soft);   color: var(--warning); }

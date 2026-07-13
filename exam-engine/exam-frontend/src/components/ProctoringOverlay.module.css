@@ -1,0 +1,61 @@
+.overlayBlocking {
+  position: fixed;
+  inset: 0;
+  background: rgba(220, 38, 38, 0.15);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 80px;
+  z-index: 200;
+  animation: fadeIn 0.2s ease;
+}
+
+.overlayWarning {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes fadeIn   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp  { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+.card {
+  background: var(--surface);
+  border: 1.5px solid var(--danger-border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  box-shadow: var(--shadow-lg);
+  max-width: 360px;
+}
+
+.overlayWarning .card {
+  border-color: var(--warning-border);
+}
+
+.iconWrap {
+  color: var(--danger);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.overlayWarning .iconWrap { color: var(--warning); }
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.body {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}

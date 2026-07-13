@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import {
   Bus, Plus, X, Pencil, Trash2, CheckCircle2, Clock,
-  ChevronDown, ChevronRight, Send, AlertCircle, Users, Phone,
+  ChevronDown, ChevronRight, Send, AlertCircle, Users, Phone, ShieldCheck,
 } from "lucide-react";
 import { DashboardShell } from "../../../components/DashboardShell";
 import { apiFetch } from "../../../lib/api";
@@ -20,6 +20,8 @@ interface Driver {
   phone: string;
   aadhar: string;
   is_approved: boolean;
+  is_kyc_verified?: boolean;
+  kyc_verified_at?: string | null;
   vehicle: VehicleRef | null;
   route: RouteRef | null;
   created_at: string;
@@ -144,8 +146,29 @@ function DriverDrawer({
 
 // ── Driver Row ────────────────────────────────────────────────────────────────
 
-function DriverRow({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () => void; onDelete: () => void }) {
+function DriverRow({ driver, onEdit, onDelete, onChanged }: { driver: Driver; onEdit: () => void; onDelete: () => void; onChanged: () => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  const startKyc = async () => {
+    setVerifying(true);
+    try {
+      const res = await apiFetch<{ status: string; authorize_url: string | null }>(
+        "/api/compliance/digilocker/initiate/",
+        { method: "POST", body: JSON.stringify({ driver_id: driver.id, doc_type: "driving_license" }) },
+      );
+      if (res.authorize_url) {
+        window.open(res.authorize_url, "_blank", "noopener");
+        alert("DigiLocker consent page opened in a new tab. The KYC badge appears once the driver approves access.");
+      }
+      onChanged();
+    } catch (e) {
+      alert((e as Error)?.message || "Could not start DigiLocker verification.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   return (
     <motion.div variants={fade} style={{ background: "var(--surface)", border: "1px solid var(--stroke)", borderRadius: 14, overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
       <div onClick={() => setExpanded((p) => !p)}
@@ -164,6 +187,15 @@ function DriverRow({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =>
             }}>
               {driver.is_approved ? "Active" : "Pending"}
             </span>
+            {driver.is_kyc_verified && (
+              <span style={{
+                fontSize: 10, fontWeight: 700, borderRadius: 999, padding: "2px 8px",
+                background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe",
+                display: "inline-flex", alignItems: "center", gap: 3,
+              }}>
+                <ShieldCheck size={10} /> KYC
+              </span>
+            )}
           </div>
           <div style={{ display: "flex", gap: 12, marginTop: 3 }}>
             <span style={{ fontSize: 12, color: "var(--ink-soft)", display: "flex", alignItems: "center", gap: 4 }}>
@@ -205,6 +237,27 @@ function DriverRow({ driver, onEdit, onDelete }: { driver: Driver; onEdit: () =>
                   <p style={{ fontSize: 13, color: "var(--ink)" }}>{f.value}</p>
                 </div>
               ))}
+            </div>
+            {/* DigiLocker KYC */}
+            <div style={{ padding: "0 20px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+              {driver.is_kyc_verified ? (
+                <span style={{ fontSize: 12, color: "#2563eb", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <ShieldCheck size={14} />
+                  KYC verified via DigiLocker
+                  {driver.kyc_verified_at ? ` on ${new Date(driver.kyc_verified_at).toLocaleDateString("en-IN", { dateStyle: "medium" })}` : ""}
+                </span>
+              ) : (
+                <button onClick={(e) => { e.stopPropagation(); startKyc(); }} disabled={verifying}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8,
+                    padding: "6px 12px", fontSize: 12, fontWeight: 700, color: "#2563eb",
+                    cursor: "pointer", opacity: verifying ? 0.6 : 1,
+                  }}>
+                  <ShieldCheck size={13} />
+                  {verifying ? "Starting verification…" : "Verify KYC via DigiLocker"}
+                </button>
+              )}
             </div>
           </motion.div>
         )}
@@ -393,7 +446,7 @@ export default function DriversPage() {
         ) : (
           <motion.div variants={stagger} initial="hidden" animate="show" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {filtered.map((d) => (
-              <DriverRow key={d.id} driver={d} onEdit={() => setEditing(d)} onDelete={() => deleteDriver(d.id)} />
+              <DriverRow key={d.id} driver={d} onEdit={() => setEditing(d)} onDelete={() => deleteDriver(d.id)} onChanged={load} />
             ))}
           </motion.div>
         )}

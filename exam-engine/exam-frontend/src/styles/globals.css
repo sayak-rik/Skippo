@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ── Skippo design tokens ─────────────────────────────────────────── */
+:root {
+  --canvas:          #F8FAFC;
+  --surface:         #FFFFFF;
+  --surface-raised:  #F1F5F9;
+  --surface-muted:   #F1F5F9;
+  --surface-hover:   #F8FAFC;
+
+  --ink:             #0F172A;
+  --ink-soft:        #475569;
+  --ink-dim:         #94A3B8;
+
+  --stroke:          #E2E8F0;
+  --stroke-strong:   #CBD5E1;
+
+  --primary:         #2563EB;
+  --primary-soft:    #EFF6FF;
+  --primary-dark:    #1D4ED8;
+  --primary-border:  #BFDBFE;
+
+  --success:         #16A34A;
+  --success-soft:    #F0FDF4;
+  --success-border:  #BBF7D0;
+
+  --warning:         #F59E0B;
+  --warning-soft:    #FFFBEB;
+  --warning-border:  #FDE68A;
+
+  --danger:          #DC2626;
+  --danger-soft:     #FEF2F2;
+  --danger-border:   #FECACA;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -1px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  font-family: var(--font);
+  background: var(--canvas);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: var(--font);
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+}
+
+input, textarea {
+  font-family: var(--font);
+}
+
+/* ── Utility classes ─────────────────────────────────────────────── */
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 600;
+  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary:hover  { background: var(--primary-dark); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-outline {
+  border: 1.5px solid var(--stroke-strong);
+  color: var(--ink-soft);
+  padding: 11px 20px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.tag-success { background: var(--success-soft); color: var(--success); border: 1px solid var(--success-border); padding: 3px 10px; border-radius: 100px; font-size: 12px; font-weight: 500; }
+.tag-warning { background: var(--warning-soft); color: var(--warning); border: 1px solid var(--warning-border); padding: 3px 10px; border-radius: 100px; font-size: 12px; font-weight: 500; }
+.tag-danger  { background: var(--danger-soft);  color: var(--danger);  border: 1px solid var(--danger-border);  padding: 3px 10px; border-radius: 100px; font-size: 12px; font-weight: 500; }
+.tag-primary { background: var(--primary-soft); color: var(--primary); border: 1px solid var(--primary-border); padding: 3px 10px; border-radius: 100px; font-size: 12px; font-weight: 500; }
+
+/* Spinner */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--stroke-strong);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}

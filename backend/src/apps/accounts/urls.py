@@ -28,6 +28,7 @@ from apps.accounts.views import (
     AdminTeacherListView,
     AdminUserRoleListView,
     CreateTeacherInviteView,
+    DriverApprovalStatusView,
     DriverSelfSignupView,
     MeView,
     OTPRequestView,
@@ -78,7 +79,8 @@ urlpatterns = [
     path("driver/accept-invite/",      AcceptDriverInviteView.as_view(),   name="accounts-accept-driver-invite"),
 
     # Driver self-signup (req 6) — no invite; waits for admin approval
-    path("driver/signup/", DriverSelfSignupView.as_view(), name="accounts-driver-signup"),
+    path("driver/signup/",          DriverSelfSignupView.as_view(),    name="accounts-driver-signup"),
+    path("driver/approval-status/", DriverApprovalStatusView.as_view(), name="accounts-driver-approval-status"),
 
     # OTP login (parent & driver)
     path("otp/request/", OTPRequestView.as_view(), name="accounts-otp-request"),

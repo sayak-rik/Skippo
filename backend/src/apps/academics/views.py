@@ -259,6 +259,44 @@ class AddStudentCommentView(APIView):
         )
 
 
+class TeacherProgressNotesView(APIView):
+    """Flat list of progress notes for the teacher app's Parent Reports screen.
+
+    GET /api/academics/teacher/progress-notes/
+    Scoped to the requesting teacher when the caller is an authenticated
+    teacher (same best-effort pattern as TeacherDashboardView).
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from apps.academics.models import StudentProgress
+
+        notes_qs = StudentProgress.objects.select_related("student").order_by("-created_at")
+
+        if request.user and request.user.is_authenticated:
+            from apps.accounts.models import TeacherProfile
+            try:
+                teacher = TeacherProfile.objects.get(user=request.user)
+                notes_qs = notes_qs.filter(teacher=teacher)
+            except TeacherProfile.DoesNotExist:
+                pass
+
+        results = [
+            {
+                "id": n.id,
+                "studentId": n.student_id,
+                "studentName": n.student.full_name,
+                "category": n.category,
+                "note": n.note,
+                "isReadByParent": n.is_read_by_parent,
+                "createdAt": n.created_at.isoformat(),
+            }
+            for n in notes_qs[:200]
+        ]
+        return Response({"results": results})
+
+
 # ── Class-wide broadcasts ─────────────────────────────────────────────────────
 
 class ClassBroadcastView(APIView):

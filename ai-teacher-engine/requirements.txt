@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+pydantic>=2.0
+pydantic-settings
+python-dotenv
+websockets
+httpx
+
+langchain-core
+langchain-anthropic
+langchain-google-genai
+
+edge-tts
+faster-whisper==1.1.0
+av

@@ -83,6 +83,10 @@ class DriverProfile(SchoolScopedModel):
     otp_multi_device_limit = models.PositiveSmallIntegerField(default=2)
     # is_approved is False for self-signup drivers until an admin approves them
     is_approved = models.BooleanField(default=True)
+    # Set by the DigiLocker verification pipeline (apps.compliance) once the
+    # driver's licence / ID document is verified against government records.
+    is_kyc_verified = models.BooleanField(default=False)
+    kyc_verified_at = models.DateTimeField(null=True, blank=True)
 
 
 class DriverInvitation(TimestampedModel):

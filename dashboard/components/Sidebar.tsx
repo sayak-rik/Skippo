@@ -36,6 +36,8 @@ import {
   Landmark,
   Settings,
   School,
+  Bot,
+  MonitorPlay,
 } from "lucide-react";
 
 function SchoolAvatar({ name, logoUrl }: { name: string; logoUrl?: string }) {
@@ -95,7 +97,9 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard/academics/timetable",         icon: Clock3,        label: "Timetable" },
       { href: "/dashboard/academics/homework",          icon: PencilLine,    label: "Homework" },
       { href: "/dashboard/academics/exams",             icon: ClipboardList, label: "Exams" },
+      { href: "/dashboard/academics/online-tests",      icon: MonitorPlay,   label: "Online Tests" },
       { href: "/dashboard/academics/report-cards",      icon: Award,         label: "Report Cards" },
+      { href: "/dashboard/ai-classes",                  icon: Bot,           label: "AI Classes" },
     ],
   },
   {

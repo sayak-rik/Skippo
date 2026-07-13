@@ -59,6 +59,19 @@ def _serialize_interest(r):
     }
 
 
+class PublicSchoolListView(APIView):
+    """Public list of active schools — used by the driver app's self-signup
+    school picker (GET /api/tenancy/schools/)."""
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        schools = School.objects.filter(is_active=True).order_by("name")
+        return Response({
+            "results": [{"id": s.id, "slug": s.slug, "name": s.name} for s in schools]
+        })
+
+
 class RegistrationInterestCreateView(APIView):
     """Public — no auth required. Called from the website contact form."""
     authentication_classes = []

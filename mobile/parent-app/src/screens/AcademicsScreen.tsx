@@ -9,7 +9,12 @@ import {
 } from "lucide-react-native";
 
 import { Screen } from "../components/Screen";
+import {
+  AIClassesSection,
+  OnlineTestsSection,
+} from "../components/StudentActivitySections";
 import { useParentAcademics } from "../hooks/useParentFeeds";
+import { useStudentActivities } from "../hooks/useStudentActivities";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
 
@@ -248,6 +253,7 @@ function ExamResultItem({ result }: { result: ExamResult }) {
 
 export function AcademicsScreen() {
   const { data, isLoading } = useParentAcademics();
+  const { data: activities } = useStudentActivities();
 
   if (isLoading) {
     return (
@@ -284,11 +290,21 @@ export function AcademicsScreen() {
       </View>
 
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      {data.students.map((student: any) => (
+      {data.students.map((student: any) => {
+        const activity = activities?.find((a) => a.studentId === student.studentId);
+        return (
         <View key={student.studentId}>
           {/* Student name chip — only shown if multiple students */}
           {data.students.length > 1 && (
             <Text style={styles.studentChip}>{student.studentName}</Text>
+          )}
+
+          {/* Online Tests + AI Classes */}
+          {activity && (
+            <>
+              <OnlineTestsSection tests={activity.tests} studentId={activity.studentId} />
+              <AIClassesSection classes={activity.aiClasses} />
+            </>
           )}
 
           {/* Class Setup */}
@@ -311,7 +327,7 @@ export function AcademicsScreen() {
           {student.reportCards.length > 0 && (
             <>
               <SectionHeader icon={Medal} title="Report Cards" />
-              {student.reportCards.map((rc) => (
+              {student.reportCards.map((rc: ReportCard) => (
                 <ReportCardItem key={rc.id} rc={rc} />
               ))}
             </>
@@ -322,7 +338,7 @@ export function AcademicsScreen() {
             <>
               <SectionHeader icon={BookOpen} title="Exam Marks" />
               <View style={styles.card}>
-                {student.examResults.map((r) => (
+                {student.examResults.map((r: ExamResult) => (
                   <ExamResultItem key={r.id} result={r} />
                 ))}
               </View>
@@ -333,14 +349,17 @@ export function AcademicsScreen() {
           {!student.classroom &&
             student.timetable.length === 0 &&
             student.reportCards.length === 0 &&
-            student.examResults.length === 0 && (
+            student.examResults.length === 0 &&
+            (activity?.tests.length ?? 0) === 0 &&
+            (activity?.aiClasses.length ?? 0) === 0 && (
               <View style={styles.emptyWrap}>
                 <Calendar size={32} color={palette.inkFaint} strokeWidth={1.5} />
                 <Text style={styles.emptySub}>No academic data available yet.</Text>
               </View>
             )}
         </View>
-      ))}
+        );
+      })}
     </Screen>
   );
 }

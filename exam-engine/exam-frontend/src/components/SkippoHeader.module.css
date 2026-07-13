@@ -1,0 +1,49 @@
+.header {
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--stroke);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: var(--shadow-sm);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.wordmark {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.testTitle {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+.badge {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-border);
+  padding: 3px 10px;
+  border-radius: 100px;
+  flex-shrink: 0;
+}

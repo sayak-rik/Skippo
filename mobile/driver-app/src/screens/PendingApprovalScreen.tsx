@@ -1,25 +1,63 @@
 // ---------------------------------------------------------------------------
 // PendingApprovalScreen – shown when is_pending_approval=true.
 // Self-signup drivers see this until an admin approves them.
-// Includes a "Check status" button that polls for approval in demo mode.
+// "Check status" polls /api/auth/driver/approval-status/; when no request id
+// is stored (demo login flow) it falls back to simulating approval.
 // ---------------------------------------------------------------------------
 
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useState } from "react";
+import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Screen } from "../components/Screen";
+import { api } from "../lib/api";
 import { useDriverSessionStore } from "../store/session";
 import { palette } from "../theme/palette";
 import { spacing } from "../theme/spacing";
+
+function notify(title: string, message: string) {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+}
 
 export function PendingApprovalScreen() {
   const logout = useDriverSessionStore((s) => s.logout);
   const approvalGranted = useDriverSessionStore((s) => s.approvalGranted);
   const driverName = useDriverSessionStore((s) => s.driverName);
+  const signupRequestId = useDriverSessionStore((s) => s.signupRequestId);
+  const [checking, setChecking] = useState(false);
 
-  // In production this would poll /api/auth/driver/approval-status/
-  // In demo mode, tapping "Check status" simulates an admin approving the request.
-  function handleCheckStatus() {
-    approvalGranted();
+  async function handleCheckStatus() {
+    // Demo mode: no real signup request behind this session
+    if (!signupRequestId) {
+      approvalGranted();
+      return;
+    }
+    setChecking(true);
+    try {
+      const { data } = await api.get("/api/auth/driver/approval-status/", {
+        params: { request_id: signupRequestId },
+      });
+      if (data.status === "approved") {
+        // Approved — the session has no auth token yet, so send the driver
+        // through the normal OTP login.
+        notify("You're approved! 🎉", "Log in with your phone number and OTP to start operating.");
+        logout();
+      } else if (data.status === "rejected") {
+        notify(
+          "Request declined",
+          "The school admin declined your registration. Contact the school office for details.",
+        );
+      } else {
+        notify("Still pending", "The school admin hasn't reviewed your request yet. Check back soon.");
+      }
+    } catch {
+      notify("Could not check status", "Please check your connection and try again.");
+    } finally {
+      setChecking(false);
+    }
   }
 
   return (
@@ -54,12 +92,21 @@ export function PendingApprovalScreen() {
           ))}
         </View>
 
-        {/* Check status (demo: simulates approval) */}
-        <TouchableOpacity style={styles.checkBtn} onPress={handleCheckStatus} activeOpacity={0.8}>
-          <Text style={styles.checkBtnText}>Check approval status</Text>
+        {/* Check status — real poll when a signup request exists, demo otherwise */}
+        <TouchableOpacity
+          style={[styles.checkBtn, checking && { opacity: 0.7 }]}
+          onPress={handleCheckStatus}
+          disabled={checking}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.checkBtnText}>
+            {checking ? "Checking…" : "Check approval status"}
+          </Text>
         </TouchableOpacity>
 
-        <Text style={styles.demoHint}>Demo: tap above to simulate admin approval.</Text>
+        {!signupRequestId && (
+          <Text style={styles.demoHint}>Demo: tap above to simulate admin approval.</Text>
+        )}
 
         {/* Logout */}
         <TouchableOpacity style={styles.logoutLink} onPress={logout} activeOpacity={0.7}>

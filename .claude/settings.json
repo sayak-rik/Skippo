@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -f /private/tmp/claude-501/-Users-sayakroy-Documents-Projects-Skippo/e3a785a4-53a1-4b80-912a-b855ec11bd65/scratchpad/skippo.sqlite3)",
+      "Bash(DJANGO_SETTINGS_MODULE=skippo_backend.settings.base PYTHONPATH=src DATABASE_URL=sqlite:////private/tmp/claude-501/-Users-sayakroy-Documents-Projects-Skippo/e3a785a4-53a1-4b80-912a-b855ec11bd65/scratchpad/skippo.sqlite3 /private/tmp/claude-501/-Users-sayakroy-Documents-Projects-Skippo/e3a785a4-53a1-4b80-912a-b855ec11bd65/scratchpad/venv/bin/python manage.py check --deploy)"
+    ]
+  }
+}

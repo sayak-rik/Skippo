@@ -1,0 +1,124 @@
+.join-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: radial-gradient(ellipse at 60% 20%, #1e1b4b 0%, var(--bg) 70%);
+}
+
+.join-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px 36px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: var(--shadow);
+}
+
+.join-logo {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.join-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.join-logo h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--accent2);
+}
+
+.join-logo p {
+  color: var(--text2);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.join-tabs {
+  display: flex;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 24px;
+  gap: 4px;
+}
+
+.join-tabs button {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text2);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.join-tabs button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.join-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text2);
+}
+
+.join-form input,
+.join-form textarea {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 0.9rem;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.join-form input:focus,
+.join-form textarea:focus {
+  border-color: var(--accent);
+}
+
+.join-error {
+  color: var(--red);
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 6px;
+}
+
+.btn-primary {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.btn-primary:hover:not(:disabled) { opacity: 0.9; }
+.btn-primary:active:not(:disabled) { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }

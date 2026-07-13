@@ -1,0 +1,5 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import styles from "./SkippoHeader.module.css";
+export function SkippoHeader({ testTitle }) {
+    return (_jsxs("header", { className: styles.header, children: [_jsxs("div", { className: styles.brand, children: [_jsxs("svg", { width: "28", height: "28", viewBox: "0 0 28 28", fill: "none", xmlns: "http://www.w3.org/2000/svg", children: [_jsx("rect", { width: "28", height: "28", rx: "8", fill: "#2563EB" }), _jsx("path", { d: "M8 10.5C8 9.4 8.9 8.5 10 8.5H18C19.1 8.5 20 9.4 20 10.5V17.5C20 18.6 19.1 19.5 18 19.5H10C8.9 19.5 8 18.6 8 17.5V10.5Z", fill: "white", fillOpacity: "0.2" }), _jsx("path", { d: "M11 14L13.5 16.5L17 12", stroke: "white", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round" })] }), _jsx("span", { className: styles.wordmark, children: "Skippo" })] }), testTitle && _jsx("span", { className: styles.testTitle, children: testTitle }), _jsx("span", { className: styles.badge, children: "Online Test" })] }));
+}

@@ -25,6 +25,17 @@ env = environ.Env(
     RAZORPAY_KEY_SECRET=(str, ""),
     RAZORPAY_WEBHOOK_SECRET=(str, ""),
     PLATFORM_COMMISSION_PCT=(str, "2.0"),
+    EXAM_LB_URL=(str, "http://exam-loadbalancer:8094"),
+    EXAM_LB_SECRET=(str, ""),
+    EXAM_WEBHOOK_SECRET=(str, ""),
+    BACKEND_PUBLIC_URL=(str, "http://localhost:8000"),
+    AITLB_URL=(str, "http://ai-teacher-loadbalancer:8095"),
+    AITLB_SECRET=(str, ""),
+    AI_TEACHER_WEBHOOK_SECRET=(str, ""),
+    DIGILOCKER_BASE_URL=(str, "https://api.digitallocker.gov.in"),
+    DIGILOCKER_CLIENT_ID=(str, ""),
+    DIGILOCKER_CLIENT_SECRET=(str, ""),
+    DIGILOCKER_REDIRECT_URI=(str, ""),
 )
 
 BASE_DIR = Path(__file__).resolve().parents[3]
@@ -60,6 +71,8 @@ INSTALLED_APPS = [
     "apps.dismissal",
     "apps.calls",
     "apps.payments",
+    "apps.assessments",
+    "apps.ai_classes",
     "django_celery_beat",
 ]
 
@@ -197,10 +210,30 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.payments.tasks.mark_overdue_invoices",
         "schedule": 60 * 60 * 24,  # daily
     },
+    "close-expired-online-tests": {
+        "task": "assessments.close_expired_tests",
+        "schedule": 60 * 5,  # every 5 minutes
+    },
 }
 
 CALL_AGENT_URL    = env("CALL_AGENT_URL")
 PAYMENT_SERVICE_URL = env("PAYMENT_SERVICE_URL")
+AITLB_URL = env("AITLB_URL")
+AITLB_SECRET = env("AITLB_SECRET")
+AI_TEACHER_WEBHOOK_SECRET = env("AI_TEACHER_WEBHOOK_SECRET")
+EXAM_LB_URL = env("EXAM_LB_URL")
+EXAM_LB_SECRET = env("EXAM_LB_SECRET")
+EXAM_WEBHOOK_SECRET = env("EXAM_WEBHOOK_SECRET")
+BACKEND_PUBLIC_URL = env("BACKEND_PUBLIC_URL")
+
+DIGILOCKER_BASE_URL = env("DIGILOCKER_BASE_URL").rstrip("/")
+DIGILOCKER_CLIENT_ID = env("DIGILOCKER_CLIENT_ID")
+DIGILOCKER_CLIENT_SECRET = env("DIGILOCKER_CLIENT_SECRET")
+# DigiLocker redirects the driver's browser here after consent
+DIGILOCKER_REDIRECT_URI = (
+    env("DIGILOCKER_REDIRECT_URI")
+    or f"{BACKEND_PUBLIC_URL}/api/compliance/digilocker/callback/"
+)
 
 RAZORPAY_KEY_ID       = env("RAZORPAY_KEY_ID")
 RAZORPAY_KEY_SECRET   = env("RAZORPAY_KEY_SECRET")

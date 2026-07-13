@@ -137,7 +137,7 @@ services:
       SMTP_HOST: "${SMTP_HOST:-smtp.gmail.com}"
       SMTP_PORT: "${SMTP_PORT:-587}"
       SMTP_USER: "${SMTP_USER:-skippo.india@gmail.com}"
-      SMTP_PASSWORD: "${SMTP_PASSWORD:-ewql irty umrj hsxr}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
       SMTP_FROM_NAME: "Skippo"
       INTERNAL_API_KEY: "${EMAIL_SERVICE_API_KEY:-868ba203-064e-4f45-9dd9-e6b6a1280aa7}"
       EMAIL_DRY_RUN: "${EMAIL_DRY_RUN:-false}"
@@ -157,7 +157,7 @@ services:
     environment:
       LLM_PROVIDER: "${LLM_PROVIDER:-gemini}"
       LLM_MODEL: "${LLM_MODEL:-gemini-2.5-flash}"
-      GEMINI_API_KEY: "${GEMINI_API_KEY:-AIzaSyCrNQYb1k-ZZjLiwqsjDgFnavCwF9V9bds}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
       REDIS_URL: "redis://redis:6379/4"
@@ -188,6 +188,16 @@ services:
       EMAIL_SERVICE_URL: "http://email-service:8092"
       EMAIL_SERVICE_API_KEY: "${EMAIL_SERVICE_API_KEY:-868ba203-064e-4f45-9dd9-e6b6a1280aa7}"
       LLM_SERVICE_URL: "http://llm-service:8093"
+      AITLB_URL: "http://ai-teacher-loadbalancer:8095"
+      AITLB_SECRET: "${AITLB_SECRET:-}"
+      AI_TEACHER_WEBHOOK_SECRET: "${AI_TEACHER_WEBHOOK_SECRET:-}"
+      EXAM_LB_URL: "http://exam-loadbalancer:8094"
+      EXAM_LB_SECRET: "${EXAM_LB_SECRET:-}"
+      EXAM_WEBHOOK_SECRET: "${EXAM_WEBHOOK_SECRET:-}"
+      BACKEND_PUBLIC_URL: "${BACKEND_PUBLIC_URL:-http://backend:8000}"
+      DIGILOCKER_CLIENT_ID: "${DIGILOCKER_CLIENT_ID:-}"
+      DIGILOCKER_CLIENT_SECRET: "${DIGILOCKER_CLIENT_SECRET:-}"
+      DIGILOCKER_REDIRECT_URI: "${DIGILOCKER_REDIRECT_URI:-}"
       MSG91_AUTH_KEY: "${MSG91_AUTH_KEY:-}"
       MSG91_SENDER_ID: "${MSG91_SENDER_ID:-SKIPPO}"
       MSG91_TEMPLATE_ID: "${MSG91_TEMPLATE_ID:-}"
@@ -233,6 +243,208 @@ services:
     environment:
       <<: *backend-env
     depends_on: *infra-depends
+    networks:
+      - skippo-network
+    logging: *default-logging
+
+  exam-loadbalancer:
+    build:
+      context: ./exam-loadbalancer
+      dockerfile: Dockerfile
+    container_name: skippo-exam-loadbalancer
+    restart: unless-stopped
+    profiles: [backend]
+    environment:
+      DJANGO_SECRET_KEY: "${EXAM_LB_DJANGO_SECRET:-insecure-exam-lb-key}"
+      DB_HOST: postgres
+      DB_NAME: exam_lb
+      DB_USER: exam_lb
+      DB_PASSWORD: exam_lb
+      REDIS_URL: "redis://redis:6379/5"
+      EXAM_LB_SECRET: "${EXAM_LB_SECRET:-}"
+      POD_SESSION_CAPACITY: "2"
+      POD_GRACE_PERIOD_SECONDS: "1800"
+      POD_HEARTBEAT_TIMEOUT_SECONDS: "3600"
+      FLY_API_TOKEN: "${FLY_API_TOKEN:-}"
+      FLY_APP_NAME: "${FLY_EXAM_APP_NAME:-skippo-exam-engine}"
+      FLY_MACHINE_IMAGE: "${FLY_EXAM_IMAGE:-registry.fly.io/skippo-exam-engine:latest}"
+      FLY_MACHINE_BASE_URL: "${FLY_EXAM_BASE_URL:-}"
+      FLY_REGIONS: "${FLY_EXAM_REGIONS:-bom}"
+      SKIPPO_WEBHOOK_URL: "${BACKEND_PUBLIC_URL:-http://backend:8000}/api/assessments/webhook/results/"
+      SKIPPO_WEBHOOK_SECRET: "${EXAM_WEBHOOK_SECRET:-}"
+      EXAM_LB_INTERNAL_URL: "http://exam-loadbalancer:8094"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
+      LLM_PROVIDER: "${LLM_PROVIDER:-google}"
+      # Local mode: spin exam pods as Docker containers on this machine.
+      # Set POD_PROVIDER=fly (+ FLY_* vars) for cloud deployments.
+      POD_PROVIDER: "${POD_PROVIDER:-docker}"
+      LOCAL_ENGINE_IMAGE: "${LOCAL_EXAM_ENGINE_IMAGE:-skippo-exam-engine:local}"
+      DOCKER_NETWORK: "skippo-network"
+      DOCKER_POD_HOST: "${DOCKER_POD_HOST:-localhost}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8094:8094"
+    depends_on:
+      <<: *infra-depends
+    networks:
+      - skippo-network
+    logging: *default-logging
+
+  exam-lb-worker:
+    build:
+      context: ./exam-loadbalancer
+      dockerfile: Dockerfile
+    container_name: skippo-exam-lb-worker
+    restart: unless-stopped
+    profiles: [backend]
+    command: ["celery", "-A", "examlb", "worker", "-Q", "exam_loadbalancer", "--loglevel=info", "--concurrency=2"]
+    environment:
+      DJANGO_SECRET_KEY: "${EXAM_LB_DJANGO_SECRET:-insecure-exam-lb-key}"
+      DB_HOST: postgres
+      DB_NAME: exam_lb
+      DB_USER: exam_lb
+      DB_PASSWORD: exam_lb
+      REDIS_URL: "redis://redis:6379/5"
+      EXAM_LB_SECRET: "${EXAM_LB_SECRET:-}"
+      FLY_API_TOKEN: "${FLY_API_TOKEN:-}"
+      FLY_APP_NAME: "${FLY_EXAM_APP_NAME:-skippo-exam-engine}"
+      FLY_MACHINE_IMAGE: "${FLY_EXAM_IMAGE:-registry.fly.io/skippo-exam-engine:latest}"
+      FLY_MACHINE_BASE_URL: "${FLY_EXAM_BASE_URL:-}"
+      FLY_REGIONS: "${FLY_EXAM_REGIONS:-bom}"
+      POD_PROVIDER: "${POD_PROVIDER:-docker}"
+      LOCAL_ENGINE_IMAGE: "${LOCAL_EXAM_ENGINE_IMAGE:-skippo-exam-engine:local}"
+      DOCKER_NETWORK: "skippo-network"
+      DOCKER_POD_HOST: "${DOCKER_POD_HOST:-localhost}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      <<: *infra-depends
+    networks:
+      - skippo-network
+    logging: *default-logging
+
+  exam-lb-beat:
+    build:
+      context: ./exam-loadbalancer
+      dockerfile: Dockerfile
+    container_name: skippo-exam-lb-beat
+    restart: unless-stopped
+    profiles: [backend]
+    command: ["celery", "-A", "examlb", "beat", "-Q", "exam_loadbalancer", "--loglevel=info"]
+    environment:
+      DJANGO_SECRET_KEY: "${EXAM_LB_DJANGO_SECRET:-insecure-exam-lb-key}"
+      DB_HOST: postgres
+      DB_NAME: exam_lb
+      DB_USER: exam_lb
+      DB_PASSWORD: exam_lb
+      REDIS_URL: "redis://redis:6379/5"
+      EXAM_LB_SECRET: "${EXAM_LB_SECRET:-}"
+      FLY_API_TOKEN: "${FLY_API_TOKEN:-}"
+      FLY_APP_NAME: "${FLY_EXAM_APP_NAME:-skippo-exam-engine}"
+    depends_on:
+      <<: *infra-depends
+    networks:
+      - skippo-network
+    logging: *default-logging
+
+  # ── AI Teacher Loadbalancer ───────────────────────────────────────────────────
+
+  ai-teacher-loadbalancer:
+    build:
+      context: ./ai-teacher-loadbalancer
+      dockerfile: Dockerfile
+    container_name: skippo-ai-teacher-loadbalancer
+    restart: unless-stopped
+    profiles: [backend]
+    environment:
+      DJANGO_SECRET_KEY: "${AITLB_DJANGO_SECRET:-insecure-aitlb-key}"
+      DB_HOST: postgres
+      DB_NAME: ai_teacher_lb
+      DB_USER: ai_teacher_lb
+      DB_PASSWORD: ai_teacher_lb
+      REDIS_URL: "redis://redis:6379/6"
+      AITLB_SECRET: "${AITLB_SECRET:-}"
+      POD_GRACE_PERIOD_SECONDS: "3600"
+      POD_HEARTBEAT_TIMEOUT_SECONDS: "7200"
+      FLY_API_TOKEN: "${FLY_API_TOKEN:-}"
+      FLY_APP_NAME: "${FLY_AI_TEACHER_APP_NAME:-skippo-ai-teacher}"
+      FLY_MACHINE_IMAGE: "${FLY_AI_TEACHER_IMAGE:-registry.fly.io/skippo-ai-teacher:latest}"
+      FLY_MACHINE_BASE_URL: "${FLY_AI_TEACHER_BASE_URL:-}"
+      FLY_REGIONS: "${FLY_AI_TEACHER_REGIONS:-bom}"
+      SKIPPO_WEBHOOK_URL: "${BACKEND_PUBLIC_URL:-http://backend:8000}/api/ai-classes/webhook/"
+      SKIPPO_WEBHOOK_SECRET: "${AI_TEACHER_WEBHOOK_SECRET:-}"
+      AITLB_INTERNAL_URL: "http://ai-teacher-loadbalancer:8095"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      LLM_PROVIDER: "${LLM_PROVIDER:-anthropic}"
+      # Local mode: spin AI teacher pods as Docker containers on this machine.
+      # Set POD_PROVIDER=fly (+ FLY_* vars) for cloud deployments.
+      POD_PROVIDER: "${POD_PROVIDER:-docker}"
+      LOCAL_ENGINE_IMAGE: "${LOCAL_AI_TEACHER_IMAGE:-skippo-ai-teacher:local}"
+      DOCKER_NETWORK: "skippo-network"
+      DOCKER_POD_HOST: "${DOCKER_POD_HOST:-localhost}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8095:8095"
+    depends_on:
+      <<: *infra-depends
+    networks:
+      - skippo-network
+    logging: *default-logging
+
+  ai-teacher-lb-worker:
+    build:
+      context: ./ai-teacher-loadbalancer
+      dockerfile: Dockerfile
+    container_name: skippo-ai-teacher-lb-worker
+    restart: unless-stopped
+    profiles: [backend]
+    command: ["celery", "-A", "aitlb", "worker", "-Q", "ai_teacher_loadbalancer", "--loglevel=info", "--concurrency=2"]
+    environment:
+      DJANGO_SECRET_KEY: "${AITLB_DJANGO_SECRET:-insecure-aitlb-key}"
+      DB_HOST: postgres
+      DB_NAME: ai_teacher_lb
+      DB_USER: ai_teacher_lb
+      DB_PASSWORD: ai_teacher_lb
+      REDIS_URL: "redis://redis:6379/6"
+      AITLB_SECRET: "${AITLB_SECRET:-}"
+      FLY_API_TOKEN: "${FLY_API_TOKEN:-}"
+      FLY_APP_NAME: "${FLY_AI_TEACHER_APP_NAME:-skippo-ai-teacher}"
+      FLY_MACHINE_IMAGE: "${FLY_AI_TEACHER_IMAGE:-registry.fly.io/skippo-ai-teacher:latest}"
+      FLY_MACHINE_BASE_URL: "${FLY_AI_TEACHER_BASE_URL:-}"
+      FLY_REGIONS: "${FLY_AI_TEACHER_REGIONS:-bom}"
+      POD_PROVIDER: "${POD_PROVIDER:-docker}"
+      LOCAL_ENGINE_IMAGE: "${LOCAL_AI_TEACHER_IMAGE:-skippo-ai-teacher:local}"
+      DOCKER_NETWORK: "skippo-network"
+      DOCKER_POD_HOST: "${DOCKER_POD_HOST:-localhost}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      <<: *infra-depends
+    networks:
+      - skippo-network
+    logging: *default-logging
+
+  ai-teacher-lb-beat:
+    build:
+      context: ./ai-teacher-loadbalancer
+      dockerfile: Dockerfile
+    container_name: skippo-ai-teacher-lb-beat
+    restart: unless-stopped
+    profiles: [backend]
+    command: ["celery", "-A", "aitlb", "beat", "-Q", "ai_teacher_loadbalancer", "--loglevel=info"]
+    environment:
+      DJANGO_SECRET_KEY: "${AITLB_DJANGO_SECRET:-insecure-aitlb-key}"
+      DB_HOST: postgres
+      DB_NAME: ai_teacher_lb
+      DB_USER: ai_teacher_lb
+      DB_PASSWORD: ai_teacher_lb
+      REDIS_URL: "redis://redis:6379/6"
+      AITLB_SECRET: "${AITLB_SECRET:-}"
+    depends_on:
+      <<: *infra-depends
     networks:
       - skippo-network
     logging: *default-logging

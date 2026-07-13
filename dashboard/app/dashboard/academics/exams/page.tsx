@@ -173,7 +173,7 @@ function ScheduleDrawer({ examId, classrooms, subjects, onClose, onSaved }: {
   examId: number; classrooms: Classroom[]; subjects: Subject[];
   onClose: () => void; onSaved: (s: ExamSchedule) => void;
 }) {
-  const [form, setForm] = useState({ classroom: classrooms[0]?.id ?? "", subject: "", date: "", starts_at: "", ends_at: "", max_marks: 100, passing_marks: 35 });
+  const [form, setForm] = useState({ classroom: String(classrooms[0]?.id ?? ""), subject: "", date: "", starts_at: "", ends_at: "", max_marks: 100, passing_marks: 35 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 

@@ -1,0 +1,52 @@
+.audio-recorder {
+  display: flex;
+  align-items: center;
+}
+
+.rec-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: opacity .15s, transform .1s;
+}
+
+.rec-btn:active:not(:disabled) { transform: scale(0.97); }
+.rec-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.rec-btn.start {
+  background: var(--bg3);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.rec-btn.start:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent2);
+}
+
+.rec-btn.stop {
+  background: rgba(239,68,68,.15);
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+
+.rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.rec-dot.pulsing {
+  animation: dot-pulse .8s ease-in-out infinite alternate;
+}
+
+@keyframes dot-pulse {
+  from { opacity: 1; }
+  to   { opacity: .3; }
+}

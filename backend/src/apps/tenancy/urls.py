@@ -2,6 +2,7 @@ from django.urls import path
 
 from apps.tenancy.views import (
     AdminOverviewView,
+    PublicSchoolListView,
     RegistrationInterestCreateView,
     RegistrationInterestListView,
     SchoolLogoUploadView,
@@ -13,6 +14,8 @@ from apps.tenancy.views import (
 urlpatterns = [
     # Public — website contact form submits here
     path("interests/",                   RegistrationInterestCreateView.as_view(), name="tenancy-interests-create"),
+    # Public — driver app self-signup school picker
+    path("schools/",                     PublicSchoolListView.as_view(),           name="tenancy-public-schools"),
 
     # Staff + superuser
     path("admin/interests/",             RegistrationInterestListView.as_view(),   name="tenancy-interests-list"),

@@ -1,0 +1,136 @@
+.page { min-height: 100vh; display: flex; flex-direction: column; background: var(--canvas); }
+
+.centerFill {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.loadingText { font-size: 14px; color: var(--ink-soft); }
+
+.main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 32px 16px 48px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-xl);
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  margin-bottom: 8px;
+}
+
+.instructions {
+  background: var(--surface-muted);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+.instructionText { font-size: 14px; color: var(--ink-soft); line-height: 1.6; }
+
+.rules {}
+
+.ruleList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+}
+.ruleList li {
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding-left: 16px;
+  position: relative;
+  line-height: 1.5;
+}
+.ruleList li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.perms {}
+
+.permRow { display: flex; flex-direction: column; gap: 8px; }
+
+.permItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface-muted);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--stroke);
+}
+
+.permIcon { color: var(--ink-soft); display: flex; }
+.permLabel { font-size: 14px; font-weight: 500; color: var(--ink); }
+
+.permDenied {
+  font-size: 13px;
+  color: var(--danger);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.startBtn { width: 100%; justify-content: center; padding: 14px; font-size: 16px; }
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-border);
+  border-radius: var(--radius-md);
+}
+
+.confirm p { font-size: 14px; font-weight: 500; color: var(--ink); }
+
+.confirmBtns {
+  display: flex;
+  gap: 10px;
+}
+
+.confirmBtns > * { flex: 1; justify-content: center; }
+
+.spinner { margin-top: 8px; }

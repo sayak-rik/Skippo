@@ -62,6 +62,7 @@ from apps.academics.views import (
     ResolveAssistRequestView,
     SchedulePreferencesView,
     TeacherDashboardView,
+    TeacherProgressNotesView,
     TeacherScheduleView,
 )
 
@@ -78,6 +79,9 @@ urlpatterns = [
 
     # First-week schedule preferences
     path("teacher/schedule-preferences/", SchedulePreferencesView.as_view(), name="academics-schedule-preferences"),
+
+    # Flat progress-notes list (teacher app Parent Reports screen)
+    path("teacher/progress-notes/", TeacherProgressNotesView.as_view(), name="academics-teacher-progress-notes"),
 
     # Per-session roster
     path(

@@ -209,3 +209,6 @@ __marimo__/
 # Node Modules
 *node_modules*
 *.next*
+# Exam-engine frontend build output (vite outDir ../static; rebuilt in Docker)
+exam-engine/static/*
+!exam-engine/static/.gitkeep
